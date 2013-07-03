@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="author" content="赖明星" />
+	<title>links | 赖明星</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link href="http://127.0.0.1:4000//feed/" rel="alternate" title="赖明星" type="application/atom+xml" />
+    <link rel="stylesheet" href="/media/css/style.css">
+    <link rel="stylesheet" href="/media/js/code/prettify.css">|
+  </head>
+
+	<div id="top"></div>
+  <body>
+    <div id="container">
+      <div id="main" role="main">
+        <header>
+        <h1>links</h1>
+        </header>
+
+        <nav>
+        <span><a title="home page" class="" href="http://127.0.0.1:4000//">home</a></span>
+        <span><a title="about" class="" href="http://127.0.0.1:4000//about/">about</a></span>
+        <span><a title="publication" class="" href="http://127.0.0.1:4000//publication/">publication</a></span>
+        <span><a title="guestbook" class="" href="http://127.0.0.1:4000//guestbook/">guestbook</a></span>
+        <span><a title="vitae" class="" href="http://127.0.0.1:4000//vitae/">vitae</a></span>
+        <span><a title="categories" class="" href="http://127.0.0.1:4000//categories/">categories</a></span>
+        <span><a title="tags" class="" href="http://127.0.0.1:4000//tags/">tags</a></span>
+        <span><a title="links" class="" href="http://127.0.0.1:4000//links/">links</a></span>
+        <span><a title="subscribe by RSS" class="" href="http://feed.feedsky.com/laimingxing">subscribe</a></span>
+        </nav>
+
+        <article class="content">
+
+
+        <section class="post">
+<h1>学习网站</h1>
+
+<ul>
+<li><a href="http://www.theunixschool.com/">the unix school</a></li>
+<li><a href="http://geeksforgeeks.org/">geek for geeks</a></li>
+<li><a href="http://dblab.xmu.edu.cn">厦门大学数据库实验室</a></li>
+</ul>
+
+
+<h1>博客</h1>
+
+<ul>
+<li><a href="http://www.cs.xmu.edu.cn/database/linziyu/index.html">林子雨</a> 厦门大学计算机系青年教师，我的恩师</li>
+<li><a href="http://yihui.name">谢益辉</a> 榜样</li>
+<li><a href="http://irwenqiang.com">陈文强</a> 朋友</li>
+<li><a href="http://www.rocsky.name/">苏志锋</a> 师兄</li>
+</ul>
+
+
+</section>
+
+<section class="comment">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'mingxing'; // required: replace example with your forum shortname
+		var disqus_rul = 'http://127.0.0.1:4000//links/';
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</section>
+
+
+
+
+
+        </article>
+
+	<div id="message"><a href="#top">Scroll to top</a></div>
+	</div>
+</div>
+
+<script type="text/javascript" src="/media/js/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="/media/js/code/prettify.js"></script>
+
+ <script type="text/javascript">
+      $(function(){
+        $("pre").addClass("prettyprint linenums");
+        prettyPrint();
+        $('.entry a').each(function(){
+          if($(this).attr("href").indexOf("mingxinglai") == -1){
+            $(this).attr("target", "_blank");
+          }
+        })
+      });
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-35023741-1']);
+  _gaq.push(['_trackPageview']);
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+<script type="text/javascript">
+$(function () {
+
+    /* set variables locally for increased performance */
+    var scroll_timer;
+    var displayed = false;
+    var $message = $('#message a');
+    var $window = $(window);
+    var top = $(document.body).children(0).position().top;
+
+    /* react to scroll event on window */
+    $window.scroll(function () {
+        window.clearTimeout(scroll_timer);
+        scroll_timer = window.setTimeout(function () {
+            if($window.scrollTop() <= top + 800)
+            {
+                displayed = false;
+                $message.fadeOut(1000);
+            }
+            else if(displayed == false)
+            {
+                displayed = true;
+                $message.stop(true, true).show().click(function () { $message.fadeOut(1000); });
+            }
+        }, 100);
+    });
+});
+</script>
+  </body>
+</html>
