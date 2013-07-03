@@ -1,24 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
  
- <title>chenzongzhi</title>
- <link href="http://tom.preston-werner.com/atom.xml" rel="self"/>
- <link href="http://tom.preston-werner.com/"/>
- <updated>2013-06-30T18:18:38+08:00</updated>
- <id>http://tom.preston-werner.com/</id>
+ <title></title>
+ <link href="http://127.0.0.1:4000//atom.xml" rel="self"/>
+ <link href="http://127.0.0.1:4000/"/>
+ <updated>2013-07-03T14:35:21+08:00</updated>
+ <id>http://127.0.0.1:4000/</id>
  <author>
-   <name>chenzongzhi</name>
-   <email>baotiao@gmail.com</email>
+   <name></name>
+   <email></email>
  </author>
 
  
  <entry>
-   <title>move-to-jekyll</title>
-   <link href="http://tom.preston-werner.com/2013/06/09/move-to-jekyll.html"/>
-   <updated>2013-06-09T00:00:00+08:00</updated>
-   <id>http://tom.preston-werner.com/2013/06/09/move-to-jekyll</id>
-   <content type="html">&lt;pre&gt;&lt;code&gt;finally. Move to jekyll from wordpress
-&lt;/code&gt;&lt;/pre&gt;
+   <title>test markdown</title>
+   <link href="http://127.0.0.1:4000//2013/07/test-markdown/"/>
+   <updated>2013-07-01T00:00:00+08:00</updated>
+   <id>http://127.0.0.1:4000//2013/07/test-markdown</id>
+   <content type="html">&lt;p&gt;first time use in markdown&lt;/p&gt;
 </content>
  </entry>
  
