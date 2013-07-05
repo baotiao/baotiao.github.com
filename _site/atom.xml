@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://127.0.0.1:4000//atom.xml" rel="self"/>
  <link href="http://127.0.0.1:4000/"/>
- <updated>2013-07-05T02:43:01+08:00</updated>
+ <updated>2013-07-05T15:58:56+08:00</updated>
  <id>http://127.0.0.1:4000/</id>
  <author>
    <name></name>
@@ -302,57 +302,49 @@ inline int max(int a, int b); 是没用的, 这里是函数的声明,不是函�
  
  <entry>
    <title>c++泛型单例模式</title>
-   <link href="http://127.0.0.1:4000//2012/06/ce6b39be59e8be58d95e4be8be6a8a1e5bc8f/"/>
+   <link href="http://127.0.0.1:4000//2012/06/c%2B%2B-single-model/"/>
    <updated>2012-06-19T02:23:13+08:00</updated>
-   <id>http://127.0.0.1:4000//2012/06/ce6b39be59e8be58d95e4be8be6a8a1e5bc8f</id>
+   <id>http://127.0.0.1:4000//2012/06/c++-single-model</id>
    <content type="html">&lt;p&gt;单例模式是在设计模式里面很常见的一种,用来确保一个类只有一个实例. 首先是原生态版本的实现.&lt;/p&gt;
 
-&lt;p&gt;`&lt;/p&gt;
-
-&lt;h1&gt;include&lt;/h1&gt;
-
-&lt;h1&gt;ifndef SING_H&lt;/h1&gt;
-
-&lt;p&gt;class sing {
+&lt;pre&gt;&lt;code&gt;#include &amp;lt;iostream&amp;gt;
+#ifndef SING_H
+class sing {
     private:
-        static sing &lt;em&gt;m_sing;
+        static sing *m_sing;
     public:
         int num;
         static void open();
         static void close();
-        static sing &lt;/em&gt;getInstance();
+        static sing *getInstance();
         void func();
     protected:
         ~sing();
         sing();
-};&lt;/p&gt;
+};
 
-&lt;h1&gt;define SING_H&lt;/h1&gt;
+#define SING_H
+#endif
 
-&lt;h1&gt;endif&lt;/h1&gt;
 
-&lt;h1&gt;include&lt;/h1&gt;
+#include &amp;lt;iostream&amp;gt;
+#include &amp;lt;string&amp;gt;
+#include &quot;sing.h&quot;
+#include &quot;assert.h&quot;
+using namespace std;
 
-&lt;h1&gt;include&lt;/h1&gt;
-
-&lt;h1&gt;include &quot;sing.h&quot;&lt;/h1&gt;
-
-&lt;h1&gt;include &quot;assert.h&quot;&lt;/h1&gt;
-
-&lt;p&gt;using namespace std;&lt;/p&gt;
-
-&lt;p&gt;sing *sing::m_sing = NULL;
+sing *sing::m_sing = NULL;
 sing::sing()
 {
     printf(&quot;sing construct\n&quot;);
-}&lt;/p&gt;
+}
 
-&lt;p&gt;sing::~sing()
+sing::~sing()
 {
     printf(&quot;sing destruct\n&quot;);
-}&lt;/p&gt;
+}
 
-&lt;p&gt;sing *sing::getInstance()
+sing *sing::getInstance()
 {
     if (m_sing == NULL) {
         printf(&quot;m_sing is NULL\n&quot;);
@@ -360,117 +352,103 @@ sing::sing()
         assert(m_sing != NULL);
     }
     return m_sing;
-}&lt;/p&gt;
+}
 
-&lt;p&gt;void sing::close()
+void sing::close()
 {
     if (m_sing == NULL) {
         delete m_sing;
         m_sing = NULL;
     }
-}&lt;/p&gt;
+}
 
-&lt;p&gt;void sing::func()
+void sing::func()
 {
     printf(&quot;sing::func\n&quot;);
-}&lt;/p&gt;
+}
 
-&lt;h1&gt;include&lt;/h1&gt;
+#include &amp;lt;iostream&amp;gt;
+#include &quot;sing.h&quot;
 
-&lt;h1&gt;include &quot;sing.h&quot;&lt;/h1&gt;
-
-&lt;p&gt;int main()
+int main()
 {
     sing *s = sing::getInstance();
-    s-&gt;num = 10;&lt;/p&gt;
+    s-&amp;gt;num = 10;
 
-&lt;pre&gt;&lt;code&gt;sing *s1 = sing::getInstance();
-printf(&quot;%d\n&quot;, s1-&amp;gt;num);
-return 0;
+    sing *s1 = sing::getInstance();
+    printf(&quot;%d\n&quot;, s1-&amp;gt;num);
+    return 0;
+}
 &lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;}
-`&lt;/p&gt;
 
 &lt;p&gt;c++ 的单态实现, 这里getInstance()获得那个单态的指针对象.&lt;/p&gt;
 
 &lt;p&gt;以下是c++ 的泛型的单态的实现&lt;/p&gt;
 
-&lt;p&gt;`&lt;/p&gt;
-
-&lt;h1&gt;ifndef TSING_H&lt;/h1&gt;
-
-&lt;h1&gt;define TSING_H&lt;/h1&gt;
-
-&lt;p&gt;template
+&lt;pre&gt;&lt;code&gt;#ifndef TSING_H
+#define TSING_H
+template 
 class sing {
 private:
-    static T *m_sing;&lt;/p&gt;
+    static T *m_sing;
 
-&lt;p&gt;public:
+public:
     static void close();
     static T* getInstance();
     sing();
     ~sing();
-};&lt;/p&gt;
+};
 
-&lt;p&gt;template  T *sing::m_sing = NULL;&lt;/p&gt;
+template  T *sing::m_sing = NULL;
 
-&lt;p&gt;template  sing::sing() {
+template  sing::sing() {
     printf(&quot;sing construct\n&quot;);
-}&lt;/p&gt;
+}
 
-&lt;p&gt;template  sing::~sing() {
+template  sing::~sing() {
     printf(&quot;sing destructor\n&quot;);
     close();
-}&lt;/p&gt;
+}
 
-&lt;p&gt;template  T* sing::getInstance() {
+template  T* sing::getInstance() {
     if (m_sing == NULL) {
         printf(&quot;m_sing is NULL\n&quot;);
         m_sing = new T();
     }
     return m_sing;
-}&lt;/p&gt;
+}
 
-&lt;p&gt;template  void sing::close() {
+template  void sing::close() {
     if (m_sing != NULL) {
         delete m_sing;
     }
-}&lt;/p&gt;
+}
+#endif
+#include &amp;lt;iostream&amp;gt;
+#include &quot;tsing.h&quot;
 
-&lt;h1&gt;endif&lt;/h1&gt;
-
-&lt;h1&gt;include&lt;/h1&gt;
-
-&lt;h1&gt;include &quot;tsing.h&quot;&lt;/h1&gt;
-
-&lt;p&gt;struct node {
+struct node {
     int num;
     bool flag;
     int type;
-};&lt;/p&gt;
+};
 
-&lt;p&gt;int main()
+int main()
 {
     node *s = sing::getInstance();
-    s-&gt;num = 10;
-    s-&gt;flag = 0;
-    s-&gt;type = 100;&lt;/p&gt;
+    s-&amp;gt;num = 10;
+    s-&amp;gt;flag = 0;
+    s-&amp;gt;type = 100;
 
-&lt;pre&gt;&lt;code&gt;//s-&amp;gt;num = 10;
+    //s-&amp;gt;num = 10;
 
-node *s1 = sing::getInstance();
-printf(&quot;%d %d %d\n&quot;, s1-&amp;gt;num, s1-&amp;gt;flag, s1-&amp;gt;type);
-return 0;
+    node *s1 = sing::getInstance();
+    printf(&quot;%d %d %d\n&quot;, s1-&amp;gt;num, s1-&amp;gt;flag, s1-&amp;gt;type);
+    return 0;
+}
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;}
-`&lt;/p&gt;
-
 &lt;p&gt;在我理解以来,在没有用泛型以前这里的静态指针sing,既是容器也是sing类型对象,也就是说之前这个单态只能设计来给sing这个类来使用,泛型的sing类,这里把sing只是这个容器的名字,T想要单态的类型,任意的类型对象. 而前面这种没有实现泛型是将sing即是这个类的容器也是这个类的对象.&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;http://erektilepillenonline.com/products/viagra.htm&quot;&gt;viagra&lt;/a&gt;&lt;/p&gt;
 </content>
  </entry>
  
@@ -485,34 +463,29 @@ return 0;
  
  <entry>
    <title>vim复制插件</title>
-   <link href="http://127.0.0.1:4000//2012/05/vime5a48de588b6e68f92e4bbb6/"/>
+   <link href="http://127.0.0.1:4000//2012/05/vim-copy-plugin/"/>
    <updated>2012-05-03T03:34:33+08:00</updated>
-   <id>http://127.0.0.1:4000//2012/05/vime5a48de588b6e68f92e4bbb6</id>
+   <id>http://127.0.0.1:4000//2012/05/vim-copy-plugin</id>
    <content type="html">&lt;p&gt;vim复制的时候不发复制到c-v的复制缓冲区,很麻烦,自己动手,丰衣足食&lt;/p&gt;
 
-&lt;p&gt;`
-nnoremap y :set operatorfunc=Pbcopyg@
-vnoremap y y:call Pbcopy()&lt;/p&gt;
-
-&lt;p&gt;function! s:Pbcopy()
+&lt;pre&gt;&lt;code&gt;nnoremap y :set operatorfunc=Pbcopyg@
+vnoremap y y:call Pbcopy()
+function! s:Pbcopy()
     execute 'call system(&quot;pbcopy&quot;, getreg(&quot;\&quot;&quot;))'
     execute 'call system(&quot;xsel --clipboard --input&quot;, getreg(&quot;\&quot;&quot;))'
 endfunction
-`&lt;/p&gt;
+&lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;将代码保存再.vim/plugin/copy.vim的文件即可&lt;/p&gt;
-
-&lt;p&gt;ubuntu环境下 默认得安装一下xsel这个东西&lt;/p&gt;
-
-&lt;p&gt; &lt;/p&gt;
+&lt;p&gt;将代码保存再.vim/plugin/copy.vim的文件即可
+ubuntu环境下 默认得安装一下xsel这个东西&lt;/p&gt;
 </content>
  </entry>
  
  <entry>
-   <title>Ternary Search Trees E4b889e58886e6a091</title>
-   <link href="http://127.0.0.1:4000//2012/03/ternary-search-trees-e4b889e58886e6a091/"/>
+   <title>Ternary Search Trees 三分树</title>
+   <link href="http://127.0.0.1:4000//2012/03/ternary-search-trees/"/>
    <updated>2012-03-26T00:00:00+08:00</updated>
-   <id>http://127.0.0.1:4000//2012/03/ternary-search-trees-e4b889e58886e6a091</id>
+   <id>http://127.0.0.1:4000//2012/03/ternary-search-trees</id>
    <content type="html">&lt;p&gt;经常碰到要存一堆的string, 这个时候可以用hash tables, 虽然hash tables 查找很快,但是hash tables不能表现出字符串之间的联系.可以用binary search tree, 但是查询速度不是很理想. 可以用trie, 不过trie会浪费很多空间(当然你也可以用二个数组实现也比较省空间). 所以这里Ternary Search trees 有trie的查询速度快的优点,以及binary search tree省空间的优点.&lt;/p&gt;
 
 &lt;p&gt;实现一个12个单词的查找&lt;/p&gt;
@@ -538,17 +511,18 @@ Ternary search tree 有三个只节点,在查找的时候,比较当前字符,如
 &lt;h1&gt;构造方法&lt;/h1&gt;
 
 &lt;p&gt;这里用c语言来实现
-节点定义:
-&lt;code&gt;
-typedef struct tnode *Tptr;
+节点定义:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;typedef struct tnode *Tptr;
 typedef struct tnode {
     char s;
     Tptr lokid, eqkid, hikid;
 } Tnode;
-&lt;/code&gt;
-先介绍查找的方法:
-&lt;code&gt;
-int search(char *s) // s是想要查找的字符串
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;先介绍查找的方法:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;int search(char *s) // s是想要查找的字符串
 {
     Tptr p;
     p = t; //t 是已经构造好的Ternary search tree 的root 节点.
@@ -567,10 +541,11 @@ int search(char *s) // s是想要查找的字符串
     }
     return 0;
 }
-&lt;/code&gt;
-插入某一个字符串:
-&lt;code&gt;
-Tptr insert(Tptr p, char *s)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;插入某一个字符串:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;Tptr insert(Tptr p, char *s)
 {
     if (p == NULL) {
         p = (Tptr)malloc(sizeof(Tnode));
@@ -590,44 +565,45 @@ Tptr insert(Tptr p, char *s)
     }
     return p;
 }
-&lt;/code&gt;
-同binary search tree 一样,插入的顺序也是讲究的,binary search tree 在最坏情况下顺序插入字符串会退化成一个链表.不过Ternary search Tree 最坏情况会比 binary search tree 好很多.&lt;/p&gt;
+&lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;肯定得有一个遍历某一个树的操作
-&lt;code&gt;
-//这里以字典序输出所有的字符串
+&lt;p&gt;同binary search tree 一样,插入的顺序也是讲究的,binary search tree 在最坏情况下顺序插入字符串会退化成一个链表.不过Ternary search Tree 最坏情况会比 binary search tree 好很多.&lt;/p&gt;
+
+&lt;p&gt;肯定得有一个遍历某一个树的操作&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;//这里以字典序输出所有的字符串
 void traverse(Tptr p) //这里遍历某一个节点以下的所有节点,如果是非根节点,则是有同一个前缀的字符串
-{
-    if (!p) return;
-    traverse(p-&amp;gt;lokid);
-    if (p-&amp;gt;s != '\0') {
-        traverse(p-&amp;gt;eqkid);
-    } else {
-        printf(&quot;%s\n&quot;, (char *)p-&amp;gt;eqkid);
-    }
-    traverse(p-&amp;gt;hikid);
+{ 
+    if (!p) return; 
+    traverse(p-&amp;gt;lokid); 
+    if (p-&amp;gt;s != '\0') { 
+        traverse(p-&amp;gt;eqkid); 
+    } else { 
+        printf(&quot;%s\n&quot;, (char *)p-&amp;gt;eqkid); 
+    } 
+    traverse(p-&amp;gt;hikid); 
 }  
-&lt;/code&gt;&lt;/p&gt;
+&lt;/code&gt;&lt;/pre&gt;
 
 &lt;h1&gt;应用&lt;/h1&gt;
 
 &lt;p&gt;这里先介绍两个应用,一个是模糊查询,一个是找出包含公共前缀的字符串, 一个是相邻查询(哈密顿距离小于某个范围)
 模糊查询
-psearch(&quot;root&quot;, &quot;.a.a.a&quot;) 应该能匹配出baxaca, cadakd 等字符串
-&lt;code&gt;
-void psearch1(Tptr p, char *s)
+psearch(&quot;root&quot;, &quot;.a.a.a&quot;) 应该能匹配出baxaca, cadakd 等字符串&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;void psearch1(Tptr p, char *s)
 {
     if (p == NULL) {
         return ;
     }
     if (*s == '.' || *s &amp;lt; p-&amp;gt;s) { //如果*s 是'.' 或者 *s &amp;lt; p-&amp;gt;s 就查找左子树
-        psearch1(p-&amp;gt;lokid, s);
+        psearch1(p-&amp;gt;lokid, s); 
     }
     if (*s == '.' || *s &amp;gt; p-&amp;gt;s) { //同上
-        psearch1(p-&amp;gt;hikid, s);
+        psearch1(p-&amp;gt;hikid, s); 
     }
     if (*s == '.' || *s == p-&amp;gt;s) { // *s = '.' 或者 *s == p-&amp;gt;s 则去查找下一个字符
-        if (*s &amp;amp;&amp;amp; p-&amp;gt;s &amp;amp;&amp;amp; p-&amp;gt;eqkid != NULL) {
+        if (*s &amp;amp;&amp;amp; p-&amp;gt;s &amp;amp;&amp;amp; p-&amp;gt;eqkid != NULL) { 
             psearch1(p-&amp;gt;eqkid, s + 1);
         }
     }
@@ -635,11 +611,11 @@ void psearch1(Tptr p, char *s)
         printf(&quot;%s\n&quot;, (char *) p-&amp;gt;eqkid);
     }
 }
-&lt;/code&gt;&lt;/p&gt;
+&lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;解决在哈密顿距离内的匹配问题,比如hobby和dobbd,hocbe的哈密顿距离都是2
-&lt;code&gt;
-void nearsearch(Tptr p, char *s, int d) //s 是要查找的字符串, d是哈密顿距离
+&lt;p&gt;解决在哈密顿距离内的匹配问题,比如hobby和dobbd,hocbe的哈密顿距离都是2&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;void nearsearch(Tptr p, char *s, int d) //s 是要查找的字符串, d是哈密顿距离
 {
     if (p == NULL || d &amp;lt; 0)
         return ;
@@ -657,11 +633,11 @@ void nearsearch(Tptr p, char *s, int d) //s 是要查找的字符串, d是哈密
         nearsearch(p-&amp;gt;eqkid, *s ? s + 1 : s, (*s == p-&amp;gt;s) ? d : d - 1);
     }   
 }
-&lt;/code&gt;&lt;/p&gt;
+&lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;搜索引擎输入bin, 然后相应的找出所有以bin开头的前缀匹配这样类似的结果.比如bing,binha,binb 就是找出所有前缀匹配的结果.
-&lt;code&gt;
-void presearch(Tptr p, char *s) //s 是想要找的前缀
+&lt;p&gt;搜索引擎输入bin, 然后相应的找出所有以bin开头的前缀匹配这样类似的结果.比如bing,binha,binb 就是找出所有前缀匹配的结果.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;void presearch(Tptr p, char *s) //s 是想要找的前缀
 {
     if (p == NULL)
         return;
@@ -678,17 +654,20 @@ void presearch(Tptr p, char *s) //s 是想要找的前缀
         }
     }
 }
-&lt;/code&gt;&lt;/p&gt;
+&lt;/code&gt;&lt;/pre&gt;
 
 &lt;h1&gt;总结&lt;/h1&gt;
 
-&lt;p&gt;1.Ternary search tree 效率高而且容易实现
-2.Ternary search tree 大体上效率比hash来的快,因为当数据量大的时候hash出现碰撞的几率也会大,而Ternary search tree 是指数增长
-3.Ternary search tree 增长和收缩很方便,而 hash改变大小的话则需要拷贝内存重新hash等操作
-4.Ternary search tree 支持模糊匹配,哈密顿距离查找,前缀查找等操作
-5.Ternary search tree 支持许多其他操作,比如字典序输出所有字符串等,trie也能做,不过很费时.&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Ternary search tree 效率高而且容易实现&lt;/li&gt;
+&lt;li&gt;Ternary search tree 大体上效率比hash来的快,因为当数据量大的时候hash出现碰撞的几率也会大,而Ternary search tree 是指数增长&lt;/li&gt;
+&lt;li&gt;Ternary search tree 增长和收缩很方便,而 hash改变大小的话则需要拷贝内存重新hash等操作&lt;/li&gt;
+&lt;li&gt;Ternary search tree 支持模糊匹配,哈密顿距离查找,前缀查找等操作&lt;/li&gt;
+&lt;li&gt;Ternary search tree 支持许多其他操作,比如字典序输出所有字符串等,trie也能做,不过很费时.&lt;/li&gt;
+&lt;/ol&gt;
 
-&lt;p&gt;参考:http://drdobbs.com/database/184410528?pgno=1&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;参考&lt;/strong&gt;:http://drdobbs.com/database/184410528?pgno=1&lt;/p&gt;
 </content>
  </entry>
  
