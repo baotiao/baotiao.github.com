@@ -1,6 +1,6 @@
 markdown: rdiscount
 permalink: /:year/:month/:title/
-url: http://127.0.0.1:4000
+url: http://baotiao.github.io
 author: 陈宗志
 pygments: true
-production_url : http://127.0.0.1:4000/
+production_url : http://baotiao.github.io/
