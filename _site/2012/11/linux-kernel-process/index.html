@@ -34,15 +34,17 @@
 
 
         <section class="post">
-<p><code>
-int main(int argc, char *argv[])
+<pre><code>int main(int argc, char *argv[])
 {
     while (1) {
     };
     return 0;
 }
-用pmap 进程号 -d 来查看进程
-Address           Kbytes Mode  Offset           Device    Mapping
+</code></pre>
+
+<p>用pmap 进程号 -d 来查看进程</p>
+
+<pre><code>Address           Kbytes Mode  Offset           Device    Mapping
 0000000000400000       4 r-x-- 0000000000000000 4f9:2c566 a.out
 0000000000500000       4 rw--- 0000000000000000 4f9:2c566 a.out
 000000302ad00000      84 r-x-- 0000000000000000 008:00002 ld-2.3.4.so
@@ -57,9 +59,11 @@ Address           Kbytes Mode  Offset           Device    Mapping
 00007fff81022000      84 rw--- 00007fff81022000 000:00000   [ stack ]
 ffffffffff600000       4 r-x-- 0000000000000000 000:00000   [ anon ]
 mapped: 2456K    writeable/private: 136K    shared: 0K
-</code>
+
 这里的顺序就是进程的地址空间中各个区域的顺序
-第一行 a.out 的代码段 执行权限是r-x
+</code></pre>
+
+<p>第一行 a.out 的代码段 执行权限是r-x
 第二行 a.out 的数据段 执行权限是rw-
 然后是mapped file
 ld的代码段 执行权限r-x
@@ -90,7 +94,7 @@ libc库的数据段 执行权限rw-</p>
 <span class="categories">
   in categories
   
-  <a href="http://127.0.0.1:4000//categories/#未分类" title="未分类">未分类</a>&nbsp;
+  <a href="http://127.0.0.1:4000//categories/#linux" title="linux">linux</a>&nbsp;
   
 </span>
 
@@ -108,7 +112,7 @@ libc库的数据段 执行权限rw-</p>
 <script type="text/javascript">
         /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
         var disqus_shortname = 'mingxing'; // required: replace example with your forum shortname
-		var disqus_rul = 'http://127.0.0.1:4000//2012/11/linuxe58685e6a0b8e8aebee8aea1e4b88ee5ae9ee78eb0-e8bf9be7a88be59cb0e59d80e7a9bae997b4-e5ae9ee99985e4b8ade4bdbfe794a8e79a84e58685e5ad98/';
+		var disqus_rul = 'http://127.0.0.1:4000//2012/11/linux-kernel-process/';
 
         /* * * DON'T EDIT BELOW THIS LINE * * */
         (function() {
