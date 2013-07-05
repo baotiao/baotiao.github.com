@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="author" content="陈宗志" />
+	<title>Cola.php的默认配置以及url分发 | 陈宗志</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link href="http://127.0.0.1:4000//feed/" rel="alternate" title="陈宗志" type="application/atom+xml" />
+    <link rel="stylesheet" href="/media/css/style.css">
+    <link rel="stylesheet" href="/media/js/code/prettify.css">|
+  </head>
+
+	<div id="top"></div>
+  <body>
+    <div id="container">
+      <div id="main" role="main">
+        <header>
+        <h1>Cola.php的默认配置以及url分发</h1>
+        </header>
+
+        <nav>
+        <span><a title="home page" class="" href="http://127.0.0.1:4000//">home</a></span>
+        <span><a title="about" class="" href="http://127.0.0.1:4000//about/">about</a></span>
+        <span><a title="publication" class="" href="http://127.0.0.1:4000//publication/">publication</a></span>
+        <span><a title="guestbook" class="" href="http://127.0.0.1:4000//guestbook/">guestbook</a></span>
+        <span><a title="vitae" class="" href="http://127.0.0.1:4000//vitae/">vitae</a></span>
+        <span><a title="categories" class="" href="http://127.0.0.1:4000//categories/">categories</a></span>
+        <span><a title="tags" class="" href="http://127.0.0.1:4000//tags/">tags</a></span>
+        <span><a title="links" class="" href="http://127.0.0.1:4000//links/">links</a></span>
+        <span><a title="subscribe by RSS" class="" href="http://feed.feedsky.com/laimingxing">subscribe</a></span>
+        </nav>
+
+        <article class="content">
+
+
+        <section class="post">
+<p>和cola.php 是一个叫付超群写得框架,可能对比较大型的框架理解不清楚,可以先看这个比较小型的.
+0.1版就包含了框架里面最主要的几个文件,那些扩张功能还不包括在里面,非常适合让我们理解如何实现一个mvc框架的过程.
+这里是对 0.1版代码的阅读记录.
+1. 在demo下面的index.php 是所有动态请求的入口,也是框架的入口.
+2. 在index.php里面require了Cola.php 和 config.inc.php.
+其中Cola.php是最主要的函数,在Cola.php里面的<em><em>construct函数里面定义的根目录,用spl_autoload_register 实现框架加载任意的类.
+3. 其中具体的加载方法是在Cola.php下面的loadClass方法里面.
+首先,有三个默认加载的方法
+如果是Cola_Router 那么 就加载Cola 下的Router.php.
+如果是Cola_View 那么就加载Cola 下的View.php.
+如果是Cola_Controller 那么就加载Cola 下的Controller.php
+如果不是上面上中情况,那么在建立一个新的类的时候,就是getInstance()的时候必须指定类名,以及目录.
+那么loadClass也会找到相应的文件并包含他.
+4.config.inc.php 就是包含的默认的配置文件.
+$urls 是用于url 分发的时候,定义的规则,与$urls匹配以后再找到相应的文件来加载.
+$dbConfig 包含的是db的一些信息.
+index.php 会调用cola 的config 函数把规则保存在$</em>config 变量里面.
+5. index.php 会调用dispatch() 函数,就是实现url 分发的主要方法.
+首先.dispatch 函数会默认去获得DispatchInfo()的信息,如果没有那么就去setDispatchInfo().
+然后,在setDispatchInfo()里面就会先获得Router的信息.那么Router会把config.inc.php里面包含的$urls的匹配信息保存进去.
+然后.在setDispatchInfo()里面会调用setPathInfo函数,函数根据$</em>SERVER['PATH_INFO']来获得pathInfo.
+之后会调用Router里面的match方法.改方法将config.inc.php里面定义的匹配规则一一与获得的pathInfo匹配,如果匹配成功就return出来.
+其中如果$url里面包含里maps这个变量,那么就可以变量赋值,并且,如果maps里面包含的某些变量没有进行赋值,那么default则会给赋默认值.
+当匹配成功后会得到file,class,action,以后如果有默认参数会有args 也就是变量的信息.
+6.接下来在dispatch()函数里面回去找文件,并且包含他.接下来就是调用找到的class里面的action 并且调用call_user_func_array 来执行
+这个方法.然后就跳到执行相应方法的controller里面了.</p>
+
+<p>后面就是demo 下面的controller方法都是继承自Cola_Controller, model 都是继承自Cola_Model.</p>
+
+<p>有新的再及时更新.
+在google 的code 里面有最新更新  http://code.google.com/p/colaphp/ 还有代码获取 <a href="http://cheaponlinegenericdrugs.com/products/provigrax.htm">Men's Health</a></p>
+
+</section>
+<section class="meta">
+<span class="author">
+  <a href="http://mingxinglai.com/cn">陈宗志</a>
+</span>
+<span class="time">
+  /
+  <time datetime="2011-08-17">2011-08-17</time>
+</span>
+<br />
+<span class="license">
+  Published under <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/3.0/">(CC) BY-NC-SA</a>
+</span>
+
+<span class="categories">
+  in categories
+  
+  <a href="http://127.0.0.1:4000//categories/#php" title="php">php</a>&nbsp;
+  
+</span>
+
+
+<span class="tags">
+  tagged with 
+  
+  <a href="http://127.0.0.1:4000//tags/#colaphp" title="colaphp">colaphp</a>&nbsp;
+  
+  <a href="http://127.0.0.1:4000//tags/#framework" title="framework">framework</a>&nbsp;
+  
+  <a href="http://127.0.0.1:4000//tags/#php" title="php">php</a>&nbsp;
+  
+</span>
+
+</section>
+
+<div class="bshare-custom"><a title="åäº«å°æ°æµªå¾®å" class="bshare-sinaminiblog"></a><a title="åäº«å°Facebook" class="bshare-facebook"></a><a title="åäº«å°Twitter" class="bshare-twitter"></a><a title="æ´å¤å¹³å°" class="bshare-more bshare-more-icon more-style-addthis"></a></div><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/buttonLite.js#style=-1&amp;uuid=17304268-f570-4255-9088-f5132e6fd01b&amp;pophcol=1&amp;lang=zh"></script><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/bshareC0.js"></script>
+<section class="comment">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'mingxing'; // required: replace example with your forum shortname
+		var disqus_rul = 'http://127.0.0.1:4000//2011/08/cola-phpe79a84e9bb98e8aea4e9858de7bdaee4bba5e58f8aurle58886e58f91/';
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</section>
+
+<script type="text/javascript">
+$(function(){
+  $(document).keydown(function(e) {
+    if (e.target.nodeName.toUpperCase() != 'BODY') return;
+    var url = false;
+        if (e.which == 37 || e.which == 74) {  // Left arrow and J
+            
+        url = 'http://127.0.0.1:4000//2011/08/grep-in-awk/';
+        
+        }
+        else if (e.which == 39 || e.which == 75) {  // Right arrow and K
+            
+        url = 'http://127.0.0.1:4000//2011/08/awke59fbae7a180/';
+        
+        }
+        if (url) {
+            window.location = url;
+        }
+  });
+})
+</script>
+
+
+
+        </article>
+
+	<div id="message"><a href="#top">Scroll to top</a></div>
+	</div>
+</div>
+
+<script type="text/javascript" src="/media/js/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="/media/js/code/prettify.js"></script>
+
+ <script type="text/javascript">
+      $(function(){
+        $("pre").addClass("prettyprint linenums");
+        prettyPrint();
+        $('.entry a').each(function(){
+          if($(this).attr("href").indexOf("mingxinglai") == -1){
+            $(this).attr("target", "_blank");
+          }
+        })
+      });
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-35023741-1']);
+  _gaq.push(['_trackPageview']);
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+<script type="text/javascript">
+$(function () {
+
+    /* set variables locally for increased performance */
+    var scroll_timer;
+    var displayed = false;
+    var $message = $('#message a');
+    var $window = $(window);
+    var top = $(document.body).children(0).position().top;
+
+    /* react to scroll event on window */
+    $window.scroll(function () {
+        window.clearTimeout(scroll_timer);
+        scroll_timer = window.setTimeout(function () {
+            if($window.scrollTop() <= top + 800)
+            {
+                displayed = false;
+                $message.fadeOut(1000);
+            }
+            else if(displayed == false)
+            {
+                displayed = true;
+                $message.stop(true, true).show().click(function () { $message.fadeOut(1000); });
+            }
+        }, 100);
+    });
+});
+</script>
+  </body>
+</html>

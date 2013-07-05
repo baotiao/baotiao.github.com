@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="author" content="陈宗志" />
+	<title>Memcached 初始化流程 | 陈宗志</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link href="http://127.0.0.1:4000//feed/" rel="alternate" title="陈宗志" type="application/atom+xml" />
+    <link rel="stylesheet" href="/media/css/style.css">
+    <link rel="stylesheet" href="/media/js/code/prettify.css">|
+  </head>
+
+	<div id="top"></div>
+  <body>
+    <div id="container">
+      <div id="main" role="main">
+        <header>
+        <h1>Memcached 初始化流程</h1>
+        </header>
+
+        <nav>
+        <span><a title="home page" class="" href="http://127.0.0.1:4000//">home</a></span>
+        <span><a title="about" class="" href="http://127.0.0.1:4000//about/">about</a></span>
+        <span><a title="publication" class="" href="http://127.0.0.1:4000//publication/">publication</a></span>
+        <span><a title="guestbook" class="" href="http://127.0.0.1:4000//guestbook/">guestbook</a></span>
+        <span><a title="vitae" class="" href="http://127.0.0.1:4000//vitae/">vitae</a></span>
+        <span><a title="categories" class="" href="http://127.0.0.1:4000//categories/">categories</a></span>
+        <span><a title="tags" class="" href="http://127.0.0.1:4000//tags/">tags</a></span>
+        <span><a title="links" class="" href="http://127.0.0.1:4000//links/">links</a></span>
+        <span><a title="subscribe by RSS" class="" href="http://feed.feedsky.com/laimingxing">subscribe</a></span>
+        </nav>
+
+        <article class="content">
+
+
+        <section class="post">
+<p>`
+1.signal(SIGINT, sig_handler);</p>
+
+<p>2.seetings_init(); //初始化默认的设置,初始化全局变量struct setting settings
+static void settings_init(void) {
+    settings.use_cas = true;
+    settings.access = 0700;
+    settings.port = 11211;
+    settings.udpport = 11211;
+    /<em> By default this string should be NULL for getaddrinfo() </em>/
+    settings.inter = NULL;
+    settings.maxbytes = 64 * 1024 * 1024; /<em> default is 64MB </em>/
+    settings.maxconns = 1024;         /<em> to limit connections-related memory to about 5MB </em>/
+    settings.verbose = 0;
+    settings.oldest_live = 0;
+    settings.evict_to_free = 1;       /<em> push old items out of cache when memory runs out </em>/
+    settings.socketpath = NULL;       /<em> by default, not using a unix socket </em>/
+    settings.factor = 1.25;
+    settings.chunk_size = 48;         /<em> space for a modest key and value </em>/
+    settings.num_threads = 4;         /<em> N workers </em>/
+    settings.num_threads_per_udp = 0;
+    settings.prefix_delimiter = ':';
+    settings.detail_enabled = 0;
+    settings.reqs_per_event = 20;
+    settings.backlog = 1024;
+    settings.binding_protocol = negotiating_prot;
+    settings.item_size_max = 1024 * 1024; /<em> The famous 1MB upper limit. </em>/
+    settings.maxconns_fast = false;
+    settings.hashpower_init = 0;
+}</p>
+
+<ol>
+<li>while (-1 != (c = getopt(argc, argv, //对输入的参数进行相应的设置,这种demon,item_max_size 等等</li>
+</ol>
+
+
+<p>4.getrlimit,setrlimit 是系统调用,用来修改最大连接数 struct rlimit .</p>
+
+<p>5.去掉root权限. 如果是root 通过 -u 参数来启动</p>
+
+<p>6.init_sasl() 是否开启 sasl</p>
+
+<p>7.daemonize(maxcore, setting.verbose) 开启 daemonize 模式</p>
+
+<p>8.main_base = event_init(); 初始化主线程</p>
+
+<p>9.stats_init() 初始化全局变量stats.</p>
+
+<p>10.assoc_init() 初始化hashtable, 默认calloc(2<sup>16</sup>, sizeof(void *))个指针</p>
+
+<p>11.conn_init() 初始化连接池conn, 默认的空闲连接池的个数是200 声明calloc(200, sizeof(conn *))</p>
+
+<p>12.slabs_init(settings.maxbytes, setting.factor, preallocate) 初始化memcached. setting.maxbytes 是最大内存的大小,setting.factor 成长因子, preallocate是否预先声明空间 . 默认的最小的chunk_size 是48,成长因子是1.25.</p>
+
+<p>13.sigignore(SIGPIPE) 忽略SIGPIPE信号。 在Linux下写socket的程序的时候，如果尝试send到一个disconnected socket上，底层将抛出一个SIGPIPE信号。如果程序没有处理或没有忽略，这个信号将导致程序退出。这不是我们需要的.</p>
+
+<p>14.thread_init(settings.num_threads, main_base); //初始化线程池模型</p>
+
+<p>15.start_assoc_maintenance_thread() //在assoc里面,有一个独立的线程来维护从old_hashtable中的数据到相应的primary_hashtable中.开启这个线程</p>
+
+<p>16.clock_handler(0, 0, 0); //初始化libevent的时间处理</p>
+
+<p>17.server_socket_unix(settings.socketpath,settings.access) //建立tcp 或者 udp的socket连接sfd,dispatch_thread开始监听这个sfd连接.
+server_sockets(settings.port, tcp_transport,portnumber_file) //可以让dispatch同时监听多个连接的端口. 到此 服务器初始化结束,等到client的连接</p>
+
+<p>18.if (event_base_loop(main_base, 0) != 0) //循环main_base事件</p>
+
+<p>19.stop_assoc_maintenance_thread(); //退出在assoc里面的维护hashtable线程
+`</p>
+
+</section>
+<section class="meta">
+<span class="author">
+  <a href="http://mingxinglai.com/cn">陈宗志</a>
+</span>
+<span class="time">
+  /
+  <time datetime="2012-03-07">2012-03-07</time>
+</span>
+<br />
+<span class="license">
+  Published under <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/3.0/">(CC) BY-NC-SA</a>
+</span>
+
+<span class="categories">
+  in categories
+  
+  <a href="http://127.0.0.1:4000//categories/#memcached" title="memcached">memcached</a>&nbsp;
+  
+</span>
+
+
+<span class="tags">
+  tagged with 
+  
+  <a href="http://127.0.0.1:4000//tags/#memcached" title="memcached">memcached</a>&nbsp;
+  
+</span>
+
+</section>
+
+<div class="bshare-custom"><a title="åäº«å°æ°æµªå¾®å" class="bshare-sinaminiblog"></a><a title="åäº«å°Facebook" class="bshare-facebook"></a><a title="åäº«å°Twitter" class="bshare-twitter"></a><a title="æ´å¤å¹³å°" class="bshare-more bshare-more-icon more-style-addthis"></a></div><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/buttonLite.js#style=-1&amp;uuid=17304268-f570-4255-9088-f5132e6fd01b&amp;pophcol=1&amp;lang=zh"></script><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/bshareC0.js"></script>
+<section class="comment">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'mingxing'; // required: replace example with your forum shortname
+		var disqus_rul = 'http://127.0.0.1:4000//2012/03/memcached-e5889de5a78be58c96e6b581e7a88b/';
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</section>
+
+<script type="text/javascript">
+$(function(){
+  $(document).keydown(function(e) {
+    if (e.target.nodeName.toUpperCase() != 'BODY') return;
+    var url = false;
+        if (e.which == 37 || e.which == 74) {  // Left arrow and J
+            
+        url = 'http://127.0.0.1:4000//2012/03/memcached-stats-e4bba5e58f8a-e7be8ee59ba2e7bd91e7babfe4b88amemcachede4bdbfe794a8e68385e586b5/';
+        
+        }
+        else if (e.which == 39 || e.which == 75) {  // Right arrow and K
+            
+        url = 'http://127.0.0.1:4000//2012/03/ternary-search-trees/';
+        
+        }
+        if (url) {
+            window.location = url;
+        }
+  });
+})
+</script>
+
+
+
+        </article>
+
+	<div id="message"><a href="#top">Scroll to top</a></div>
+	</div>
+</div>
+
+<script type="text/javascript" src="/media/js/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="/media/js/code/prettify.js"></script>
+
+ <script type="text/javascript">
+      $(function(){
+        $("pre").addClass("prettyprint linenums");
+        prettyPrint();
+        $('.entry a').each(function(){
+          if($(this).attr("href").indexOf("mingxinglai") == -1){
+            $(this).attr("target", "_blank");
+          }
+        })
+      });
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-35023741-1']);
+  _gaq.push(['_trackPageview']);
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+<script type="text/javascript">
+$(function () {
+
+    /* set variables locally for increased performance */
+    var scroll_timer;
+    var displayed = false;
+    var $message = $('#message a');
+    var $window = $(window);
+    var top = $(document.body).children(0).position().top;
+
+    /* react to scroll event on window */
+    $window.scroll(function () {
+        window.clearTimeout(scroll_timer);
+        scroll_timer = window.setTimeout(function () {
+            if($window.scrollTop() <= top + 800)
+            {
+                displayed = false;
+                $message.fadeOut(1000);
+            }
+            else if(displayed == false)
+            {
+                displayed = true;
+                $message.stop(true, true).show().click(function () { $message.fadeOut(1000); });
+            }
+        }, 100);
+    });
+});
+</script>
+  </body>
+</html>
