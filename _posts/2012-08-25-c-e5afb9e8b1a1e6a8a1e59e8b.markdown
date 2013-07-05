@@ -1,0 +1,283 @@
+---
+author: admin
+comments: true
+date: 2012-08-25 09:15:01+00:00
+layout: post
+slug: c-%e5%af%b9%e8%b1%a1%e6%a8%a1%e5%9e%8b
+title: c++ 对象模型
+wordpress_id: 262
+categories:
+- c++
+tags:
+- c
+---
+
+1. C++的对象模型里面,Nonstatic data members 配置于每一个class object之内, static data members 则被存放在所有的class object之外. static 和 non static function members 也被放在所有的所有的class object 之外. Virtual function 则以两个步骤支持
+
+
+
+
+     1)每一个class 产生出一堆执行virtual functions 的指针,放在表格之中.这个表格被称为virtual table(vtbl)
+
+
+
+
+     2)每一个class object 被添加了一个指针,指向相关的virtual table, 通常这个指针被称为vptr. vptr的设定和重置都有每一个class的constructor, destructor 和copy assignment运算法自动完成. 如下图:(为什么采用这种模型是我们应该考虑的,是基于性能和空间的综合考虑.可以看一下简单对象模型和表格驱动对象模型)
+
+
+
+
+ ![3e55c34139de2e6b58bc737a91b41905](http://chenzongzhi.info/wp-content/uploads/2012/08/3e55c34139de2e6b58bc737a91b41905.gif)
+
+
+
+
+ 
+
+
+
+
+ 
+
+
+
+
+2. 在继承的时候,对象的内存布局是这样的
+
+
+
+
+基类:
+
+
+
+
+
+
+
+
+
+
+
+
+
+class ZooAnimal {
+
+
+public:
+
+
+
+
+   ZooAnimal();
+
+
+
+
+   virtual ~ZooAnimal();
+
+
+
+
+ 
+
+
+
+
+   // ...
+
+
+
+
+ 
+
+
+
+
+   virtual void rotate();
+
+
+
+
+protected:
+
+
+
+
+   int loc;
+
+
+
+
+   String name;
+
+
+};
+
+
+![Ee21eaea173ebe93e1da4a422db9004e](http://chenzongzhi.info/wp-content/uploads/2012/08/ee21eaea173ebe93e1da4a422db9004e.gif)
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+子类:
+
+
+
+
+
+
+
+
+
+
+
+
+
+class Bear : public ZooAnimal {
+
+
+public:
+
+
+
+
+   Bear();
+
+
+
+
+   ~Bear();
+
+
+
+
+   // ...
+
+
+
+
+   void rotate();
+
+
+
+
+   virtual void dance();
+
+
+
+
+   // ...
+
+
+
+
+protected:
+
+
+
+
+   enum Dances { ... };
+
+
+
+
+ 
+
+
+
+
+   Dances dances_known;
+
+
+
+
+   int cell_block;
+
+
+
+
+};
+
+
+
+
+ 
+
+
+
+
+Bear b( "Yogi" );
+
+
+
+
+Bear *pb = &b;
+
+
+Bear &rb = *pb;
+
+
+![C4613a1593002490b4ee517f61fcd5fc](http://chenzongzhi.info/wp-content/uploads/2012/08/c4613a1593002490b4ee517f61fcd5fc.gif)
+
+
+
+
+
+
+
+  
+
+
+
+可以看到,子类是直接将基类的data member 空间直接拷贝过来的.
+
+
+
+
+
+
+
+然后在它的下面添加上自己的data menber
+
+
+
+
+  
+
+
+
+
+
+3.一个类的对象的内存大小包括：  
+
+
+
+
+    1) 所有非静态数据成员的大小。
+
+
+
+
+    2) 由内存对齐而填补的内存大小。
+
+
+
+
+    3) 为了支持virtual有内部产生的额外负担,一个指针的大小.
+
+[viagra](http://erektilepillenonline.com/products/viagra.htm)

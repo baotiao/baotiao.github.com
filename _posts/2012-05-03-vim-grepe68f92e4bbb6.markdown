@@ -1,0 +1,14 @@
+---
+author: admin
+comments: true
+date: 2012-05-03 05:41:48+00:00
+layout: post
+slug: vim-grep%e6%8f%92%e4%bb%b6
+title: vim grep插件
+wordpress_id: 223
+categories:
+- vim
+tags:
+- vimscript
+---
+

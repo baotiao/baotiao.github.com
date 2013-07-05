@@ -1,0 +1,2025 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+ 
+ <title></title>
+ <link href="http://127.0.0.1:4000//atom.xml" rel="self"/>
+ <link href="http://127.0.0.1:4000/"/>
+ <updated>2013-07-05T02:43:01+08:00</updated>
+ <id>http://127.0.0.1:4000/</id>
+ <author>
+   <name></name>
+   <email></email>
+ </author>
+
+ 
+ <entry>
+   <title>test markdown</title>
+   <link href="http://127.0.0.1:4000//2013/07/test-markdown/"/>
+   <updated>2013-07-01T00:00:00+08:00</updated>
+   <id>http://127.0.0.1:4000//2013/07/test-markdown</id>
+   <content type="html">&lt;p&gt;first time use in markdown&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>Linux内核设计与实现 进程地址空间 实际中使用的内存</title>
+   <link href="http://127.0.0.1:4000//2012/11/linuxe58685e6a0b8e8aebee8aea1e4b88ee5ae9ee78eb0-e8bf9be7a88be59cb0e59d80e7a9bae997b4-e5ae9ee99985e4b8ade4bdbfe794a8e79a84e58685e5ad98/"/>
+   <updated>2012-11-16T10:28:59+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/11/linuxe58685e6a0b8e8aebee8aea1e4b88ee5ae9ee78eb0-e8bf9be7a88be59cb0e59d80e7a9bae997b4-e5ae9ee99985e4b8ade4bdbfe794a8e79a84e58685e5ad98</id>
+   <content type="html">&lt;p&gt;&lt;code&gt;
+int main(int argc, char *argv[])
+{
+    while (1) {
+    };
+    return 0;
+}
+用pmap 进程号 -d 来查看进程
+Address           Kbytes Mode  Offset           Device    Mapping
+0000000000400000       4 r-x-- 0000000000000000 4f9:2c566 a.out
+0000000000500000       4 rw--- 0000000000000000 4f9:2c566 a.out
+000000302ad00000      84 r-x-- 0000000000000000 008:00002 ld-2.3.4.so
+000000302ae14000       8 rw--- 0000000000014000 008:00002 ld-2.3.4.so
+000000302af00000    1196 r-x-- 0000000000000000 008:00002 libc-2.3.4.so
+000000302b02b000    1020 ----- 000000000012b000 008:00002 libc-2.3.4.so
+000000302b12a000      12 r---- 000000000012a000 008:00002 libc-2.3.4.so
+000000302b12d000      12 rw--- 000000000012d000 008:00002 libc-2.3.4.so
+000000302b130000      16 rw--- 000000302b130000 000:00000   [ anon ]
+00002ae829a73000       4 rw--- 00002ae829a73000 000:00000   [ anon ]
+00002ae829a87000       8 rw--- 00002ae829a87000 000:00000   [ anon ]
+00007fff81022000      84 rw--- 00007fff81022000 000:00000   [ stack ]
+ffffffffff600000       4 r-x-- 0000000000000000 000:00000   [ anon ]
+mapped: 2456K    writeable/private: 136K    shared: 0K
+&lt;/code&gt;
+这里的顺序就是进程的地址空间中各个区域的顺序
+第一行 a.out 的代码段 执行权限是r-x
+第二行 a.out 的数据段 执行权限是rw-
+然后是mapped file
+ld的代码段 执行权限r-x
+ld的数据段 执行权限rw-
+libc库代码段 执行权限r-w
+libc库这个我也不太清楚
+libc库....
+libc库的数据段 执行权限rw-&lt;/p&gt;
+
+&lt;p&gt;接下来有三行的anon, 分别是a.out, ld, libc 的BSS段, BSS段映射文件的内存区域的设备标志为000:00000 这个区域是0页,0页映射的内容全部为零.因为bss段是未初始化的全局变量区,在进程里面未初始化数据区存的都是0.操作系统有写时复制机制,这样子真正有修改的时候,才会从物理内存中获得空间.&lt;/p&gt;
+
+&lt;p&gt;该进程全部地址空间2456K, 可写空间136K.不可写区域可以和其他进程共享,所以多个进程都共享libc库,以及内核的代码.所以物理内存里面只需要保存一份libc库的代码节省了大量的空间&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>Linux内核的设计与实现:块I/O层</title>
+   <link href="http://127.0.0.1:4000//2012/10/linuxe58685e6a0b8e79a84e8aebee8aea1e4b88ee5ae9ee78eb0e59d97ioe5b182/"/>
+   <updated>2012-10-18T23:31:12+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/10/linuxe58685e6a0b8e79a84e8aebee8aea1e4b88ee5ae9ee78eb0e59d97ioe5b182</id>
+   <content type="html">&lt;h1&gt;块设备&lt;/h1&gt;
+
+&lt;h3&gt;扇区:&lt;/h3&gt;
+
+&lt;p&gt;扇区是块设备中最小的可寻址的单元,大小一般是2的整数倍.扇区的大小是设备的物理属性,扇区是所有块设备的基本单元--块设备无法对比它还小的单元进行寻址和操作.&lt;/p&gt;
+
+&lt;h3&gt;块:&lt;/h3&gt;
+
+&lt;p&gt;块是自己的最小逻辑可寻址单元.块是文件系统的一种抽象--只能及愉快来范围文件系统.虽然物理磁盘寻址是按照扇区级进行的,但是内核执行的所有的磁盘操作都是按照块进行的.由于扇区是设备的最小可寻址单元,所有块不能比扇区还小,只能数倍于扇区大小.&lt;/p&gt;
+
+&lt;h1&gt;I/O调度程序&lt;/h1&gt;
+
+&lt;h2&gt;I/O调度程序&lt;/h2&gt;
+
+&lt;p&gt; IO调度程序将磁盘I/O资源分配给系统中所有挂起的块I/O请求.具体的说这种资源分配是通过将请求队列中挂起的请求合并和排序来完成的.&lt;/p&gt;
+
+&lt;p&gt; 与进程调度的区别&lt;/p&gt;
+
+&lt;p&gt; 进程调度程序的作用是将处理器资源分配给系统中的运行进程.&lt;/p&gt;
+
+&lt;p&gt; 进程调度程序和I/O调度程序都是将一个资源虚拟给多个对象,对进程调度来说,处理器被虚拟并被系统中的运行进程共享.这种虚拟提供给用户的就是多任务和分时操作系统,像Unix系统.相反,I/O调度程序虚拟块设备给多个磁盘请求,以便降低磁盘寻道的时间, 确保磁盘性能的最优化&lt;/p&gt;
+
+&lt;h2&gt;I/O调度程序的工作&lt;/h2&gt;
+
+&lt;p&gt;  IO调度程序的工作是管理块设备的请求队列.它觉得队列中的请求排列顺序以及在什么时候派发请求到块设备.这样做有利于减少磁盘寻址时间,从而提高全局吞吐量.&lt;/p&gt;
+
+&lt;p&gt;  IO调度两种方法减少寻址时间:合并和排序&lt;/p&gt;
+
+&lt;p&gt;  合并:将两个或多个请求结合成一个新请求.&lt;/p&gt;
+
+&lt;p&gt;  这种情况,文件系统提交请求到请求队列--从文件中读取一个数据区,如果这时文件中已经存在一个请求,它访问的磁盘扇区和当前请求访问的磁盘扇区相连(比如同一个文件中早些时候被读取的数据区),那么这两个请求可以合并为一个对单个和多个相邻磁盘扇区操作的新请求.通过合并请求,I/O调度程序将多次请求的开销压缩成一次请求的开销,而且只需要传递给磁盘一条寻找命令,就可以访问到合并前多次寻址才能访问完的磁盘区域.(寻址是I/O里面最费时的操作)&lt;/p&gt;
+
+&lt;p&gt;  排序:I/O调度程序是的整个请求队列按扇区增长方向有序排序.使所有秦秋按磁盘扇区排列的顺序尽可能有序排列.这样不只是缩短一次请求的寻址时间,更重要的,通过保存磁盘头以直线方向移动,缩短了所有请求的磁盘寻址时间.该排序算法类似于电梯调度&lt;/p&gt;
+
+&lt;h2&gt;Linux 电梯&lt;/h2&gt;
+
+&lt;p&gt;  当一个请求加入到队列中是,有可能发生4中操作
+   1. 如果队列中已存在一个对相连磁盘扇区操作的请求,那么新请求将和这个已存在的请求合并成一个请求
+   2. 如果队列中存在一个驻留时间过长的请求,那么新请求将被插入到队列尾部,已防止其他旧的请求发生饥饿
+   3. 如果队列中以扇区方向为序存在合适的插入位置, 那么新的请求将被插入到该位置,保证队列中的请求是以被访问磁盘物理位置为序进行排列
+   4. 如果队列中不存在合适的请求插入位置,请求将被插入到队列尾部&lt;/p&gt;
+
+&lt;h2&gt;其他4中I/O调度程序&lt;/h2&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt; . 最终期限I/O调度程序&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt; . 预测I/O调度程序&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt; . 完全公正的排队I/O调度程序&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt; . 空操作的I/O调度程序&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+</content>
+ </entry>
+ 
+ <entry>
+   <title>c++对象模型 构造函数语义学</title>
+   <link href="http://127.0.0.1:4000//2012/09/ce5afb9e8b1a1e6a8a1e59e8b-e69e84e980a0e587bde695b0e8afade4b989e5ada6/"/>
+   <updated>2012-09-12T15:16:14+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/09/ce5afb9e8b1a1e6a8a1e59e8b-e69e84e980a0e587bde695b0e8afade4b989e5ada6</id>
+   <content type="html">&lt;h1&gt;1. C++ 不会为所有的class构造默认的constructor&lt;/h1&gt;
+
+&lt;p&gt;(我们经常认为c++会为所有的class默认添加构造函数)
+只有满足4个条件之一会添加构造函数
+     1) 包含带有默认构造函数的对象成员的类
+      2) 继承自带有默认构造函数的基类的类
+      3) 带有虚函数的类
+      4) 带一个虚基类的类
+这4中情况会导致编译器必须为未申明构造函数的class, 生成一个默认的constructor. 更多情况下是不会去生成默认的构造函数的.&lt;/p&gt;
+
+&lt;h1&gt;2. copy constructor 构造语义学&lt;/h1&gt;
+
+&lt;pre&gt;&lt;code&gt; C++并不是为所有的类都够着copy constructor. 默认的情况是如果没有定义copy constructor, 那么一般情况下如果有copy constructor 操作, 默认的是执行bitwise copy semantics. 也就是位逐次拷贝. 当然 bistwise copy 是有条件的,当不满足bitwise copy 的条件的时候,就不能进行bitwise copy. 那么C++就会为该类添加默认的copy constructor. ( 这里我感觉就是深拷贝和浅拷贝的区别,很明显bitwise 是浅拷贝,直接将一个对象的data member 拷贝给同一个类的另一个对象. 而如果这里不能直接内存拷贝,则需要深拷贝.就是需要构造一个copy constructor了)
+ 4种情况不满足bitwise copy. 也就是会调用构造函数
+ 1)当一个class 内的一个member object,而这个object 声明了一个copy constructor时
+ 2)当class 继承自一个bass class, 而这个bass class 有 copy constructor
+ 3)当class申明了一个或多个 virtual functions 时
+ 4)当class 派生自一个继承串链,其中一个或多个virtual base classes
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h1&gt;3. copy assign constructor 构造语义学&lt;/h1&gt;
+
+&lt;pre&gt;&lt;code&gt; 跟上面的copy constructor 构造语义学一样, 如果能进行浅拷贝就浅拷贝, 不行的时候才会去生成assign operator
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h1&gt;4. 对象析构语义学.&lt;/h1&gt;
+
+&lt;pre&gt;&lt;code&gt; 只有在基类拥有析构函数,或者object member 拥有析构函数的时候,编译器在为类合成析构函数,否则都被视为不需要.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;这几个默认生成的函数都是在需要的时候才会被编译器生成出来, 默认情况下是不会生成这些函数的.所以如果class 当成一个存结构体使用, 效率是和C 的stuct 是一样的&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>c++ 对象模型</title>
+   <link href="http://127.0.0.1:4000//2012/08/c-e5afb9e8b1a1e6a8a1e59e8b/"/>
+   <updated>2012-08-25T17:15:01+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/08/c-e5afb9e8b1a1e6a8a1e59e8b</id>
+   <content type="html">&lt;ol&gt;
+&lt;li&gt;C++的对象模型里面,Nonstatic data members 配置于每一个class object之内, static data members 则被存放在所有的class object之外. static 和 non static function members 也被放在所有的所有的class object 之外. Virtual function 则以两个步骤支持&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;     1)每一个class 产生出一堆执行virtual functions 的指针,放在表格之中.这个表格被称为virtual table(vtbl)&lt;/p&gt;
+
+&lt;p&gt;     2)每一个class object 被添加了一个指针,指向相关的virtual table, 通常这个指针被称为vptr. vptr的设定和重置都有每一个class的constructor, destructor 和copy assignment运算法自动完成. 如下图:(为什么采用这种模型是我们应该考虑的,是基于性能和空间的综合考虑.可以看一下简单对象模型和表格驱动对象模型)&lt;/p&gt;
+
+&lt;p&gt; &lt;img src=&quot;http://chenzongzhi.info/wp-content/uploads/2012/08/3e55c34139de2e6b58bc737a91b41905.gif&quot; alt=&quot;3e55c34139de2e6b58bc737a91b41905&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt; &lt;/p&gt;
+
+&lt;p&gt; &lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;在继承的时候,对象的内存布局是这样的&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;基类:&lt;/p&gt;
+
+&lt;p&gt;class ZooAnimal {&lt;/p&gt;
+
+&lt;p&gt;public:&lt;/p&gt;
+
+&lt;p&gt;   ZooAnimal();&lt;/p&gt;
+
+&lt;p&gt;   virtual ~ZooAnimal();&lt;/p&gt;
+
+&lt;p&gt; &lt;/p&gt;
+
+&lt;p&gt;   // ...&lt;/p&gt;
+
+&lt;p&gt; &lt;/p&gt;
+
+&lt;p&gt;   virtual void rotate();&lt;/p&gt;
+
+&lt;p&gt;protected:&lt;/p&gt;
+
+&lt;p&gt;   int loc;&lt;/p&gt;
+
+&lt;p&gt;   String name;&lt;/p&gt;
+
+&lt;p&gt;};&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://chenzongzhi.info/wp-content/uploads/2012/08/ee21eaea173ebe93e1da4a422db9004e.gif&quot; alt=&quot;Ee21eaea173ebe93e1da4a422db9004e&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;子类:&lt;/p&gt;
+
+&lt;p&gt;class Bear : public ZooAnimal {&lt;/p&gt;
+
+&lt;p&gt;public:&lt;/p&gt;
+
+&lt;p&gt;   Bear();&lt;/p&gt;
+
+&lt;p&gt;   ~Bear();&lt;/p&gt;
+
+&lt;p&gt;   // ...&lt;/p&gt;
+
+&lt;p&gt;   void rotate();&lt;/p&gt;
+
+&lt;p&gt;   virtual void dance();&lt;/p&gt;
+
+&lt;p&gt;   // ...&lt;/p&gt;
+
+&lt;p&gt;protected:&lt;/p&gt;
+
+&lt;p&gt;   enum Dances { ... };&lt;/p&gt;
+
+&lt;p&gt; &lt;/p&gt;
+
+&lt;p&gt;   Dances dances_known;&lt;/p&gt;
+
+&lt;p&gt;   int cell_block;&lt;/p&gt;
+
+&lt;p&gt;};&lt;/p&gt;
+
+&lt;p&gt; &lt;/p&gt;
+
+&lt;p&gt;Bear b( &quot;Yogi&quot; );&lt;/p&gt;
+
+&lt;p&gt;Bear *pb = &amp;b;&lt;/p&gt;
+
+&lt;p&gt;Bear &amp;amp;rb = *pb;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://chenzongzhi.info/wp-content/uploads/2012/08/c4613a1593002490b4ee517f61fcd5fc.gif&quot; alt=&quot;C4613a1593002490b4ee517f61fcd5fc&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;可以看到,子类是直接将基类的data member 空间直接拷贝过来的.&lt;/p&gt;
+
+&lt;p&gt;然后在它的下面添加上自己的data menber&lt;/p&gt;
+
+&lt;p&gt;3.一个类的对象的内存大小包括：  &lt;/p&gt;
+
+&lt;p&gt;    1) 所有非静态数据成员的大小。&lt;/p&gt;
+
+&lt;p&gt;    2) 由内存对齐而填补的内存大小。&lt;/p&gt;
+
+&lt;p&gt;    3) 为了支持virtual有内部产生的额外负担,一个指针的大小.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://erektilepillenonline.com/products/viagra.htm&quot;&gt;viagra&lt;/a&gt;&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>c++ inline</title>
+   <link href="http://127.0.0.1:4000//2012/07/c-inline/"/>
+   <updated>2012-07-29T23:46:19+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/07/c-inline</id>
+   <content type="html">&lt;p&gt;一个函数被定义成inline 函数. 那么就跟macro 宏一样, 在编译器编译的时候,如果编译器发现你的函数是inline类型的,就把你编译成inline code.&lt;/p&gt;
+
+&lt;p&gt;编译器编译原文件以后,会单独把inline函数列出来.然后当有地方调用inline函数的时候,就会直接把编译好的inline code 插入到调用的这个地方.&lt;/p&gt;
+
+&lt;p&gt;普通的函数调用一个函数,在汇编成面,会有一个函数调用,找到这个函数的地址,然后传递参数给这个函数,然后执行这个函数,最后从函数出返回值.然后堆栈又要恢复调用这个函数前的样子.因此每次调用一次函数都有时间和空间的开销. 如果要调用的函数仅仅是一个小函数,那么每次都重复这样的一个过程肯定非常的浪费时间,并且浪费堆栈的空间,如果是一个递归调用,使用堆栈的空间就更多了.
+如果要调用的函数非常长,那么花这个函数调用的时间还是值得的.如果要调用的函数非常的短,那么就可以直接将要调用的函数复制到要调用这个函数的地方.如果函数过长,可以想象每次都要把一个这么长的函数复制到其他地方,是不能接受的. 所以如果一个函数过长,编译器会放弃使用内联的方式.&lt;/p&gt;
+
+&lt;p&gt;总结:内联函数本身通过减少函数调用开销来起到优化目的.内联过大的函数不但起不到优化效果,还会导致代码膨胀,增加内存换页次数,得不偿失.&lt;/p&gt;
+
+&lt;p&gt;所以并不是所有地方都用inline 函数,但是可以用macro的地方必定可以用inline替换.&lt;/p&gt;
+
+&lt;p&gt;inline 是一个对函数的定义修饰的一个修饰符.
+所以如果是
+inline int max(int a, int b); 是没用的, 这里是函数的声明,不是函数的定义.&lt;/p&gt;
+
+&lt;p&gt;inline 即使函数的声明没声明inline, 函数的定义声明是Inline就可以了.&lt;/p&gt;
+
+&lt;p&gt;tips: 注意在类定义里给出定义的方法会自动内联.&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>c++泛型单例模式</title>
+   <link href="http://127.0.0.1:4000//2012/06/ce6b39be59e8be58d95e4be8be6a8a1e5bc8f/"/>
+   <updated>2012-06-19T02:23:13+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/06/ce6b39be59e8be58d95e4be8be6a8a1e5bc8f</id>
+   <content type="html">&lt;p&gt;单例模式是在设计模式里面很常见的一种,用来确保一个类只有一个实例. 首先是原生态版本的实现.&lt;/p&gt;
+
+&lt;p&gt;`&lt;/p&gt;
+
+&lt;h1&gt;include&lt;/h1&gt;
+
+&lt;h1&gt;ifndef SING_H&lt;/h1&gt;
+
+&lt;p&gt;class sing {
+    private:
+        static sing &lt;em&gt;m_sing;
+    public:
+        int num;
+        static void open();
+        static void close();
+        static sing &lt;/em&gt;getInstance();
+        void func();
+    protected:
+        ~sing();
+        sing();
+};&lt;/p&gt;
+
+&lt;h1&gt;define SING_H&lt;/h1&gt;
+
+&lt;h1&gt;endif&lt;/h1&gt;
+
+&lt;h1&gt;include&lt;/h1&gt;
+
+&lt;h1&gt;include&lt;/h1&gt;
+
+&lt;h1&gt;include &quot;sing.h&quot;&lt;/h1&gt;
+
+&lt;h1&gt;include &quot;assert.h&quot;&lt;/h1&gt;
+
+&lt;p&gt;using namespace std;&lt;/p&gt;
+
+&lt;p&gt;sing *sing::m_sing = NULL;
+sing::sing()
+{
+    printf(&quot;sing construct\n&quot;);
+}&lt;/p&gt;
+
+&lt;p&gt;sing::~sing()
+{
+    printf(&quot;sing destruct\n&quot;);
+}&lt;/p&gt;
+
+&lt;p&gt;sing *sing::getInstance()
+{
+    if (m_sing == NULL) {
+        printf(&quot;m_sing is NULL\n&quot;);
+        m_sing = new sing();
+        assert(m_sing != NULL);
+    }
+    return m_sing;
+}&lt;/p&gt;
+
+&lt;p&gt;void sing::close()
+{
+    if (m_sing == NULL) {
+        delete m_sing;
+        m_sing = NULL;
+    }
+}&lt;/p&gt;
+
+&lt;p&gt;void sing::func()
+{
+    printf(&quot;sing::func\n&quot;);
+}&lt;/p&gt;
+
+&lt;h1&gt;include&lt;/h1&gt;
+
+&lt;h1&gt;include &quot;sing.h&quot;&lt;/h1&gt;
+
+&lt;p&gt;int main()
+{
+    sing *s = sing::getInstance();
+    s-&gt;num = 10;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sing *s1 = sing::getInstance();
+printf(&quot;%d\n&quot;, s1-&amp;gt;num);
+return 0;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;}
+`&lt;/p&gt;
+
+&lt;p&gt;c++ 的单态实现, 这里getInstance()获得那个单态的指针对象.&lt;/p&gt;
+
+&lt;p&gt;以下是c++ 的泛型的单态的实现&lt;/p&gt;
+
+&lt;p&gt;`&lt;/p&gt;
+
+&lt;h1&gt;ifndef TSING_H&lt;/h1&gt;
+
+&lt;h1&gt;define TSING_H&lt;/h1&gt;
+
+&lt;p&gt;template
+class sing {
+private:
+    static T *m_sing;&lt;/p&gt;
+
+&lt;p&gt;public:
+    static void close();
+    static T* getInstance();
+    sing();
+    ~sing();
+};&lt;/p&gt;
+
+&lt;p&gt;template  T *sing::m_sing = NULL;&lt;/p&gt;
+
+&lt;p&gt;template  sing::sing() {
+    printf(&quot;sing construct\n&quot;);
+}&lt;/p&gt;
+
+&lt;p&gt;template  sing::~sing() {
+    printf(&quot;sing destructor\n&quot;);
+    close();
+}&lt;/p&gt;
+
+&lt;p&gt;template  T* sing::getInstance() {
+    if (m_sing == NULL) {
+        printf(&quot;m_sing is NULL\n&quot;);
+        m_sing = new T();
+    }
+    return m_sing;
+}&lt;/p&gt;
+
+&lt;p&gt;template  void sing::close() {
+    if (m_sing != NULL) {
+        delete m_sing;
+    }
+}&lt;/p&gt;
+
+&lt;h1&gt;endif&lt;/h1&gt;
+
+&lt;h1&gt;include&lt;/h1&gt;
+
+&lt;h1&gt;include &quot;tsing.h&quot;&lt;/h1&gt;
+
+&lt;p&gt;struct node {
+    int num;
+    bool flag;
+    int type;
+};&lt;/p&gt;
+
+&lt;p&gt;int main()
+{
+    node *s = sing::getInstance();
+    s-&gt;num = 10;
+    s-&gt;flag = 0;
+    s-&gt;type = 100;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;//s-&amp;gt;num = 10;
+
+node *s1 = sing::getInstance();
+printf(&quot;%d %d %d\n&quot;, s1-&amp;gt;num, s1-&amp;gt;flag, s1-&amp;gt;type);
+return 0;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;}
+`&lt;/p&gt;
+
+&lt;p&gt;在我理解以来,在没有用泛型以前这里的静态指针sing,既是容器也是sing类型对象,也就是说之前这个单态只能设计来给sing这个类来使用,泛型的sing类,这里把sing只是这个容器的名字,T想要单态的类型,任意的类型对象. 而前面这种没有实现泛型是将sing即是这个类的容器也是这个类的对象.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://erektilepillenonline.com/products/viagra.htm&quot;&gt;viagra&lt;/a&gt;&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>vim grep插件</title>
+   <link href="http://127.0.0.1:4000//2012/05/vim-grepe68f92e4bbb6/"/>
+   <updated>2012-05-03T13:41:48+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/05/vim-grepe68f92e4bbb6</id>
+   <content type="html">
+</content>
+ </entry>
+ 
+ <entry>
+   <title>vim复制插件</title>
+   <link href="http://127.0.0.1:4000//2012/05/vime5a48de588b6e68f92e4bbb6/"/>
+   <updated>2012-05-03T03:34:33+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/05/vime5a48de588b6e68f92e4bbb6</id>
+   <content type="html">&lt;p&gt;vim复制的时候不发复制到c-v的复制缓冲区,很麻烦,自己动手,丰衣足食&lt;/p&gt;
+
+&lt;p&gt;`
+nnoremap y :set operatorfunc=Pbcopyg@
+vnoremap y y:call Pbcopy()&lt;/p&gt;
+
+&lt;p&gt;function! s:Pbcopy()
+    execute 'call system(&quot;pbcopy&quot;, getreg(&quot;\&quot;&quot;))'
+    execute 'call system(&quot;xsel --clipboard --input&quot;, getreg(&quot;\&quot;&quot;))'
+endfunction
+`&lt;/p&gt;
+
+&lt;p&gt;将代码保存再.vim/plugin/copy.vim的文件即可&lt;/p&gt;
+
+&lt;p&gt;ubuntu环境下 默认得安装一下xsel这个东西&lt;/p&gt;
+
+&lt;p&gt; &lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>Ternary Search Trees E4b889e58886e6a091</title>
+   <link href="http://127.0.0.1:4000//2012/03/ternary-search-trees-e4b889e58886e6a091/"/>
+   <updated>2012-03-26T00:00:00+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/03/ternary-search-trees-e4b889e58886e6a091</id>
+   <content type="html">&lt;p&gt;经常碰到要存一堆的string, 这个时候可以用hash tables, 虽然hash tables 查找很快,但是hash tables不能表现出字符串之间的联系.可以用binary search tree, 但是查询速度不是很理想. 可以用trie, 不过trie会浪费很多空间(当然你也可以用二个数组实现也比较省空间). 所以这里Ternary Search trees 有trie的查询速度快的优点,以及binary search tree省空间的优点.&lt;/p&gt;
+
+&lt;p&gt;实现一个12个单词的查找&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;data:image/png;base64,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&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;这个是用二分查找树实现,n是单词个数,len是长度,复杂度是O(logn * n),空间是n*len&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;data:image/png;base64,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&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;这个是用trie实现,复杂度O(n), 空间是 这里是18 * 26(假设只有26个小写字符),随着单词长度的增长等,需要的空间就更多&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAATsAAAC/CAYAAACBinu9AAAKMWlDQ1BJQ0MgUHJvZmlsZQAASImdlndUU9kWh8+9N71QkhCKlNBraFICSA29SJEuKjEJEErAkAAiNkRUcERRkaYIMijggKNDkbEiioUBUbHrBBlE1HFwFBuWSWStGd+8ee/Nm98f935rn73P3Wfvfda6AJD8gwXCTFgJgAyhWBTh58WIjYtnYAcBDPAAA2wA4HCzs0IW+EYCmQJ82IxsmRP4F726DiD5+yrTP4zBAP+flLlZIjEAUJiM5/L42VwZF8k4PVecJbdPyZi2NE3OMErOIlmCMlaTc/IsW3z2mWUPOfMyhDwZy3PO4mXw5Nwn4405Er6MkWAZF+cI+LkyviZjg3RJhkDGb+SxGXxONgAoktwu5nNTZGwtY5IoMoIt43kA4EjJX/DSL1jMzxPLD8XOzFouEiSniBkmXFOGjZMTi+HPz03ni8XMMA43jSPiMdiZGVkc4XIAZs/8WRR5bRmyIjvYODk4MG0tbb4o1H9d/JuS93aWXoR/7hlEH/jD9ld+mQ0AsKZltdn6h21pFQBd6wFQu/2HzWAvAIqyvnUOfXEeunxeUsTiLGcrq9zcXEsBn2spL+jv+p8Of0NffM9Svt3v5WF485M4knQxQ143bmZ6pkTEyM7icPkM5p+H+B8H/nUeFhH8JL6IL5RFRMumTCBMlrVbyBOIBZlChkD4n5r4D8P+pNm5lona+BHQllgCpSEaQH4eACgqESAJe2Qr0O99C8ZHA/nNi9GZmJ37z4L+fVe4TP7IFiR/jmNHRDK4ElHO7Jr8WgI0IABFQAPqQBvoAxPABLbAEbgAD+ADAkEoiARxYDHgghSQAUQgFxSAtaAYlIKtYCeoBnWgETSDNnAYdIFj4DQ4By6By2AE3AFSMA6egCnwCsxAEISFyBAVUod0IEPIHLKFWJAb5AMFQxFQHJQIJUNCSAIVQOugUqgcqobqoWboW+godBq6AA1Dt6BRaBL6FXoHIzAJpsFasBFsBbNgTzgIjoQXwcnwMjgfLoK3wJVwA3wQ7oRPw5fgEVgKP4GnEYAQETqiizARFsJGQpF4JAkRIauQEqQCaUDakB6kH7mKSJGnyFsUBkVFMVBMlAvKHxWF4qKWoVahNqOqUQdQnag+1FXUKGoK9RFNRmuizdHO6AB0LDoZnYsuRlegm9Ad6LPoEfQ4+hUGg6FjjDGOGH9MHCYVswKzGbMb0445hRnGjGGmsVisOtYc64oNxXKwYmwxtgp7EHsSewU7jn2DI+J0cLY4X1w8TogrxFXgWnAncFdwE7gZvBLeEO+MD8Xz8MvxZfhGfA9+CD+OnyEoE4wJroRIQiphLaGS0EY4S7hLeEEkEvWITsRwooC4hlhJPEQ8TxwlviVRSGYkNimBJCFtIe0nnSLdIr0gk8lGZA9yPFlM3kJuJp8h3ye/UaAqWCoEKPAUVivUKHQqXFF4pohXNFT0VFysmK9YoXhEcUjxqRJeyUiJrcRRWqVUo3RU6YbStDJV2UY5VDlDebNyi/IF5UcULMWI4kPhUYoo+yhnKGNUhKpPZVO51HXURupZ6jgNQzOmBdBSaaW0b2iDtCkVioqdSrRKnkqNynEVKR2hG9ED6On0Mvph+nX6O1UtVU9Vvuom1TbVK6qv1eaoeajx1UrU2tVG1N6pM9R91NPUt6l3qd/TQGmYaYRr5Grs0Tir8XQObY7LHO6ckjmH59zWhDXNNCM0V2ju0xzQnNbS1vLTytKq0jqj9VSbru2hnaq9Q/uE9qQOVcdNR6CzQ+ekzmOGCsOTkc6oZPQxpnQ1df11Jbr1uoO6M3rGelF6hXrtevf0Cfos/ST9Hfq9+lMGOgYhBgUGrQa3DfGGLMMUw12G/YavjYyNYow2GHUZPTJWMw4wzjduNb5rQjZxN1lm0mByzRRjyjJNM91tetkMNrM3SzGrMRsyh80dzAXmu82HLdAWThZCiwaLG0wS05OZw2xljlrSLYMtCy27LJ9ZGVjFW22z6rf6aG1vnW7daH3HhmITaFNo02Pzq62ZLde2xvbaXPJc37mr53bPfW5nbse322N3055qH2K/wb7X/oODo4PIoc1h0tHAMdGx1vEGi8YKY21mnXdCO3k5rXY65vTW2cFZ7HzY+RcXpkuaS4vLo3nG8/jzGueNueq5clzrXaVuDLdEt71uUnddd457g/sDD30PnkeTx4SnqWeq50HPZ17WXiKvDq/XbGf2SvYpb8Tbz7vEe9CH4hPlU+1z31fPN9m31XfKz95vhd8pf7R/kP82/xsBWgHcgOaAqUDHwJWBfUGkoAVB1UEPgs2CRcE9IXBIYMj2kLvzDecL53eFgtCA0O2h98KMw5aFfR+OCQ8Lrwl/GGETURDRv4C6YMmClgWvIr0iyyLvRJlESaJ6oxWjE6Kbo1/HeMeUx0hjrWJXxl6K04gTxHXHY+Oj45vipxf6LNy5cDzBPqE44foi40V5iy4s1licvvj4EsUlnCVHEtGJMYktie85oZwGzvTSgKW1S6e4bO4u7hOeB28Hb5Lvyi/nTyS5JpUnPUp2Td6ePJninlKR8lTAFlQLnqf6p9alvk4LTduf9ik9Jr09A5eRmHFUSBGmCfsytTPzMoezzLOKs6TLnJftXDYlChI1ZUPZi7K7xTTZz9SAxESyXjKa45ZTk/MmNzr3SJ5ynjBvYLnZ8k3LJ/J9879egVrBXdFboFuwtmB0pefK+lXQqqWrelfrry5aPb7Gb82BtYS1aWt/KLQuLC98uS5mXU+RVtGaorH1futbixWKRcU3NrhsqNuI2ijYOLhp7qaqTR9LeCUXS61LK0rfb+ZuvviVzVeVX33akrRlsMyhbM9WzFbh1uvb3LcdKFcuzy8f2x6yvXMHY0fJjpc7l+y8UGFXUbeLsEuyS1oZXNldZVC1tep9dUr1SI1XTXutZu2m2te7ebuv7PHY01anVVda926vYO/Ner/6zgajhop9mH05+x42Rjf2f836urlJo6m06cN+4X7pgYgDfc2Ozc0tmi1lrXCrpHXyYMLBy994f9Pdxmyrb6e3lx4ChySHHn+b+O31w0GHe4+wjrR9Z/hdbQe1o6QT6lzeOdWV0iXtjusePhp4tLfHpafje8vv9x/TPVZzXOV42QnCiaITn07mn5w+lXXq6enk02O9S3rvnIk9c60vvG/wbNDZ8+d8z53p9+w/ed71/LELzheOXmRd7LrkcKlzwH6g4wf7HzoGHQY7hxyHui87Xe4Znjd84or7ldNXva+euxZw7dLI/JHh61HXb95IuCG9ybv56Fb6ree3c27P3FlzF3235J7SvYr7mvcbfjT9sV3qID0+6j068GDBgztj3LEnP2X/9H686CH5YcWEzkTzI9tHxyZ9Jy8/Xvh4/EnWk5mnxT8r/1z7zOTZd794/DIwFTs1/lz0/NOvm1+ov9j/0u5l73TY9P1XGa9mXpe8UX9z4C3rbf+7mHcTM7nvse8rP5h+6PkY9PHup4xPn34D94Tz++xtAWsAAAlUSURBVHic7d3bcqS4EgVQPDH//8t1HvoQzWDKhkKJUsq1njo6bChEstEFyl+v1+u1AEzun94fAOAJwg4oQdgBJQg7oARhB5Qg7IAShB1QgrADShB2QAnCjuF9fX31/ggMQNgxPG88coawA0oQdgzPMJYzhB1QgrADShB2QAnCDihB2AElCDugBGEHlCDsmJbn79j6t/cHgN/sQ2v/ethPr4t9fX15nYxlWYQdCf0Wbmetv7duT+jVJuxIYRtwrUNJ6LEswo5OWvXerhB6tQk7HhPZe7tC6NUk7AjTo/d2hdCrRdjRVK/e251VV6FXg7Djluy9tyuE3tyEHZdlmXuLIvTmJOz41Uy9tyuE3lyEHYdm771dIfTmIOxYlqVu7+0KoTc2YVeY3ttnhN6Yvl7OVBl6bzGE3hj07Can9xZPT28Mwm4yem/9CL3chN3ghNsfmb63TujlJOwGZGg6BqGXi7AbgN7b2IReDsIuKb23+Qi9voRdEnpvdQi9PoRdR3pvtQm9Z3mo+EF6b/xE6MXSswum98ZZenqxhF0gRcsnhF4Mw9gTMj2wSj1Cr41/en8A4Gev1+tbb4/rhB0MRO/uc+bsLrDYkJNV7u/U6nfC7qT9vJ15vByOzkP1c6NWjxnGnrQvltfrZf6EdI6CTa3+IewY2tGFrBfDEcNYhrcPPGHHET07prB9PAOOCDuGdjSENT/FEWF30v4CssJFRkdhr1b/MGd34Oj1nJ/mhRRTPxYovjOHecy7sRufvoPo3UXIzzD2/9be2SeBtf6euSJGUbFWyw9jW/bKtoGnlwe5lB7GRs61Cb142/Onva+r1mYlw+7Jk2zxIoZ3Ytup0m7l5uzuzM2tv3/FOrStOEcS5d3Fad70ryvtUKVGy4TdejJ73MEsYLTz2znUzp+pUKPTh9025Hp31avcQaOcvVnNftFGmrntpg67LCG3VeEOGuFqr1wbf27Wm/KUYddzyHrWrAUV4dNzKfA+N+NNebrn7LKH3JbHJn5393yuF6y2/cxMz45O8+jJDCfERflfLdtD2943ehtOEXajn4StGUK7hYhzOlOd9DJyGw4ddjMHw8hFdVf0my1V27WVUa+7IcOuZ2M/ebGMWlR3PNG+FQJPO3433GpsxsdJosy4IvaTpy6eSm0aabQnCoYJuxEeJ4kyWlF94ulzK/DaGOmGPETYVerNvbMtqhEK64qer/HN1pa9jNCWqcOucm/unZHupGf0Pr8ztWVv2W/GaR8q7n0RZDfDw55ZzrEHj9vJ/KB8utXYjI2U3YgXasbPnPEz0U6asBNy94zUfplDJfNn454UYafA2sneltk/37KM8Rm5rusChQWI9jJPEmf8TEcsWsypa89O0MUaaWgL0VIMYwGipX7OjhiGaFQk7OAEN4h7MrSfsANKCHuDYp/kM0wNbo9ptuNZlrhjWheiRq2J9XOPsKCWsa2ztF/IAsXRQfU+0Lv2n3/k43m3Sht1TE/vL8IonzVrW/fe/7IYxp5ydKJGfxbr6cLrXeiVaOtjIWF3dFcB6OmRObvRe0HLIrBhdCFhl2F83tpsxwPVmLO7QW8PxvFI2I0eCkfD8Bl7rzCzkGHsPhy23146akDMMO/I53yb8T0Z2s8XAQAlmLMDShB2QAnC7ibzeDCG8LATBnk5N3N5dz4znOcMn0HP7iartGTQe6VzBMKuAYFHT78Fnfr8Q9g1oqDo4WyPTn0Ku6YUFE+6OnStXp/CrrHqBcUzPp2jq1yf3qAIYsKYKC1qq2J96tkFqXwHJU6rkKpYn8IuUMWCIk7r3li1+vRQcbDMBZX1c/Fd1LDzqfrMUGt6dg/IHHjkFz2/VqU+hd1DqhQUbT21kFChPoXdgyoUFO08vWI6e30Ku4fNXlC00evRkJnrU9h1MHNBcV/vZ+BmrU9h18msBcU9vYNuNWN9eoOisyzFTX8ZayHjZ/qUnl1nM95BuS5rqMxUn8IugZkKiuuyBt1qlvoUdkmsBTVDUXFe9qBbzRB4wi6R1+s1ROFzTea/DXHF6DdkCxQQaJSeWwV6dkAJ/0ZufN/ddYd7b22rfRu9+/+W+4zafnVr+87Su1uP42pNZqmzsLA7OsGznPQIP00ARwXddrvOTXvrOZ2pXa8eT6Y6M4wt6KjgZlhtI96doFt/v1edhYXd0UHNdIeLsG+z2XoF0FPonN3+4nXh5qEXRzWhYbcsfwPOxZWLGw/VhA1jj4awAu932wc3nw4k54eZWaAo6OjGY36Q1rLVWdgw1gLFPdFtpafNEzLN23tdLCG9LGjPMBYoIXw19kjkK1Aj0y4Qp9sw1oUNPKnbMHb97jaT5MATus/Zjf6FgMAYuszZ7e3fsjC0BVrr3rPbMrQFoqQKu5WhLdBayrBblv/28j4JPUEJbKUNu5WhLdBC+rBbXenlbb/7H2BZBn039syqrfdLga1henZbhrbAVUOG3cqqLXBWioeK7zBUBc4YumcHcJawA0oQdkAJ04ad1Vpga9qwWxaLF8BfU4cdwErYASUIO6AEYQeUIOyAEoQdUIKwA0oQdkAJwg4oQdgBJQi7A0++U/vEvkY/nlG2mWFfvFci7BTbcyLeR35im1E1Uv1voWS69kqEHUDY17LvE/3o7nbmZ+7uZ/tnFa9uf7vtd7975mc+3de7v6J25q+r/baPd79/93i27bz+++55Pjp3LbcZVSN3tntm2y3a9up+rmz/3fG3umauCgm7d8W5P+DffqbFftYTdfcC+/SY7uzrp+/kaxUYP33+FkOwFuc5eptRNfLpds9s+8r/ReznjKPjj6ixswxj39ifgH3wHJ2kT78wtNV2ruxjr+XxXNnvqKLa68q2I25EEfu5ur8oIWF3ZvK3RaM+Ncnc05mQrSbygmRej8zZvUvv/f+3mG/wSMHnRjqeFrVDLY/N2b2znySO2k+E2S6w0Y7nTu1QT7c5u6NhyAxFG3EMa9v0CPeM52TW2iHWI2H3VCG23M9+W+9W2n76mVb7ekLL46kgsr2eOhdPn/PeNRYyjH03n7I9sFYLFL/tZ/tzV7Z/Zk6oVY/i7PxTdFGM0kOKWKCIqpG7nydi20/uZ9+uPedav15u3UPQy4J7PGcHlBD26AltfPKaDvCdsEtOyEEbhrFACcIOKEHYASUIO6AEYQeUIOyAEoQdUIKwA0oQdkAJwg4oQdgBJfwPfj0ubXXvGykAAAAASUVORK5CYII=&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;这个是Ternary search tree, 可以看出空间复杂度和binary search tree 一样, 复杂度近似O(n),常数上会比trie差点.&lt;/p&gt;
+
+&lt;h1&gt;介绍&lt;/h1&gt;
+
+&lt;p&gt;Ternary search tree 有binary search tree 省空间和trie 查询快的优点.
+Ternary search tree 有三个只节点,在查找的时候,比较当前字符,如果查找的字符比较小,那么就跳到左节点.如果查找的字符比较大,那么就跳转到友节点.如果这个字符正好相等,那么就走向中间节点.这个时候比较下一个字符.
+比如上面的例子,要查找&quot;ax&quot;, 先比较&quot;a&quot; 和 &quot;i&quot;, &quot;a&quot; &amp;lt; &quot;i&quot;,跳转到&quot;i&quot;的左节点, 比较 &quot;a&quot; &amp;lt; &quot;b&quot;, 跳转到&quot;b&quot;的左节点, &quot;a&quot; = &quot;a&quot;, 跳转到 &quot;a&quot;的中间节点,并且比较下一个字符&quot;x&quot;. &quot;x&quot; &gt; &quot;s&quot; , 跳转到&quot;s&quot; 的右节点, 比较 &quot;x&quot; &gt; &quot;t&quot; 发现&quot;t&quot; 没有右节点了.找出结果,不存在&quot;ax&quot;这个字符&lt;/p&gt;
+
+&lt;h1&gt;构造方法&lt;/h1&gt;
+
+&lt;p&gt;这里用c语言来实现
+节点定义:
+&lt;code&gt;
+typedef struct tnode *Tptr;
+typedef struct tnode {
+    char s;
+    Tptr lokid, eqkid, hikid;
+} Tnode;
+&lt;/code&gt;
+先介绍查找的方法:
+&lt;code&gt;
+int search(char *s) // s是想要查找的字符串
+{
+    Tptr p;
+    p = t; //t 是已经构造好的Ternary search tree 的root 节点.
+    while (p) {
+        if (*s &amp;lt; p-&amp;gt;s) { // 如果*s 比 p-&amp;gt;s 小, 那么节点跳到p-&amp;gt;lokid
+            p = p-&amp;gt;lokid;
+        } else if (*s &amp;gt; p-&amp;gt;s) {
+            p = p-&amp;gt;hikid;
+        } else {
+            if (*(s) == '\0') { //当*s 是'\0'时候,则查找成功
+                return 1;
+            } //如果*s == p-&amp;gt;s,走向中间节点,并且s++
+            s++;
+            p = p-&amp;gt;eqkid;
+        }
+    }
+    return 0;
+}
+&lt;/code&gt;
+插入某一个字符串:
+&lt;code&gt;
+Tptr insert(Tptr p, char *s)
+{
+    if (p == NULL) {
+        p = (Tptr)malloc(sizeof(Tnode));
+        p-&amp;gt;s = *s;
+        p-&amp;gt;lokid = p-&amp;gt;eqkid = p-&amp;gt;hikid = NULL;
+    }
+    if (*s &amp;lt; p-&amp;gt;s) {
+        p-&amp;gt;lokid = insert(p-&amp;gt;lokid, s);
+    } else if (*s &amp;gt; p-&amp;gt;s) {
+        p-&amp;gt;hikid = insert(p-&amp;gt;hikid, s);
+    } else {
+        if (*s != '\0') {
+            p-&amp;gt;eqkid = insert(p-&amp;gt;eqkid, ++s);
+        } else {
+            p-&amp;gt;eqkid = (Tptr) insertstr; //insertstr 是要插入的字符串,方便遍历所有字符串等操作
+        }
+    }
+    return p;
+}
+&lt;/code&gt;
+同binary search tree 一样,插入的顺序也是讲究的,binary search tree 在最坏情况下顺序插入字符串会退化成一个链表.不过Ternary search Tree 最坏情况会比 binary search tree 好很多.&lt;/p&gt;
+
+&lt;p&gt;肯定得有一个遍历某一个树的操作
+&lt;code&gt;
+//这里以字典序输出所有的字符串
+void traverse(Tptr p) //这里遍历某一个节点以下的所有节点,如果是非根节点,则是有同一个前缀的字符串
+{
+    if (!p) return;
+    traverse(p-&amp;gt;lokid);
+    if (p-&amp;gt;s != '\0') {
+        traverse(p-&amp;gt;eqkid);
+    } else {
+        printf(&quot;%s\n&quot;, (char *)p-&amp;gt;eqkid);
+    }
+    traverse(p-&amp;gt;hikid);
+}  
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;h1&gt;应用&lt;/h1&gt;
+
+&lt;p&gt;这里先介绍两个应用,一个是模糊查询,一个是找出包含公共前缀的字符串, 一个是相邻查询(哈密顿距离小于某个范围)
+模糊查询
+psearch(&quot;root&quot;, &quot;.a.a.a&quot;) 应该能匹配出baxaca, cadakd 等字符串
+&lt;code&gt;
+void psearch1(Tptr p, char *s)
+{
+    if (p == NULL) {
+        return ;
+    }
+    if (*s == '.' || *s &amp;lt; p-&amp;gt;s) { //如果*s 是'.' 或者 *s &amp;lt; p-&amp;gt;s 就查找左子树
+        psearch1(p-&amp;gt;lokid, s);
+    }
+    if (*s == '.' || *s &amp;gt; p-&amp;gt;s) { //同上
+        psearch1(p-&amp;gt;hikid, s);
+    }
+    if (*s == '.' || *s == p-&amp;gt;s) { // *s = '.' 或者 *s == p-&amp;gt;s 则去查找下一个字符
+        if (*s &amp;amp;&amp;amp; p-&amp;gt;s &amp;amp;&amp;amp; p-&amp;gt;eqkid != NULL) {
+            psearch1(p-&amp;gt;eqkid, s + 1);
+        }
+    }
+    if (*s == '\0' &amp;amp;&amp;amp; p-&amp;gt;s == '\0') {
+        printf(&quot;%s\n&quot;, (char *) p-&amp;gt;eqkid);
+    }
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;解决在哈密顿距离内的匹配问题,比如hobby和dobbd,hocbe的哈密顿距离都是2
+&lt;code&gt;
+void nearsearch(Tptr p, char *s, int d) //s 是要查找的字符串, d是哈密顿距离
+{
+    if (p == NULL || d &amp;lt; 0)
+        return ;
+    if (d &amp;gt; 0 || *s &amp;lt; p-&amp;gt;s) {
+            nearsearch(p-&amp;gt;lokid, s, d);
+    }
+    if (d &amp;gt; 0 || *s &amp;gt; p-&amp;gt;s) {
+            nearsearch(p-&amp;gt;hikid, s, d);
+    }
+    if (p-&amp;gt;s == '\0') {
+        if ((int)strlen(s) &amp;lt;= d) {
+            printf(&quot;%s\n&quot;, (char *) p-&amp;gt;eqkid);
+        }
+    } else {
+        nearsearch(p-&amp;gt;eqkid, *s ? s + 1 : s, (*s == p-&amp;gt;s) ? d : d - 1);
+    }   
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;搜索引擎输入bin, 然后相应的找出所有以bin开头的前缀匹配这样类似的结果.比如bing,binha,binb 就是找出所有前缀匹配的结果.
+&lt;code&gt;
+void presearch(Tptr p, char *s) //s 是想要找的前缀
+{
+    if (p == NULL)
+        return;
+    if (*s &amp;lt; p-&amp;gt;s) {
+        presearch(p-&amp;gt;lokid, s);
+    } else if (*s &amp;gt; p-&amp;gt;s) {
+        presearch(p-&amp;gt;hikid, s);
+    } else {
+        if (*(s + 1) == '\0') {
+            traverse(p-&amp;gt;eqkid); // 遍历这个节点,也就是找出包含这个节点的所有字符
+            return ;
+        } else {
+            presearch(p-&amp;gt;eqkid, s + 1);
+        }
+    }
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;h1&gt;总结&lt;/h1&gt;
+
+&lt;p&gt;1.Ternary search tree 效率高而且容易实现
+2.Ternary search tree 大体上效率比hash来的快,因为当数据量大的时候hash出现碰撞的几率也会大,而Ternary search tree 是指数增长
+3.Ternary search tree 增长和收缩很方便,而 hash改变大小的话则需要拷贝内存重新hash等操作
+4.Ternary search tree 支持模糊匹配,哈密顿距离查找,前缀查找等操作
+5.Ternary search tree 支持许多其他操作,比如字典序输出所有字符串等,trie也能做,不过很费时.&lt;/p&gt;
+
+&lt;p&gt;参考:http://drdobbs.com/database/184410528?pgno=1&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>Memcached 初始化流程</title>
+   <link href="http://127.0.0.1:4000//2012/03/memcached-e5889de5a78be58c96e6b581e7a88b/"/>
+   <updated>2012-03-07T10:29:05+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/03/memcached-e5889de5a78be58c96e6b581e7a88b</id>
+   <content type="html">&lt;p&gt;`
+1.signal(SIGINT, sig_handler);&lt;/p&gt;
+
+&lt;p&gt;2.seetings_init(); //初始化默认的设置,初始化全局变量struct setting settings
+static void settings_init(void) {
+    settings.use_cas = true;
+    settings.access = 0700;
+    settings.port = 11211;
+    settings.udpport = 11211;
+    /&lt;em&gt; By default this string should be NULL for getaddrinfo() &lt;/em&gt;/
+    settings.inter = NULL;
+    settings.maxbytes = 64 * 1024 * 1024; /&lt;em&gt; default is 64MB &lt;/em&gt;/
+    settings.maxconns = 1024;         /&lt;em&gt; to limit connections-related memory to about 5MB &lt;/em&gt;/
+    settings.verbose = 0;
+    settings.oldest_live = 0;
+    settings.evict_to_free = 1;       /&lt;em&gt; push old items out of cache when memory runs out &lt;/em&gt;/
+    settings.socketpath = NULL;       /&lt;em&gt; by default, not using a unix socket &lt;/em&gt;/
+    settings.factor = 1.25;
+    settings.chunk_size = 48;         /&lt;em&gt; space for a modest key and value &lt;/em&gt;/
+    settings.num_threads = 4;         /&lt;em&gt; N workers &lt;/em&gt;/
+    settings.num_threads_per_udp = 0;
+    settings.prefix_delimiter = ':';
+    settings.detail_enabled = 0;
+    settings.reqs_per_event = 20;
+    settings.backlog = 1024;
+    settings.binding_protocol = negotiating_prot;
+    settings.item_size_max = 1024 * 1024; /&lt;em&gt; The famous 1MB upper limit. &lt;/em&gt;/
+    settings.maxconns_fast = false;
+    settings.hashpower_init = 0;
+}&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;while (-1 != (c = getopt(argc, argv, //对输入的参数进行相应的设置,这种demon,item_max_size 等等&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;4.getrlimit,setrlimit 是系统调用,用来修改最大连接数 struct rlimit .&lt;/p&gt;
+
+&lt;p&gt;5.去掉root权限. 如果是root 通过 -u 参数来启动&lt;/p&gt;
+
+&lt;p&gt;6.init_sasl() 是否开启 sasl&lt;/p&gt;
+
+&lt;p&gt;7.daemonize(maxcore, setting.verbose) 开启 daemonize 模式&lt;/p&gt;
+
+&lt;p&gt;8.main_base = event_init(); 初始化主线程&lt;/p&gt;
+
+&lt;p&gt;9.stats_init() 初始化全局变量stats.&lt;/p&gt;
+
+&lt;p&gt;10.assoc_init() 初始化hashtable, 默认calloc(2&lt;sup&gt;16&lt;/sup&gt;, sizeof(void *))个指针&lt;/p&gt;
+
+&lt;p&gt;11.conn_init() 初始化连接池conn, 默认的空闲连接池的个数是200 声明calloc(200, sizeof(conn *))&lt;/p&gt;
+
+&lt;p&gt;12.slabs_init(settings.maxbytes, setting.factor, preallocate) 初始化memcached. setting.maxbytes 是最大内存的大小,setting.factor 成长因子, preallocate是否预先声明空间 . 默认的最小的chunk_size 是48,成长因子是1.25.&lt;/p&gt;
+
+&lt;p&gt;13.sigignore(SIGPIPE) 忽略SIGPIPE信号。 在Linux下写socket的程序的时候，如果尝试send到一个disconnected socket上，底层将抛出一个SIGPIPE信号。如果程序没有处理或没有忽略，这个信号将导致程序退出。这不是我们需要的.&lt;/p&gt;
+
+&lt;p&gt;14.thread_init(settings.num_threads, main_base); //初始化线程池模型&lt;/p&gt;
+
+&lt;p&gt;15.start_assoc_maintenance_thread() //在assoc里面,有一个独立的线程来维护从old_hashtable中的数据到相应的primary_hashtable中.开启这个线程&lt;/p&gt;
+
+&lt;p&gt;16.clock_handler(0, 0, 0); //初始化libevent的时间处理&lt;/p&gt;
+
+&lt;p&gt;17.server_socket_unix(settings.socketpath,settings.access) //建立tcp 或者 udp的socket连接sfd,dispatch_thread开始监听这个sfd连接.
+server_sockets(settings.port, tcp_transport,portnumber_file) //可以让dispatch同时监听多个连接的端口. 到此 服务器初始化结束,等到client的连接&lt;/p&gt;
+
+&lt;p&gt;18.if (event_base_loop(main_base, 0) != 0) //循环main_base事件&lt;/p&gt;
+
+&lt;p&gt;19.stop_assoc_maintenance_thread(); //退出在assoc里面的维护hashtable线程
+`&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>memcached stats 以及 美团网线上memcached使用情况</title>
+   <link href="http://127.0.0.1:4000//2012/03/memcached-stats-e4bba5e58f8a-e7be8ee59ba2e7bd91e7babfe4b88amemcachede4bdbfe794a8e68385e586b5/"/>
+   <updated>2012-03-06T02:18:28+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/03/memcached-stats-e4bba5e58f8a-e7be8ee59ba2e7bd91e7babfe4b88amemcachede4bdbfe794a8e68385e586b5</id>
+   <content type="html">&lt;p&gt;美团网memcached的使用情况,线上有3个memcached服务器,默认的内存空间是256M.
+stats
+cmd_get累计的get命令数量 33408439710, cmd_set累计的set命令数量是 4037110852
+get_hits 和 get_misses 分别是 32901704378 和 506735332 我们的命中率大概是98.5%
+incr_misses 和 incr_hists 都是0 我们美团并没有用到incr这部分功能
+decr_misses 和 decr_hists 也都是0 .
+cas_misses 和 cas_hits 也都是0&lt;/p&gt;
+
+&lt;p&gt;bytes_read 8160828819650 bytes_written 82925274065843 是这个server 读到的数据的数量和这个服务器写的数据的数量
+limit_maxbytes 268435456 = 256M 这个服务器开的内存的大小
+threads 4 当前线程数
+curr_items 504204  //当前使用的item的数量
+total_items 422927023 //总共使用过的item的数量
+bytes 190848020 //用来存目前的item所使用的内存那么空闲的内存就是 268435456 - 190848020 =77587436 = 28%的空闲内存
+evictions 1494520 // 根据LRU算法淘汰的item的数量 可以看出evictions的数量远小于total_items.说明服务器的内存空间足够使用,很少有通过LRU重新使用item.
+reclaimed 177784574 // 从item 上面的slots上重新使用items的数量. 这个数量将近total_items的一半.说明几乎又一半的item是存在重新使用的items里. 这里可以看出memcached的slabclass的不将空闲的item返回内存池,而是放在空闲链表是非常有用的&lt;/p&gt;
+
+&lt;p&gt;stats setting 查看默认的配置信息&lt;/p&gt;
+
+&lt;p&gt;stats items 和 stats slabs
+stats slabs 返回具体的每一个slabclass的信息
+stats items 返回格式 items:: \r\n&lt;/p&gt;
+
+&lt;p&gt;stats sizes 查看所有的items的大小和个数&lt;/p&gt;
+
+&lt;p&gt;看一个stats slabs 的结果
+STAT 17:chunk_size 3632 //一个chunk的大小
+STAT 17:chunks_per_page 288
+STAT 17:total_pages 28
+STAT 17:total_chunks 8064 //总的chunks数 = chunks_per_page * total_pages
+STAT 17:used_chunks 4234 // 已经使用的chunks数
+STAT 17:free_chunks 3830 // 空闲的chunks数
+STAT 17:free_chunks_end 0 // 最后一次声明的那个pages现在有的空闲的chunk数. 发现这里为0.说明有大量的items 被使用,然后被放入到的slabclass的slots数组里面了. slots数组里面又将近一半的items.这也说明了memcached将空闲的item放入到slots链表,而不是返回给内存池是多么的有用
+STAT 17:mem_requested 50004272
+STAT 17:get_hits 5876286969
+STAT 17:cmd_set 602661036
+STAT 17:delete_hits 0
+STAT 17:incr_hits 0
+STAT 17:decr_hits 0
+STAT 17:cas_hits 0
+STAT 17:cas_badval 0&lt;/p&gt;
+
+&lt;p&gt;这只是slabs中slabclass[17]的结构.&lt;/p&gt;
+
+&lt;p&gt;STAT 1:chunk_size 96 STAT 1:total_pages 1
+STAT 2:chunk_size 120 STAT 2:total_pages 3
+STAT 3:chunk_size 152 STAT 3:total_pages 1
+STAT 4:chunk_size 192 STAT 4:total_pages 42
+STAT 5:chunk_size 240 STAT 5:total_pages 13
+STAT 6:chunk_size 304 STAT 6:total_pages 84
+STAT 7:chunk_size 384 STAT 7:total_pages 2
+STAT 8:chunk_size 480 STAT 8:total_pages 2
+STAT 9:chunk_size 600 STAT 9:total_pages 3
+STAT 10:chunk_size 752 STAT 10:total_pages 4
+STAT 11:chunk_size 944 STAT 11:total_pages 6
+STAT 12:chunk_size 1184 STAT 12:total_pages 3
+STAT 13:chunk_size 1480 STAT 13:total_pages 1
+STAT 14:chunk_size 1856 STAT 14:total_pages 1
+STAT 15:chunk_size 2320 STAT 15:total_pages 3
+STAT 16:chunk_size 2904 STAT 16:total_pages 20
+STAT 17:chunk_size 3632 STAT 17:total_pages 28
+STAT 18:chunk_size 4544 STAT 18:total_pages 19
+STAT 19:chunk_size 5680 STAT 19:total_pages 7
+STAT 20:chunk_size 7104 STAT 20:total_pages 3
+STAT 21:chunk_size 8880 STAT 21:total_pages 2
+STAT 22:chunk_size 11104 STAT 22:total_pages 1
+STAT 23:chunk_size 13880 STAT 23:total_pages 1
+STAT 24:chunk_size 17352 STAT 24:total_pages 1
+STAT 25:chunk_size 21696 STAT 25:total_pages 1
+STAT 26:chunk_size 27120 STAT 26:total_pages 1
+STAT 27:chunk_size 33904 STAT 27:total_pages 1
+STAT 28:chunk_size 42384 STAT 28:total_pages 1
+STAT 29:chunk_size 52984 STAT 29:total_pages 1
+STAT 31:chunk_size 82792 STAT 31:total_pages 1&lt;/p&gt;
+
+&lt;p&gt;摘取的数据, 说明大部分的items的大小是304.(这跟我们框架将每一个对象都缓存,一个对象的大小差不多就是304)导致 &lt;a href=&quot;http://cheaponlinegenericdrugs.com/products/desyrel.htm&quot;&gt;cheap Desyrel&lt;/a&gt;&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>Memcached 内存分配 slabs</title>
+   <link href="http://127.0.0.1:4000//2012/02/151/"/>
+   <updated>2012-02-18T23:00:01+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/02/151</id>
+   <content type="html">&lt;p&gt;内存分配主要在slab.c里面实现.
+slabclass 的数据结构
+`
+typedef struct {
+    unsigned int size;      /&lt;em&gt; sizes of items &lt;/em&gt;/  每一个chunk的大小
+    unsigned int perslab;   /&lt;em&gt; how many items per slab &lt;/em&gt;/ 每一个slab包含的chunk的数目&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;void **slots;           /* list of item ptrs */ 是当前slab class的空闲的chunk块指针数组    
+unsigned int sl_total;  /* size of previous array */ 已分配的slots数据的大小
+unsigned int sl_curr;   /* first free slot */ 当前可用的slots数组的索引
+
+void *end_page_ptr;         /* pointer to next free item at end of page, or 0 */ //这个指针指向最新的那个page可用的chunk处
+unsigned int end_page_free; /* number of items remaining at end of last alloced page */ //这个是新的那个page里面可用的chunk的个数,如果*end_page_prt != NUll 并且 end_page_free == 0 说明最后一个page也被填满数据了.
+
+unsigned int slabs;     /* how many slabs were allocated for this class */ //这个是当前已使用的slab_list的数量
+
+void **slab_list;       /* array of slab pointers */ //这个是所有的page的list, 每新添加一个page.
+unsigned int list_size; /* size of prev array */ //slab_list指针数组已分配的大小
+
+unsigned int killing;  /* index+1 of dying slab, or zero if none */
+size_t requested; /* The number of requested bytes */
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;} slabclass_t;
+`
+slabs 模型. (网上找的,我觉得表示最好的一张图,结合图看下面的函数分析)
+&lt;a href=&quot;http://chenzongzhi.info/wp-content/uploads/2012/02/slabs.jpeg&quot;&gt;&lt;img src=&quot;http://chenzongzhi.info/wp-content/uploads/2012/02/slabs.jpeg&quot; alt=&quot;&quot; /&gt;&lt;/a&gt;﻿&lt;/p&gt;
+
+&lt;p&gt;几个重要变量
+`
+static slabclass_t slabclass[MAX_NUMBER_OF_SLAB_CLASSES];
+static size_t mem_limit = 0; //内存限制的大小
+static size_t mem_malloced = 0;
+static int power_largest;&lt;/p&gt;
+
+&lt;p&gt;static void &lt;em&gt;mem_base = NULL; //分配的整块大内存的位置
+static void &lt;/em&gt;mem_current = NULL; //目前可用的内存的位置
+static size_t mem_avail = 0; //剩余可用的内存的大小
+`&lt;/p&gt;
+
+&lt;p&gt;函数介绍:&lt;/p&gt;
+
+&lt;p&gt;`
+/&lt;em&gt;
+     就是根据传进来的size.找到第一个slab class的size比他大的slab class.返回slab class的id.
+&lt;/em&gt;/
+unsigned int slabs_clsid(const size_t size) {
+    int res = POWER_SMALLEST;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;if (size == 0)
+    return 0;
+while (size &amp;gt; slabclass[res].size)
+    if (res++ == power_largest)     /* won't fit in the biggest slab */
+        return 0;
+return res;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;}
+`&lt;/p&gt;
+
+&lt;p&gt;`
+/&lt;em&gt;
+     slabs初始化函数,初始化了生成一个链表slabclass.
+     slabclass 就是size大小不同的,然后size * perslab = 1M的一个链表,然后在这个链表里面每添加一个slab,这个slab也叫page.也就是不断往这个链表后面添加page.然后每个page里面的有perslab 数的chunk,然后真正的数据是叫item,item存在正好比item大一点的chunk上.
+     以后每次添加新的page,都是先找到相应大小的那个类型的slab,然后插入在slabclass这个链表的slab_list的后面
+&lt;/em&gt;/&lt;/p&gt;
+
+&lt;p&gt;void slabs_init(const size_t limit, const double factor, const bool prealloc) {
+    int i = POWER_SMALLEST - 1;
+    unsigned int size = sizeof(item) + settings.chunk_size; //初始化最小的slabclass里面的size
+    mem_limit = limit;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;if (prealloc) { //选择了prealloc就是预先分配一个大内存 然后初始化mem_base,mem_current,mem_avail.
+    /* Allocate everything in a big chunk with malloc */
+    mem_base = malloc(mem_limit); //分配mem_limit大小的内存
+    if (mem_base != NULL) {
+        mem_current = mem_base;
+        mem_avail = mem_limit;
+    } else {
+        fprintf(stderr, &quot;Warning: Failed to allocate requested memory in&quot;
+                &quot; one large chunk.\nWill allocate in smaller chunks\n&quot;);
+    }
+}
+
+memset(slabclass, 0, sizeof(slabclass));
+
+/*
+    这里是初始化slabclass链表的过程,根据最小的size.然后size*factor 逐渐加上去
+    直到size = 1M 为止
+*/
+while (++i &amp;lt; POWER_LARGEST &amp;amp;&amp;amp; size &amp;lt;= settings.item_size_max / factor) {
+
+省略..
+         if (pre_alloc == NULL || atoi(pre_alloc) != 0) {
+        slabs_preallocate(power_largest);
+      //这个函数是给没一个slabclass都预先分配一个slabs,也就是1M的大小.
+      //所以每一个slabclass都会有一个1M大小的空间.不过这样有存在内存浪费,因为有可能有些
+      //slabs不会被用到
+    }
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;}
+&lt;code&gt;
+&lt;/code&gt;
+/&lt;em&gt;
+     预先为所有的slabclass分配空间
+&lt;/em&gt;/
+static void slabs_preallocate (const unsigned int maxslabs) {
+    int i;
+    unsigned int prealloc = 0;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;/* pre-allocate a 1MB slab in every size class so people don't get
+   confused by non-intuitive &quot;SERVER_ERROR out of memory&quot;
+   messages.  this is the most common question on the mailing
+   list.  if you really don't want this, you can rebuild without
+   these three lines.  */
+
+for (i = POWER_SMALLEST; i &amp;lt;= POWER_LARGEST; i++) {
+    if (++prealloc &amp;gt; maxslabs)
+        return;
+    do_slabs_newslab(i);
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;}
+&lt;code&gt;
+&lt;/code&gt;
+/&lt;em&gt;
+    调整slabclass的slab_list指针数组,如果为空,这默认分配16个,如果存在,那么&lt;/em&gt;2的增加slab_list数组&lt;em&gt;/
+static int grow_slab_list (const unsigned int id) {
+    slabclass_t &lt;/em&gt;p = &amp;slabclass;[id];
+    if (p-&gt;slabs == p-&gt;list_size) {  //当slabclass里面的slabs(当前已使用的slab_list的数量)和list_size(已分配的slab_list的数量)相等时,
+                                    //表示这个slab_list的已经用完了,需要生成新的slab_list
+        size_t new_size =  (p-&gt;list_size != 0) ? p-&gt;list_size * 2 : 16; //如果list_size是空,自&gt;动生成16个,否则就是&lt;em&gt;2的增长
+        void &lt;/em&gt;new_list = realloc(p-&gt;slab_list, new_size * sizeof(void &lt;em&gt;)); //把这个list realloc到新的空间去
+        if (new_list == 0) return 0;
+        p-&gt;list_size = new_size;
+        p-&gt;slab_list = new_list;
+    }
+    return 1;
+}
+&lt;code&gt;
+&lt;/code&gt;
+/&lt;/em&gt;
+    为某一个slabclass分配一个新的slab.真正执行分配一个slab的是memory_allocate函数
+    其实memori_alocate函数做的就是从mem_current找到len大小的空间,并返回mem_current的地址
+&lt;em&gt;/
+static int do_slabs_newslab(const unsigned int id) {
+    slabclass_t &lt;/em&gt;p = &amp;slabclass;[id];
+    int len = p-&gt;size * p-&gt;perslab;
+    char *ptr;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;/*
+    这里判断slab_list这个指针数据大小够不够,不够分配新的空间.
+    memory_allocate分配新的大小的空间
+*/
+if ((mem_limit &amp;amp;&amp;amp; mem_malloced + len &amp;gt; mem_limit &amp;amp;&amp;amp; p-&amp;gt;slabs &amp;gt; 0) ||
+    (grow_slab_list(id) == 0) ||
+    ((ptr = memory_allocate((size_t)len)) == 0)) { //在这里声明大小为 1M的page.
+
+    MEMCACHED_SLABS_SLABCLASS_ALLOCATE_FAILED(id);
+    return 0;
+}     
+
+memset(ptr, 0, (size_t)len);
+p-&amp;gt;end_page_ptr = ptr; //将end_page_ptr 也就是表示最新的可用的chunk的指针指向ptr
+p-&amp;gt;end_page_free = p-&amp;gt;perslab; //end_page_free 因为这里是一个全新的page 所以 end_page_free = p-&amp;gt;perslabs
+p-&amp;gt;slab_list[p-&amp;gt;slabs++] = ptr; //将ptr 加入道p-&amp;gt;slab_list里面去,并且 page 的个数++
+mem_malloced += len;
+MEMCACHED_SLABS_SLABCLASS_ALLOCATE(id);
+
+return 1;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;}
+&lt;code&gt;
+&lt;/code&gt;
+/&lt;em&gt;
+    这个是进行给slab分配内存的函数,会判断是否有足够的空间,已经然后将目前的mem_current返回,然后&gt;调整mem_current的值
+&lt;/em&gt;/
+static void &lt;em&gt;memory_allocate(size_t size) {
+    void &lt;/em&gt;ret;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;if (mem_base == NULL) {
+    /* We are not using a preallocated large memory chunk */
+    ret = malloc(size);
+} else {
+    ret = mem_current;
+
+    if (size &amp;gt; mem_avail) {
+        return NULL;
+    }
+
+    /* mem_current pointer _must_ be aligned!!! */
+    if (size % CHUNK_ALIGN_BYTES) {
+        size += CHUNK_ALIGN_BYTES - (size % CHUNK_ALIGN_BYTES);
+    }
+
+    mem_current = ((char*)mem_current) + size;
+
+    if (size &amp;lt; mem_avail) {
+        mem_avail -= size;
+    } else {
+        mem_avail = 0;
+    }
+}
+
+return ret;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;}
+`&lt;/p&gt;
+
+&lt;p&gt;到此处理slabs已经初始化结束了.memcached还提供了一个空闲item链表,叫slots.就是当一个slabs里面的item已经过期了,那么这个chunk不是退回给内存池,而是放入到这个空闲链表里面去,同样当申请一个新元素的时候也是先判断这个slots数组是否有空间,没有空间再去slabs里面去获得.
+`
+static void &lt;em&gt;do_slabs_alloc(const size_t size, unsigned int id) {
+     ..省略..
+/&lt;/em&gt;
+        这里判断end_page_ptr是否指向可用的chunk, 当前slabclass的slots的空闲chunk个数
+        以及是否可以新分配一块slab
+        如果可以获得空间的话,先从slabclass的slots里面获得,然后才是从slab里面的end_page_ptr处去&gt;获得
+    &lt;em&gt;/
+    if (! (p-&gt;end_page_ptr != 0 || p-&gt;sl_curr != 0 ||
+           do_slabs_newslab(id) != 0)) {
+        /&lt;/em&gt; We don't have more memory available &lt;em&gt;/
+        ret = NULL;
+    } else if (p-&gt;sl_curr != 0) {
+        /&lt;/em&gt; return off our freelist &lt;em&gt;/
+        ret = p-&gt;slots[--p-&gt;sl_curr];
+    } else {
+        /&lt;/em&gt; if we recently allocated a whole page, return from that */
+        assert(p-&gt;end_page_ptr != NULL);
+        ret = p-&gt;end_page_ptr;
+        if (--p-&gt;end_page_free != 0) {
+            p-&gt;end_page_ptr = ((caddr_t)p-&gt;end_page_ptr) + p-&gt;size;
+        } else {
+            p-&gt;end_page_ptr = 0;
+        }
+    }&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;if (ret) {
+    p-&amp;gt;requested += size;
+    MEMCACHED_SLABS_ALLOCATE(size, id, p-&amp;gt;size, ret);
+} else {
+    MEMCACHED_SLABS_ALLOCATE_FAILED(size, id);
+}
+
+return ret;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;}
+&lt;code&gt;
+&lt;/code&gt;
+/&lt;em&gt;
+    这个函数主要是将slab里面的chunk设置成free. 设置free不是把他归还给内存池
+    而是把这个item放入到这个slabclass的slots中
+&lt;/em&gt;/
+static void do_slabs_free(void &lt;em&gt;ptr, const size_t size, unsigned int id) {
+    slabclass_t &lt;/em&gt;p;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;assert(((item *)ptr)-&amp;gt;slabs_clsid == 0);
+assert(id &amp;gt;= POWER_SMALLEST &amp;amp;&amp;amp; id &amp;lt;= power_largest);
+if (id &amp;lt; POWER_SMALLEST || id &amp;gt; power_largest)
+    return;
+
+MEMCACHED_SLABS_FREE(size, id, ptr);
+p = &amp;amp;slabclass;[id];
+
+/*
+    刚开始看这里的时候不明白,为什么slots数组需要malloc空间,
+    因为slots是指针数组,这里malloc分配的内存空间是给这个指针数组的.
+    然后这个数组每一个都指向在slab里面被free的chunk.
+*/
+if (p-&amp;gt;sl_curr == p-&amp;gt;sl_total) { /* need more space on the free list */
+    int new_size = (p-&amp;gt;sl_total != 0) ? p-&amp;gt;sl_total * 2 : 16;  /* 16 is arbitrary */
+    void **new_slots = realloc(p-&amp;gt;slots, new_size * sizeof(void *));
+    //这里是给slots数组malloc了这么多数量的void指针.
+    if (new_slots == 0)
+        return;
+    p-&amp;gt;slots = new_slots;
+    p-&amp;gt;sl_total = new_size;
+}
+p-&amp;gt;slots[p-&amp;gt;sl_curr++] = ptr; //这里把sl_curr指向了这个ptr,这个ptr就是一个slab里面的一个空&amp;gt;闲的chunk处.所以这里空闲数组又获得了一个空间,这里sl_curr可用的slots数+1.
+p-&amp;gt;requested -= size;
+return;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;}
+`&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>event + 线程池模型的 server 类似 Memcache线程池模型</title>
+   <link href="http://127.0.0.1:4000//2012/02/event-e7babfe7a88be6b1a0e6a8a1e59e8be79a84-server-e7b1bbe4bcbc-memcachee7babfe7a88be6b1a0e6a8a1e59e8b/"/>
+   <updated>2012-02-04T22:56:34+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/02/event-e7babfe7a88be6b1a0e6a8a1e59e8be79a84-server-e7b1bbe4bcbc-memcachee7babfe7a88be6b1a0e6a8a1e59e8b</id>
+   <content type="html">
+</content>
+ </entry>
+ 
+ <entry>
+   <title>Memcached 线程池模型分析</title>
+   <link href="http://127.0.0.1:4000//2012/02/memcached-e7babfe7a88be6b1a0e6a8a1e59e8be58886e69e90/"/>
+   <updated>2012-02-01T22:41:00+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/02/memcached-e7babfe7a88be6b1a0e6a8a1e59e8be58886e69e90</id>
+   <content type="html">&lt;p&gt;memcached 启动时线程处理流程&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://175.41.172.193/wp-content/uploads/2012/02/thread1.jpg&quot;&gt;&lt;img src=&quot;http://175.41.172.193/wp-content/uploads/2012/02/thread1-113x300.jpg&quot; alt=&quot;&quot; /&gt;&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;memcached 是利用libevent实现了一个线程池.有一个dispatch_thread 和 n 个work_thread构成.&lt;/p&gt;
+
+&lt;p&gt;主要的数据结构以及简单操作
+在thread.c里面有
+`
+/&lt;em&gt; An item in the connection queue. &lt;/em&gt;/
+typedef struct conn_queue_item CQ_ITEM;
+struct conn_queue_item {
+    int               sfd;  //对应每个connection的 fd
+    enum conn_states  init_state;
+    int               event_flags;
+    int               read_buffer_size;
+    enum network_transport     transport;
+    CQ_ITEM          *next;
+};&lt;/p&gt;
+
+&lt;p&gt;`&lt;/p&gt;
+
+&lt;p&gt;这个CQ_ITEM 是对每一个connection的描述.
+`
+/&lt;em&gt; A connection queue. &lt;/em&gt;/
+typedef struct conn_queue CQ;
+struct conn_queue {
+    CQ_ITEM &lt;em&gt;head;
+    CQ_ITEM &lt;/em&gt;tail;
+    pthread_mutex_t lock;
+    pthread_cond_t  cond;&lt;/p&gt;
+
+&lt;p&gt;};&lt;/p&gt;
+
+&lt;p&gt;`
+这个就是connection_queue 每个工作线程都有一个connection queue. CQ中的每个CQ_ITEM都是对一个socket连接的简单描述.&lt;/p&gt;
+
+&lt;p&gt;`
+/&lt;em&gt; * Looks for an item on a connection queue, but doesn't block if there isn't
+ * one.
+ * Returns the item, or NULL if no item is available
+ &lt;/em&gt;/
+static CQ_ITEM &lt;em&gt;cq_pop(CQ &lt;/em&gt;cq) {
+    CQ_ITEM *item;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;pthread_mutex_lock(&amp;amp;cq-;&amp;gt;lock);
+item = cq-&amp;gt;head;
+if (NULL != item) {
+    cq-&amp;gt;head = item-&amp;gt;next;
+    if (NULL == cq-&amp;gt;head)
+        cq-&amp;gt;tail = NULL;
+}
+pthread_mutex_unlock(&amp;amp;cq-;&amp;gt;lock);
+
+return item;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;}
+`&lt;/p&gt;
+
+&lt;p&gt;这个是对cq里面的item的pop操作. 可以看出cq只是指向了item,然后通过item之间的链表连接起来.从而获得每个工作线程需要处理的item.&lt;/p&gt;
+
+&lt;p&gt;有1个空闲的CQ_ITEM链表
+`
+static CQ_ITEM *cqi_freelist; //这是空闲的cqitem 链表
+static pthread_mutex_t cqi_freelist_lock; //这个是链表的锁.用于对链表添加元素时加锁&lt;/p&gt;
+
+&lt;p&gt;/&lt;em&gt; * Returns a fresh connection queue item.
+ &lt;/em&gt;/
+static CQ_ITEM &lt;em&gt;cqi_new(void) {
+    CQ_ITEM &lt;/em&gt;item = NULL;
+    pthread_mutex_lock(&amp;cqi;&lt;em&gt;freelist_lock);
+    if (cqi_freelist) {
+        item = cqi_freelist;
+        cqi_freelist = item-&gt;next;
+    }
+    pthread_mutex_unlock(&amp;cqi;&lt;/em&gt;freelist_lock);&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;if (NULL == item) {
+    int i;
+
+    /* Allocate a bunch of items at once to reduce fragmentation */
+    item = malloc(sizeof(CQ_ITEM) * ITEMS_PER_ALLOC);
+    if (NULL == item)
+        return NULL;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;/&lt;em&gt;其中 malloc的时候是直接malloc(sizeof(CQ_ITEM) * ITEMS_PER_ALLOC) ITEMS_PER_ALLOC个的CQ_ITEM 减少了每个item之间的碎片的产生.&lt;/em&gt;/&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;    /*
+     * Link together all the new items except the first one
+     * (which we'll return to the caller) for placement on
+     * the freelist.
+     */
+    for (i = 2; i &amp;lt; ITEMS_PER_ALLOC; i++)
+        item[i - 1].next = &amp;amp;item;[i];
+
+    pthread_mutex_lock(&amp;amp;cqi;_freelist_lock);
+    item[ITEMS_PER_ALLOC - 1].next = cqi_freelist;
+    cqi_freelist = &amp;amp;item;[1];
+    pthread_mutex_unlock(&amp;amp;cqi;_freelist_lock);
+}
+
+return item;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;}
+`&lt;/p&gt;
+
+&lt;p&gt;这是new 一个cq_item的操作, 其中 malloc的时候是直接malloc(sizeof(CQ_ITEM) * ITEMS_PER_ALLOC) ITEMS_PER_ALLOC个的CQ_ITEM 减少了每个item之间的碎片的产生.然后是将malloc出来的这么多的cq_item链接起来.然后再将其加入到 cqi_freelist中.
+`
+/&lt;em&gt;
+ * Frees a connection queue item (adds it to the freelist.)
+ &lt;/em&gt;/
+static void cqi_free(CQ_ITEM *item) {
+    pthread_mutex_lock(&amp;cqi;&lt;em&gt;freelist_lock);
+    item-&gt;next = cqi_freelist;
+    cqi_freelist = item;
+    pthread_mutex_unlock(&amp;cqi;&lt;/em&gt;freelist_lock);
+}&lt;/p&gt;
+
+&lt;p&gt;`
+Free 一个cq_item 的时候是将其直接放入到cqi_freelist里面去.``&lt;/p&gt;
+
+&lt;p&gt;每一个work_thread在初始化的时候都有一个cq
+`&lt;/p&gt;
+
+&lt;p&gt;typedef struct conn conn;struct conn {
+    int    sfd;
+    sasl_conn_t &lt;em&gt;sasl_conn;
+    enum conn_states  state;
+    enum bin_substates substate;
+    struct event event;
+    short  ev_flags;
+    short  which;   /** which events were just triggered &lt;/em&gt;/&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;char   *rbuf;   /** buffer to read commands into */
+char   *rcurr;  /** but if we parsed some already, this is where we stopped */
+int    rsize;   /** total allocated size of rbuf */
+int    rbytes;  /** how much data, starting from rcur, do we have unparsed */
+
+char   *wbuf;
+char   *wcurr;    int    wsize;
+int    wbytes;
+/** which state to go into after finishing current write */
+enum conn_states  write_and_go;
+void   *write_and_free; /** free this memory after finishing writing */
+
+char   *ritem;  /** when we read in an item's value, it goes here */
+int    rlbytes;
+
+/* data for the nread state */
+
+/**
+ * item is used to hold an item structure created after reading the command
+ * line of set/add/replace commands, but before we finished reading the actual
+ * data. The data is read into ITEM_data(item) to avoid extra copying.
+ */
+
+void   *item;     /* for commands set/add/replace  */
+
+/* data for the swallow state */
+int    sbytes;    /* how many bytes to swallow */
+
+/* data for the mwrite state */
+struct iovec *iov;
+int    iovsize;   /* number of elements allocated in iov[] */
+int    iovused;   /* number of elements used in iov[] */
+
+struct msghdr *msglist;
+int    msgsize;   /* number of elements allocated in msglist[] */
+int    msgused;   /* number of elements used in msglist[] */
+int    msgcurr;   /* element in msglist[] being transmitted now */
+int    msgbytes;  /* number of bytes in current msg */
+
+item   **ilist;   /* list of items to write out */
+int    isize;
+item   **icurr;
+int    ileft;
+
+char   **suffixlist;
+int    suffixsize;
+char   **suffixcurr;
+int    suffixleft;
+
+enum protocol protocol;   /* which protocol this connection speaks */
+enum network_transport transport; /* what transport is used by this connection */
+
+/* data for UDP clients */
+int    request_id; /* Incoming UDP request ID, if this is a UDP &quot;connection&quot; */
+struct sockaddr request_addr; /* Who sent the most recent request */
+socklen_t request_addr_size;
+unsigned char *hdrbuf; /* udp packet headers */
+int    hdrsize;   /* number of headers' worth of space is allocated */
+
+bool   noreply;   /* True if the reply should not be sent. */
+/* current stats command */
+struct {
+    char *buffer;
+    size_t size;
+    size_t offset;
+
+} stats;
+/* Binary protocol stuff */
+/* This is where the binary header goes */
+protocol_binary_request_header binary_header;
+uint64_t cas; /* the cas to return */
+short cmd; /* current command being processed */
+int opaque;
+int keylen;
+conn   *next;     /* Used for generating a list of conn structures */
+LIBEVENT_THREAD *thread; /* Pointer to the thread object serving this connection */
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;};&lt;/p&gt;
+
+&lt;p&gt;`&lt;/p&gt;
+
+&lt;p&gt;memcached 的conn 代表一个到memcached的链接.
+里面的item是连接成功后,读入 set/add/replace 生成的cq_item.
+conn-&gt;thread 是指向要处理的线程对象.然后将item加入到LIBEVENT_THREAD 对象的 struct conn_queue new_conn_queue中
+同样也是有一个free list 叫 freeconns
+`
+static conn **freeconns;
+static int freetotal; //总的freeconns的大小
+static int freecurr; //目前的空闲的 freeconn 的大小&lt;/p&gt;
+
+&lt;p&gt;/&lt;em&gt;
+ * Adds a connection to the freelist. 0 = success.
+ &lt;/em&gt;/
+bool conn_add_to_freelist(conn &lt;em&gt;c) {
+    bool ret = true;
+    pthread_mutex_lock(&amp;conn;_lock);
+    if (freecurr &amp;lt; freetotal) {
+        freeconns[freecurr++] = c;
+        ret = false;
+    } else {
+        /&lt;/em&gt; try to enlarge free connections array &lt;em&gt;/
+        size_t newsize = freetotal * 2;
+        conn **new_freeconns = realloc(freeconns, sizeof(conn &lt;/em&gt;) * newsize);
+        if (new_freeconns) {
+            freetotal = newsize;
+            freeconns = new_freeconns;
+            freeconns[freecurr++] = c;
+            ret = false;
+        }
+    }
+    pthread_mutex_unlock(&amp;conn;_lock);
+    return ret;
+}
+`&lt;/p&gt;
+
+&lt;p&gt;添加一个 connection 到 freelist, 如果超过了freetotal的大小,那么就将freetotal*2 然后realloc一块新的是原来2倍内存的大小.然后把这个connection添加进去,发现好多地方都是这么做的&lt;/p&gt;
+
+&lt;p&gt;memcached的多线程主要是通过实例化多个libevent实现的,分别是一个主线程和n个worker线程.无论是主线程还是worker线程全部通过libevent管理网络事件,实际上每个线程都是一个单独的libevent实例.
+主线程负责监听客户端的建立连接请求,以及建立连接后将连接好后生成的connection发送给work_thread去负责处理&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://175.41.172.193/wp-content/uploads/2012/02/thread2.jpg&quot;&gt;&lt;img src=&quot;http://175.41.172.193/wp-content/uploads/2012/02/thread2-300x234.jpg&quot; alt=&quot;&quot; /&gt;&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;dispatcher_thread 和 worker_thread 的定义
+`
+typedef struct {
+    pthread_t thread_id;        /&lt;em&gt; unique ID of this thread &lt;/em&gt;/
+    struct event_base &lt;em&gt;base;    /&lt;/em&gt; libevent handle this thread uses &lt;em&gt;/
+    struct event notify_event;  /&lt;/em&gt; listen event for notify pipe &lt;em&gt;/
+    int notify_receive_fd;      /&lt;/em&gt; receiving end of notify pipe &lt;em&gt;/
+    int notify_send_fd;         /&lt;/em&gt; sending end of notify pipe &lt;em&gt;/
+    struct thread_stats stats;  /&lt;/em&gt; Stats generated by this thread &lt;em&gt;/
+    struct conn_queue &lt;/em&gt;new_conn_queue; /&lt;em&gt; queue of new connections to handle &lt;/em&gt;/
+    cache_t &lt;em&gt;suffix_cache;      /&lt;/em&gt; suffix cache */
+} LIBEVENT_THREAD;&lt;/p&gt;
+
+&lt;p&gt;typedef struct {
+    pthread_t thread_id;        /&lt;em&gt; unique ID of this thread &lt;/em&gt;/
+    struct event_base &lt;em&gt;base;    /&lt;/em&gt; libevent handle this thread uses */
+} LIBEVENT_DISPATCHER_THREAD;
+`&lt;/p&gt;
+
+&lt;p&gt;`
+thread_init是启动所有的worker线程的核心方法.
+void thread_init(int nthreads, struct event_base *main_base) {
+     ......//加锁等操作
+    for (i = 0; i &amp;lt; item_lock_count; i++) {
+        pthread_mutex_init(&amp;item;_locks[i], NULL);
+    }&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;threads = calloc(nthreads, sizeof(LIBEVENT_THREAD));
+if (! threads) {
+    perror(&quot;Can't allocate thread descriptors&quot;);
+    exit(1);
+}
+
+dispatcher_thread.base = main_base; //dispatcher_thread是静态的全局变量.dispatcher_thread 注册的事件是main_base时间,也就是负责监听socket请求的事件
+dispatcher_thread.thread_id = pthread_self(); 
+
+for (i = 0; i &amp;lt; nthreads; i++) { //这里是为每一个线程创建一个pipe,这个pipe被用来作为dispatch通知worker线程有新的连接到达
+    int fds[2];
+    if (pipe(fds)) {
+        perror(&quot;Can't create notify pipe&quot;);
+        exit(1);
+    }
+
+    threads[i].notify_receive_fd = fds[0];
+    threads[i].notify_send_fd = fds[1];
+
+    setup_thread(&amp;amp;threads;[i]);
+    /* Reserve three fds for the libevent base, and two for the pipe */
+    stats.reserved_fds += 5;
+}
+
+/* Create threads after we've done all the libevent setup. */
+for (i = 0; i &amp;lt; nthreads; i++) {
+    create_worker(worker_libevent, &amp;amp;threads;[i]);
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;
+然后是setup_thread 方法,setup_thread 方法主要是创建所有worker线程的libevent实例(主线程的libevent实例在main函数里面创建)
+注册所有worker线程的管道读端的libevent的读事件,等待主线程的通知.然后初始化所有worker的CQ.
+&lt;/code&gt;
+static void setup_thread(LIBEVENT_THREAD *me) {
+    me-&gt;base = event_init();
+    if (! me-&gt;base) {
+        fprintf(stderr, &quot;Can't allocate event base\n&quot;);
+        exit(1);
+    }&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;/* Listen for notifications from other threads */
+event_set(&amp;amp;me-;&amp;gt;notify_event, me-&amp;gt;notify_receive_fd,
+          EV_READ | EV_PERSIST, thread_libevent_process, me);
+event_base_set(me-&amp;gt;base, &amp;amp;me-;&amp;gt;notify_event);
+
+if (event_add(&amp;amp;me-;&amp;gt;notify_event, 0) == -1) {
+    fprintf(stderr, &quot;Can't monitor libevent notify pipe\n&quot;);
+    exit(1);
+}
+
+me-&amp;gt;new_conn_queue = malloc(sizeof(struct conn_queue));
+if (me-&amp;gt;new_conn_queue == NULL) {
+    perror(&quot;Failed to allocate memory for connection queue&quot;);
+    exit(EXIT_FAILURE);
+}
+cq_init(me-&amp;gt;new_conn_queue);
+
+if (pthread_mutex_init(&amp;amp;me-;&amp;gt;stats.mutex, NULL) != 0) {
+    perror(&quot;Failed to initialize mutex&quot;);
+    exit(EXIT_FAILURE);
+}
+
+me-&amp;gt;suffix_cache = cache_create(&quot;suffix&quot;, SUFFIX_SIZE, sizeof(char*),
+                                NULL, NULL);
+if (me-&amp;gt;suffix_cache == NULL) {
+    fprintf(stderr, &quot;Failed to create suffix cache\n&quot;);
+    exit(EXIT_FAILURE);
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;}&lt;/p&gt;
+
+&lt;p&gt;`&lt;/p&gt;
+
+&lt;p&gt;然后 create_worker启动了所有线程,pthread_create调用worker_libevent方法,这个方法又调用event_base_loop() 启动该线程的libevent.&lt;/p&gt;
+
+&lt;p&gt;在server_socket函数中,主要就是建立一个socket并且绑定到一个port上.然后调用conn_new(这里传入的事件是main_base)注册事件
+event_set(&amp;amp;c-&gt;event, sfd, event_flags, event_handler, (void *)c);
+事件为持久可读,所以dispatch_thread在当前listen的socket可读时,就会调用event_handler,进而调用driver_machine(c) 进入状态机.而在driver_machin中,如果是主线程(dispatch_thread)则会在accept socket 后调用dispatch_new_conn函数来给各个work_thread派发connection
+`&lt;/p&gt;
+
+&lt;p&gt;static int server_socket(const char &lt;em&gt;interface,
+                         int port,
+                         enum network_transport transport,
+                         FILE &lt;/em&gt;portnumber_file) {
+     ....
+            if (!(listen_conn_add = conn_new(sfd, conn_listening,
+                                             EV_READ | EV_PERSIST, 1,
+                                             transport, main_base))) {&lt;/p&gt;
+
+&lt;p&gt;`
+至此 dispatch_thread 和 worker_threads的libevent都已开启&lt;/p&gt;
+
+&lt;p&gt;thread_libevent_process是worker_thread的管道读端有事件的时候调用的方法.参数fd是这个worker_thread的管道读端的描述符.
+首先将管道的1个字节读出,这一个字节是dispatch_thread写入的.用来通知表示有数据写入.然后从自己的CQ里面pop出一个item进行处理,这个item是被dispatch_thread丢到这个cq队列中的.
+item-&gt;sfd是已建立的socket连接的描述符,通过conn_new函数为该描述符注册libevent的读事件,me-&gt;base 是 struct event_base 代表自己的一个线程结构体,就是说对该描述符的事件处理交给当前这个worker_thread处理.
+`/&lt;em&gt;
+ * Processes an incoming &quot;handle a new connection&quot; item. This is called when
+ * input arrives on the libevent wakeup pipe.
+ &lt;/em&gt;/
+static void thread_libevent_process(int fd, short which, void &lt;em&gt;arg) {
+    LIBEVENT_THREAD &lt;/em&gt;me = arg;
+    CQ_ITEM *item;
+    char buf[1];&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;if (read(fd, buf, 1) != 1)
+    if (settings.verbose &amp;gt; 0)
+        fprintf(stderr, &quot;Can't read from libevent pipe\n&quot;);
+
+item = cq_pop(me-&amp;gt;new_conn_queue);
+
+if (NULL != item) {
+    conn *c = conn_new(item-&amp;gt;sfd, item-&amp;gt;init_state, item-&amp;gt;event_flags,
+                       item-&amp;gt;read_buffer_size, item-&amp;gt;transport, me-&amp;gt;base);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;`&lt;/p&gt;
+
+&lt;p&gt;接下来是conn_new函数,前面是一系列的判断,从conn_from_freelist()取得连接.
+这里注册了事件,由当前线程处理,(因为这里的event_base是改work_thread自己的)
+当该连接有可读时会回调event_handler函数,event_handler调用memcached最核心的方法drive_machine.&lt;/p&gt;
+
+&lt;p&gt;`&lt;/p&gt;
+
+&lt;p&gt;conn &lt;em&gt;conn_new(const int sfd, enum conn_states init_state,
+                const int event_flags,
+                const int read_buffer_size, enum network_transport transport,
+                struct event_base &lt;/em&gt;base) {
+     ......
+    event_set(&amp;amp;c-;&gt;event, sfd, event_flags, event_handler, (void *)c);
+    event_base_set(base, &amp;amp;c-;&gt;event);
+    c-&gt;ev_flags = event_flags;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;if (event_add(&amp;amp;c-;&amp;gt;event, 0) == -1) {
+    if (conn_add_to_freelist(c)) {
+        conn_free(c);
+    }
+    perror(&quot;event_add&quot;);
+    return NULL;
+}
+
+STATS_LOCK();
+stats.curr_conns++;
+stats.total_conns++;
+STATS_UNLOCK();
+
+MEMCACHED_CONN_ALLOCATE(c-&amp;gt;sfd);
+
+return c;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;`&lt;/p&gt;
+
+&lt;p&gt;上面将dispatch_thread 会向work_thread写入一字节的数据.dispatch_thread注册的是监听socket可读的事件,然后当有建立连接请求时,dispatch_thread会处理,回调函数也是event_handler(因为dispatch_thread也是通过conn_new初始化监听socket的libevent可读事件)&lt;/p&gt;
+
+&lt;p&gt;driven_machine 网络事件处理最核心函数 是所有线程在connection来到时都要调用的函数.
+driven_machine 主要就是通过当前连接的conn的state来判断进行何种处理,因为libevent注册了读写事件回调的都是这个函数,所以实际上我们在注册libevent相应事件时,会同时把事件的状态写入到conn结构体里,libevent进行回调时会把该conn结构作为参数传过来
+`
+static void drive_machine(conn *c) {
+     ...
+    while (!stop) {
+     ...
+        switch(c-&gt;state) {&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;    case conn_listening:// 该状态是conn_listening状态,只有dispatch_thread才会进入
+      ....
+      dispatch_conn_new(sfd, conn_new_cmd,EV_READ|EV_PERSIST,
+                                 DATA_BUFFER_SIZE, tcp_transport);
+      //这里就是dispatch_thread 通知 work_thread 的地方了.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;`&lt;/p&gt;
+
+&lt;p&gt;memcached.h里面conn的stat的声明
+`
+/&lt;em&gt;
+ * NOTE: If you modify this table you &lt;em&gt;MUST&lt;/em&gt; update the function state_text
+ &lt;/em&gt;/
+/&lt;strong&gt;
+ * Possible states of a connection.
+ */
+enum conn_states {
+    conn_listening,  /&lt;/strong&gt;&amp;lt; the socket which listens for connections &lt;em&gt;/
+    conn_new_cmd,    /**&amp;lt; Prepare connection for next command &lt;/em&gt;/
+    conn_waiting,    /&lt;strong&gt;&amp;lt; waiting for a readable socket */
+    conn_read,       /&lt;/strong&gt;&amp;lt; reading in a command line &lt;em&gt;/
+    conn_parse_cmd,  /**&amp;lt; try to parse a command from the input buffer &lt;/em&gt;/
+    conn_write,      /&lt;strong&gt;&amp;lt; writing out a simple response */
+    conn_nread,      /&lt;/strong&gt;&amp;lt; reading in a fixed number of bytes &lt;em&gt;/
+    conn_swallow,    /**&amp;lt; swallowing unnecessary bytes w/o storing &lt;/em&gt;/
+    conn_closing,    /&lt;strong&gt;&amp;lt; closing this connection */
+    conn_mwrite,     /&lt;/strong&gt;&amp;lt; writing out many items sequentially &lt;em&gt;/
+    conn_max_state   /**&amp;lt; Max state value (used for assertion) &lt;/em&gt;/
+};&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;
+dispatch_conn_new 将一个新的connection给另外一个thread.这个函数只有dispatch_thread才会调用.
+/* Which thread we assigned a connection to most recently. */
+static int last_thread = -1;
+/* 这里是静态变量 last_thread 记录的是上一次调用的thread.所以这里memcached并没有用高深的方法记录将connection 分发给哪一个thread.只是用轮询的方法实现
+这里dispatch_thread 创建了一个ca_item,并插入到一个thread的cq里面.然后往对应的work_thread写入1字节的数据来通知他.这个时候work_thread立即回调了thread_libevent_process的方法来对数据进行读取. 然后work_thread线程取出这个item(item 里面包含了这次connection 的连接sfd),注册读时间,当该条连接上有数据时,最终也会回调drive_machine方法,也就是driven_machine 的 conn_read. 其他的conn 的状态全部由work_thread去处理,dispatch_thread 只负责将item 发到对应的work_thread中去.
+&lt;/code&gt;
+void dispatch_conn_new(int sfd, enum conn_states init_state, int event_flags,
+                       int read_buffer_size, enum network_transport transport) {
+    CQ_ITEM *item = cqi_new();
+    int tid = (last_thread + 1) % settings.num_threads;
+//这里是通过轮询找到目前要分配给的thread&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;LIBEVENT_THREAD *thread = threads + tid;
+
+last_thread = tid;
+
+item-&amp;gt;sfd = sfd;
+item-&amp;gt;init_state = init_state;
+item-&amp;gt;event_flags = event_flags;
+item-&amp;gt;read_buffer_size = read_buffer_size;
+item-&amp;gt;transport = transport;
+
+cq_push(thread-&amp;gt;new_conn_queue, item);
+
+MEMCACHED_CONN_DISPATCH(sfd, thread-&amp;gt;thread_id);
+if (write(thread-&amp;gt;notify_send_fd, &quot;&quot;, 1) != 1) { //这里就是往work_thread的notify_fd 写入1字节的数据.来
+    perror(&quot;Writing to thread notify pipe&quot;);
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;}
+` &lt;a href=&quot;http://cvsonlinepharmacystore.com/products/omnicef.htm&quot;&gt;Omnicef&lt;/a&gt; &lt;a href=&quot;http://pharmacieenligneviagra.com/products/levitra.htm&quot;&gt;levitra&lt;/a&gt;&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>Libevent 学习 和 基于event的 echo server</title>
+   <link href="http://127.0.0.1:4000//2012/01/libevent-e7ae80e58d95e5ada6e4b9a0-e5928c-demo/"/>
+   <updated>2012-01-31T22:07:08+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/01/libevent-e7ae80e58d95e5ada6e4b9a0-e5928c-demo</id>
+   <content type="html">
+</content>
+ </entry>
+ 
+ <entry>
+   <title>网络编程 echo server  client</title>
+   <link href="http://127.0.0.1:4000//2012/01/e7ae80e58d95e79a84-echo-server-client/"/>
+   <updated>2012-01-08T23:17:44+08:00</updated>
+   <id>http://127.0.0.1:4000//2012/01/e7ae80e58d95e79a84-echo-server-client</id>
+   <content type="html">
+</content>
+ </entry>
+ 
+ <entry>
+   <title>Beanstalk 学习</title>
+   <link href="http://127.0.0.1:4000//2011/11/beanstalk-e5ada6e4b9a0/"/>
+   <updated>2011-11-12T01:41:18+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/11/beanstalk-e5ada6e4b9a0</id>
+   <content type="html">&lt;p&gt;看的Beanstalk第一版的代码,因为代码比较短.小组的分享&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;&lt;a href=&quot;http://www.slideshare.net/baotiao/beanstalk&quot;&gt;Beanstalk&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;View more &lt;a href=&quot;http://www.slideshare.net/&quot;&gt;presentations&lt;/a&gt; from &lt;a href=&quot;http://www.slideshare.net/baotiao&quot;&gt;宗志 陈&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://francepharmacieenligne.com/products/kamagra.htm&quot;&gt;kamagra&lt;/a&gt; &lt;a href=&quot;http://erektilepillenonline.com/products/viagra.htm&quot;&gt;viagra&lt;/a&gt;&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>函数指针和指针函数</title>
+   <link href="http://127.0.0.1:4000//2011/10/e587bde695b0e68c87e99288e5928ce68c87e99288e587bde695b0/"/>
+   <updated>2011-10-24T02:49:27+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/10/e587bde695b0e68c87e99288e5928ce68c87e99288e587bde695b0</id>
+   <content type="html">&lt;p&gt;函数指针和指针函数区别. 指针函数. 返回值是指针的函数叫指针函数. 函数的返回值可以是int,char,double,struct,也可以是指针,指针函数就是返回值是指针的函数,也就是返回的是一个地址.比如: &lt;code&gt;char *cp(char *s, char *t) { t = s; return t; } int main() { char s1[10] = &quot;hello&quot;; char s2[10] = &quot;world&quot;; printf(&quot;%s %sn&quot;, s1, s2); printf(&quot;%sn&quot;,cp(s1,s2)); return 0; } [slot machines](http://casinobigben.ca/)&lt;/code&gt; 这里返回值就是一个地址. 这里 char &lt;em&gt;cp(char &lt;/em&gt;s, char &lt;em&gt;t)里面的第一个*我们可以看做是跟定义一个指针 char &lt;/em&gt;p,里面的*是一个意思,就是只是表示这是一个指针而已.所以我们调用cp(s1,s2)返回的就是一个地址,printf(&quot;%s&quot;)的时候,传入的是一个地址或者字符串的名字.如果是一个 int &lt;em&gt;get(),那么获得返回值就是 printf(&quot;%dn&quot;,&lt;/em&gt;get())就可以了.&lt;/p&gt;
+
+&lt;p&gt;函数指针 指向函数的指针叫函数指针. 在C语言中，函数也是一种类型，可以定义指向函数的指针。我们知道，指针变量的内存单元存放一个地址值，而函数指针存放的就是函数的入口地址（位于.text段）。下面看一个简单的例子： 例 23.3. 函数指针 &lt;code&gt;#include void say_hello(const char *str) { printf(&quot;Hello %sn&quot;, str); } int main(void) { void (*f)(const char *) = say_hello; //注意这里*f必须加()否则就和上面说的函数指针混乱了. f(&quot;Guys&quot;); return 0; }&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;分析一下变量f的类型声明void (&lt;em&gt;f)(const char &lt;/em&gt;)，f首先跟*号结合在一起，因此是一个指针。(&lt;em&gt;f)外面是一个函数原型的格式，参数是const char *，返回值是void，所以f是指向这种函数的指针。而say_hello的参数是const char *，返回值是void，正好是这种函数，因此f可以指向say_hello。注意，say_hello是一种函数类型，而函数类型和数组类型类似，做右值使用时自动转换成函数指针类型，所以可以直接赋给f，当然也可以写成void (&lt;/em&gt;f)(const char *) = &amp;amp;say_hello;，把函数say_hello先取地址再赋给f，就不需要自动类型转换了。&lt;/p&gt;
+
+&lt;p&gt;可以直接通过函数指针调用函数，如上面的f(&quot;Guys&quot;)，也可以先用&lt;em&gt;f取出它所指的函数类型，再调用函数，即(&lt;/em&gt;f)(&quot;Guys&quot;)。可以这么理解：函数调用运算符()要求操作数是函数指针，所以f(&quot;Guys&quot;)是最直接的写法，而say_hello(&quot;Guys&quot;)或(*f)(&quot;Guys&quot;)则是把函数类型自动转换成函数指针然后做函数调用。&lt;/p&gt;
+
+&lt;p&gt;就是我们平常调用函数的时候也是先吧函数类型转换程函数指针,然后在做函数调用,有了函数指针直接把指针指向这一个函数在.text段的位置,就直接做函数调用了.函数指针可以指向所有这一类的函数.&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>awk基础</title>
+   <link href="http://127.0.0.1:4000//2011/08/awke59fbae7a180/"/>
+   <updated>2011-08-19T21:48:50+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/08/awke59fbae7a180</id>
+   <content type="html">&lt;p&gt;由于平常的工作都在linux下面进行,所以经常用到linux下面的awk,sed,grep等工具.&lt;/p&gt;
+
+&lt;p&gt;组内的一次分享.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;&lt;a href=&quot;http://www.slideshare.net/baotiao/czzawk&quot;&gt;&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://www.moab-offroad.com/&quot;&gt;make money online casino&lt;/a&gt;&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>Cola.php的默认配置以及url分发</title>
+   <link href="http://127.0.0.1:4000//2011/08/cola-phpe79a84e9bb98e8aea4e9858de7bdaee4bba5e58f8aurle58886e58f91/"/>
+   <updated>2011-08-17T15:10:42+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/08/cola-phpe79a84e9bb98e8aea4e9858de7bdaee4bba5e58f8aurle58886e58f91</id>
+   <content type="html">&lt;p&gt;和cola.php 是一个叫付超群写得框架,可能对比较大型的框架理解不清楚,可以先看这个比较小型的.
+0.1版就包含了框架里面最主要的几个文件,那些扩张功能还不包括在里面,非常适合让我们理解如何实现一个mvc框架的过程.
+这里是对 0.1版代码的阅读记录.
+1. 在demo下面的index.php 是所有动态请求的入口,也是框架的入口.
+2. 在index.php里面require了Cola.php 和 config.inc.php.
+其中Cola.php是最主要的函数,在Cola.php里面的&lt;em&gt;&lt;em&gt;construct函数里面定义的根目录,用spl_autoload_register 实现框架加载任意的类.
+3. 其中具体的加载方法是在Cola.php下面的loadClass方法里面.
+首先,有三个默认加载的方法
+如果是Cola_Router 那么 就加载Cola 下的Router.php.
+如果是Cola_View 那么就加载Cola 下的View.php.
+如果是Cola_Controller 那么就加载Cola 下的Controller.php
+如果不是上面上中情况,那么在建立一个新的类的时候,就是getInstance()的时候必须指定类名,以及目录.
+那么loadClass也会找到相应的文件并包含他.
+4.config.inc.php 就是包含的默认的配置文件.
+$urls 是用于url 分发的时候,定义的规则,与$urls匹配以后再找到相应的文件来加载.
+$dbConfig 包含的是db的一些信息.
+index.php 会调用cola 的config 函数把规则保存在$&lt;/em&gt;config 变量里面.
+5. index.php 会调用dispatch() 函数,就是实现url 分发的主要方法.
+首先.dispatch 函数会默认去获得DispatchInfo()的信息,如果没有那么就去setDispatchInfo().
+然后,在setDispatchInfo()里面就会先获得Router的信息.那么Router会把config.inc.php里面包含的$urls的匹配信息保存进去.
+然后.在setDispatchInfo()里面会调用setPathInfo函数,函数根据$&lt;/em&gt;SERVER['PATH_INFO']来获得pathInfo.
+之后会调用Router里面的match方法.改方法将config.inc.php里面定义的匹配规则一一与获得的pathInfo匹配,如果匹配成功就return出来.
+其中如果$url里面包含里maps这个变量,那么就可以变量赋值,并且,如果maps里面包含的某些变量没有进行赋值,那么default则会给赋默认值.
+当匹配成功后会得到file,class,action,以后如果有默认参数会有args 也就是变量的信息.
+6.接下来在dispatch()函数里面回去找文件,并且包含他.接下来就是调用找到的class里面的action 并且调用call_user_func_array 来执行
+这个方法.然后就跳到执行相应方法的controller里面了.&lt;/p&gt;
+
+&lt;p&gt;后面就是demo 下面的controller方法都是继承自Cola_Controller, model 都是继承自Cola_Model.&lt;/p&gt;
+
+&lt;p&gt;有新的再及时更新.
+在google 的code 里面有最新更新  http://code.google.com/p/colaphp/ 还有代码获取 &lt;a href=&quot;http://cheaponlinegenericdrugs.com/products/provigrax.htm&quot;&gt;Men's Health&lt;/a&gt;&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>grep in awk</title>
+   <link href="http://127.0.0.1:4000//2011/08/grep-in-awk/"/>
+   <updated>2011-08-17T10:05:32+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/08/grep-in-awk</id>
+   <content type="html">
+</content>
+ </entry>
+ 
+ <entry>
+   <title>spl_autoload_rigister auto_prepend 用法</title>
+   <link href="http://127.0.0.1:4000//2011/08/spl_autoload_rigister-auto_prepend-e794a8e6b395/"/>
+   <updated>2011-08-14T04:05:43+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/08/spl_autoload_rigister-auto_prepend-e794a8e6b395</id>
+   <content type="html">
+</content>
+ </entry>
+ 
+ <entry>
+   <title>我用的比较少的vim 指令</title>
+   <link href="http://127.0.0.1:4000//2011/08/e68891e794a8e79a84e6af94e8be83e5b091e79a84vim-e68c87e4bba4/"/>
+   <updated>2011-08-12T14:15:18+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/08/e68891e794a8e79a84e6af94e8be83e5b091e79a84vim-e68c87e4bba4</id>
+   <content type="html">&lt;p&gt;我用的比较少的vim 指令
+x dw是删除单词用的  还有d$是删除到当前行的末尾 U 是用来作回复对当前行的修改
+还有就是 dd 完以后可以直接按p就可以实现复制粘帖 不过貌似只能对一行用
+然后就是修改句子中的某一个字符  就可以直接 r然后一个字符就修改光标处的 字符
+cw 用来改变一个单词的部分或者全部  从光标在的那个地方修改
+同样c 和d 是一系列的 也有 c$ 就是修改的最后为止
+ctrl-g 显示当前光标和文件状态
+/ 是用来做正方向查找，然后?是用来作反方向查找
+%可以找到匹配的括号处
+替换的时候 如果要替换某一行，那么 直接 :s/thee/the/g 就可以直接替换thee为the了
+:s/thee/the/gc 会加一次询问而已
+也可以先选中某一个区域块里面的进行修改，系统默认会多出一些&amp;lt;&gt;什么东西，直接写上:s就可以了
+还有一种全屏替换的方法是  :%s/thee/the/g这样就可以了
+想执行外部命令直接加一个  :!就可以了
+:10,20 w test 是把从几行到几行存起来
+然后 :r test是从这个文件中载入这个test 的文件
+o是在本行下面打开新的一行，O是本行上面打开， Shif O 是在本行上面开一行，不过光标不转过去而已
+a是光标后面一个插入，A是在本行的末尾插入
+R是替换
+按住b是从后面往前面跳一个单词
+ct！，这会删除从光标位置到下一个叹号（但不包括）   比如  ct{ 就算删除到 { 之前为止..
+‘’ 直接是跳回到光标 上一次在的地方
+tabe 是在上面开一个东西,然后可以在vimrc 里面配置 就可以用 ctrl n ctrl p 来来回移动了 vim 在写 html &lt;a href=&quot;http://casinopalace.gr/&quot;&gt;??????????&lt;/a&gt; 的时候有 比如 &lt;h 1&gt;sdfsdsdfsd &lt;/h 1&gt; 那么 你 直接  dit  t 是 tab 的意思  意味着标签,就可以把 中间的东西删掉了   如果是 dat 的话 就连h1也一起删掉了
+同样在写其他的时候也一样  用 'dfdfdfd'  那么 就是  di' 就是中间的东西删除掉  用 da'的话就连‘也一起删除了 fx移动光标到当前行的下一个 x 处。很明显，x 可以是任意一个字母，而且你可以使用 ; 来重复你的上一个 f 命令。
+tx 和上面的命令类似，但是是移动到 x 的左边一个位置。（这真的很有用）
+&quot; 这个符号是用来使用寄存器的 :reg 就可以列出来现在寄存器里面复制的东西
+我们要拷贝当前行到寄存器 k。你应该按 &quot;kyy &quot;kp 来粘贴寄存器 k 里面的内容到你想要的位置
+这个是用来设定搜索的时候要不要注意大小写（:set ic 和 :set noic）
+dG 就是删除某一行下面的所有行  dgg 就是删除某一行上面的所有行
+vim 里面复制的时候到某个地方 要把某几行先删除掉,然后再粘贴过去,应该是先复制好,然后在选择上要删除的那些行,然后p
+yw 是复制某一个单词.
+vim 里面 set ic 和 set noic 就是要不要大小写.&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>iconv 脚本 转换字符编码脚本</title>
+   <link href="http://127.0.0.1:4000//2011/08/iconv-e8849ae69cac-e8bdace68da2e5ad97e7aca6e7bc96e7a081e8849ae69cac/"/>
+   <updated>2011-08-10T10:34:58+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/08/iconv-e8849ae69cac-e8bdace68da2e5ad97e7aca6e7bc96e7a081e8849ae69cac</id>
+   <content type="html">&lt;p&gt;这个脚本碰到有些别字的中文的时候会报错,直接去文件里面该就可以了.iconv: 北京.csv:31:12: cannot convert&lt;/p&gt;
+
+&lt;p&gt;iconv: 总部.csv:315:12: cannot convert&lt;/p&gt;
+
+&lt;p&gt;iconv: 福州.csv:3:12: cannot convert
+比如这样  就是  在 北京.csv 31 行 有错 改下就可以了.
+`&lt;/p&gt;
+
+&lt;h1&gt;!/bin/sh&lt;/h1&gt;
+
+&lt;p&gt;MYPATH=&lt;code&gt;pwd&lt;/code&gt;;
+files=&lt;code&gt;ls&lt;/code&gt;;
+for filename in $files
+do
+iconv -f UTF-8 -t GBK $filename &gt; gbk.$filename;
+done
+`&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>vmware centos 安装</title>
+   <link href="http://127.0.0.1:4000//2011/08/vmware-centos-e5ae89e8a385/"/>
+   <updated>2011-08-07T22:29:07+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/08/vmware-centos-e5ae89e8a385</id>
+   <content type="html">&lt;p&gt;分享一下今天在vmware 下 centos 的安装过程遇到的问题.
+centos 在vmware 里面安装的时候 不要选择简单安装.然后就会进入到centos标准安装界面.
+swap 就是linux下的虚拟内存分区,它的作用是在物理内存使用完之后,将磁盘空间(也就是SWAP分区)虚拟成内存来使用.
+需要注意的是他的速度比物理内存慢多了,因为他是从磁盘中读取的.如果想更快速度,swap是没用的然后看鸟哥的centos安装教程 在centos 里面安装好以后要 提示插入第二个盘 那么 选择 CD&amp;amp;DVD 然后 勾上 Connected . 然后在Use disc image 选上那个镜像就可以了.&lt;/p&gt;
+
+&lt;p&gt;在centos 里面 安装 VMTool 在 菜单栏 里面有 virtual Machine 然后 里面 &lt;a href=&quot;http://hollandslotscasino.nl/&quot;&gt;slot machines online&lt;/a&gt; install VMTool . 进去以后把 /media 下面的 VMTools 复制出来再安装&lt;/p&gt;
+
+&lt;p&gt;在centos 里面可能无法上网, 首先得先装好 VMTool ,然后 在 系统-&gt;管理-&gt;网络-&gt;双击eth0 里面配置设置成自动获取就可以了.然后保存 /etc/init.d/network restart 就可以了.&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>mysql join 学习</title>
+   <link href="http://127.0.0.1:4000//2011/07/mysql-join-e5ada6e4b9a0/"/>
+   <updated>2011-07-30T02:13:57+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/07/mysql-join-e5ada6e4b9a0</id>
+   <content type="html">&lt;p&gt;join 的学习: 在SQL标准中规划的（Join）联结大致分为下面四种： 1． 内联结：将两个表中存在联结关系的字段符合联结关系的那些记录形成记录集的联结。 2． 外联结：分为外左联结和外右联结。 左联结A、B表的意思就是将表A中的全部记录和表B中联结的字段与表A的联结字段符合联结条件的那些记录形成的记录集的联结，这里注意的是最后出来的记录集会包括表A的全部记录。 右联结A、B表的结果和左联结B、A的结果是一样的，也就是说： Select A.name B.name From A Left Join B On A.id=B.id 和Select A.name B.name From B Right Join A on B.id=A.id执行后的结果是一样的。 还有其他的联结就不用管了. 这里 就是 内联结是只将符合条件的列出来,而外联接是将全部的都列出来,分左右外联接啦. 这里我有个比较简便的记忆方法，内外联结的区别是内联结将去除所有不符合条件的记录，而外联结则保留其中部分。外左联结与外右联结的区别在于如果用A左联结B则A中所有记录都会保 留在结果中，此时B中只有符合联结条件的记录，而右联结相反，这样也就不会混淆了比如表t1 有 2数据 1,2 表 t2 有一个数据 1. 那么 select t1.s1,t2.s1 from t1 inner join t2 on t1.s1=t2.s1; ------ ------ | s1 | s1 | ------ ------ | 1 | 1 | ------ ------ 这个时候 t1里面的 2 这个数据由于在t2表里面找不到 就会被除去. left join &lt;a href=&quot;http://britishcasino.org.uk/&quot;&gt;casino online&lt;/a&gt; 的时候 select t1.s1,t2.s1 from t1 left join t2 on t1.s1=t2.s1; ------ ------ | s1 | s1 | ------ ------ | 1 | 1 | | 2 | NULL | 这个时候是 t1为左表都保存下来. ------ ------ 同样 right join 的时候 select t1.s1,t2.s1 from t1 right join t2 on t1.s1=t2.s1; ------ ------ | s1 | s1 | ------ ------ | 1 | 1 |&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>OpenParty 第一次参加这种交流会</title>
+   <link href="http://127.0.0.1:4000//2011/07/openparty-e7acace4b880e6aca1e58f82e58aa0e8bf99e7a78de4baa4e6b581e4bc9a/"/>
+   <updated>2011-07-23T21:54:28+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/07/openparty-e7acace4b880e6aca1e58f82e58aa0e8bf99e7a78de4baa4e6b581e4bc9a</id>
+   <content type="html">&lt;p&gt;来得好像挺多牛B人的.看见挺多个穿TopCoder的.
+听了刘未鹏的暗时间
+总结下吧,提醒自己以后要做到.
+1.应该不断提高挑战自己.把自己当做敌人,而不是把别人当做敌人.
+比如:打台球有2个目的.一个是每次都要求赢,还有一个是每次不是为了赢
+而是要提高自己的水平,那么每次好几次以后的结果肯定不一样.
+2.英文书一定要多看.多看外文书.如果你一直看中文书,那么你读英文书水平一定
+不会前行.如果你一开始就读英文书,可能刚开始的效率不行,很痛苦,但是长久以后的好处是很多的.
+3.抓住各种时间看书,暗时间就是不需要用头脑的逻辑.抓住这些暗时间能看书,得到的效益是非常大的.
+4.就是逼自己做自己没尝试过的事情.在没有自信之前,先用你的勇敢.
+后来就是阿稳分享了他对R语言的学习.
+1.一个语言决定一个人的思维
+2.一个语言用来做他最适合的事情就好了,你可以用R语言设计一整套系统,但是这不是他的强项. &lt;a href=&quot;http://www.profitphp.com/&quot;&gt;online casino bonuses&lt;/a&gt;&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>aws 免密码登陆</title>
+   <link href="http://127.0.0.1:4000//2011/07/aws-e5858de5af86e7a081e799bbe99986/"/>
+   <updated>2011-07-17T19:46:13+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/07/aws-e5858de5af86e7a081e799bbe99986</id>
+   <content type="html">&lt;p&gt;aws一直要用密钥登录非常的麻烦.
+可以在aws里面添加一个新的用户
+具体过程:
+Setup the new user
+:~$ sudo useradd -d /home/username -m -s /bin/bash username
+:~$ sudo passwd username
+Enter new UNIX password: NEWPASSWORD
+Retype new UNIX password: NEWPASSWORD
+passwd: password updated successfully
+You also need to add to the sudo file
+:~$ sudo visudo
+Go to the line ALL = (ALL) &lt;a href=&quot;http://britonlinecasino.org.uk/&quot;&gt;casino great britain&lt;/a&gt; ALL and add the new user following example of admin (the leading % not needed)
+Give the user ssh access
+:~$ sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.original
+:~$ sudo chmod a-w /etc/ssh/sshd_config Change PasswordAuthentication to yes
+:~$ sudo /etc/init.d/ssh restart&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>暂时搞定住处</title>
+   <link href="http://127.0.0.1:4000//2011/07/e69a82e697b6e6909ee5ae9ae4bd8fe5a484/"/>
+   <updated>2011-07-16T00:00:37+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/07/e69a82e697b6e6909ee5ae9ae4bd8fe5a484</id>
+   <content type="html">&lt;p&gt;上周把租房子的事情给搞定了,总之废了各种尽.
+这一周工作唯一接触的新东西还是那个ldap.
+把ldap 好好搞搞,争取在公司里面成为这个领域的专家才可以.
+其他的东西,以后再搞搞吧.
+一直想搞一个vimwiki 不过都没去搞. 感觉用google &lt;a href=&quot;http://polskojackpot.com/&quot;&gt;casino online polska&lt;/a&gt; 的 notebook
+就可以不过 用着还是不爽. 找个时间整整这玩意儿....
+还有就是把awk系统的复习起来,既然已经学了就应该好好总结起来.&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>现在在青岛</title>
+   <link href="http://127.0.0.1:4000//2011/07/e78eb0e59ca8e59ca8e99d92e5b29b/"/>
+   <updated>2011-07-03T01:24:14+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/07/e78eb0e59ca8e59ca8e99d92e5b29b</id>
+   <content type="html">&lt;p&gt;应该算是毕业旅行。来了10个人
+陈宗志，官宏宇，赵安安，赵辰星，李华东，陈晓师，李闯，赵鹏阳，王超。
+吴鹏。
+嗯，就是这样。我们住奔奔旅店。&lt;/p&gt;
+
+&lt;p&gt;今天去第二浴场，晚上在奔奔一群人在这扯屁呢。我在这用老板的破电脑记录着，
+总觉得应该留下点什么东西。&lt;/p&gt;
+
+&lt;p&gt;以前不是特别爱拍照，这次来不管什么时候总是嚷嚷着，照相，照相。
+差不多就是这样，记录些什么，留下点什么。&lt;/p&gt;
+
+&lt;p&gt;在一个陌生的地方，大家确实挺开心的，这样就好，其他的什么都好了。
+暴跳是我见过最能说的时候了，在4个香港女孩面前，暴跳也爆发出青春了吧。
+哈哈。
+大爷的。。。。坑爹的。
+老板很有趣，老板是个有故事的人，有故事的人是幸福的。希望多
+年以后我也会在一个陌生的地方，和一群陌生的人一起，述说着
+我年轻的时候的故事，希望那个时候我应该是自豪的。仅此而已
+虽然下了些雨，不过在一起的时刻，此生难忘。&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>今天答辩结束</title>
+   <link href="http://127.0.0.1:4000//2011/06/e4bb8ae5a4a9e7ad94e8bea9e7bb93e69d9f/"/>
+   <updated>2011-06-28T15:03:35+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/06/e4bb8ae5a4a9e7ad94e8bea9e7bb93e69d9f</id>
+   <content type="html">&lt;p&gt;答辩还是挺水的.忽悠着,忽悠着,就过了.唉. &lt;a href=&quot;http://hollandonlinecasinos.nl/&quot;&gt;casino nederland&lt;/a&gt;&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>和俱乐部的散伙饭</title>
+   <link href="http://127.0.0.1:4000//2011/06/e5928ce4bfb1e4b990e983a8e79a84e695a3e4bc99e9a5ad/"/>
+   <updated>2011-06-27T20:25:15+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/06/e5928ce4bfb1e4b990e983a8e79a84e695a3e4bc99e9a5ad</id>
+   <content type="html">&lt;p&gt;和 俱乐部吃饭了散伙饭。。
+俱乐部 &lt;a href=&quot;http://premiumonlinecasino.de/&quot;&gt;online slot maschinen&lt;/a&gt; 的白姐 给教了很多很多。。&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>算第一个散伙饭吧,</title>
+   <link href="http://127.0.0.1:4000//2011/06/e7ae97e7acace4b880e4b8aae695a3e4bc99e9a5ade590a7/"/>
+   <updated>2011-06-24T00:25:24+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/06/e7ae97e7acace4b880e4b8aae695a3e4bc99e9a5ade590a7</id>
+   <content type="html">&lt;p&gt;2011.6.24  安哥请大家吃饭,哇咔咔.本来可以去唱歌的,后来没去.
+后来玩杀人还是比较爽的,把安安单挑死了,哇咔咔..
+今天还顺便把成绩的事情给解决了,终于可以拿到毕业证了,为了这毕业证哥累死累活了啊.哎...
+不过还好弄好了这事...&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>今天刚整好主题,明天弄个域名吧.</title>
+   <link href="http://127.0.0.1:4000//2011/06/e4bb8ae5a4a9e5889ae695b4e5a5bde4b8bbe9a298e6988ee5a4a9e5bc84e4b8aae59f9fe5908de590a7/"/>
+   <updated>2011-06-14T15:57:30+08:00</updated>
+   <id>http://127.0.0.1:4000//2011/06/e4bb8ae5a4a9e5889ae695b4e5a5bde4b8bbe9a298e6988ee5a4a9e5bc84e4b8aae59f9fe5908de590a7</id>
+   <content type="html">&lt;p&gt;今天照毕业照,不过昨晚刚通宵完.&lt;/p&gt;
+</content>
+ </entry>
+ 
+ 
+</feed>

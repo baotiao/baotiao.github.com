@@ -1,0 +1,13 @@
+---
+author: admin
+comments: true
+date: 2011-06-14 07:57:30+00:00
+layout: post
+slug: '%e4%bb%8a%e5%a4%a9%e5%88%9a%e6%95%b4%e5%a5%bd%e4%b8%bb%e9%a2%98%e6%98%8e%e5%a4%a9%e5%bc%84%e4%b8%aa%e5%9f%9f%e5%90%8d%e5%90%a7'
+title: "今天刚整好主题,明天弄个域名吧."
+wordpress_id: 8
+categories:
+- life
+---
+
+今天照毕业照,不过昨晚刚通宵完.

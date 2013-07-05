@@ -1,0 +1,30 @@
+---
+author: admin
+comments: true
+date: 2011-07-17 11:46:13+00:00
+layout: post
+slug: aws-%e5%85%8d%e5%af%86%e7%a0%81%e7%99%bb%e9%99%86
+title: aws 免密码登陆
+wordpress_id: 26
+categories:
+- tip
+tags:
+- aws
+---
+
+aws一直要用密钥登录非常的麻烦.
+可以在aws里面添加一个新的用户
+具体过程:
+Setup the new user
+:~$ sudo useradd -d /home/username -m -s /bin/bash username
+:~$ sudo passwd username
+Enter new UNIX password: NEWPASSWORD
+Retype new UNIX password: NEWPASSWORD
+passwd: password updated successfully
+You also need to add to the sudo file
+:~$ sudo visudo
+Go to the line ALL = (ALL) [casino great britain](http://britonlinecasino.org.uk/) ALL and add the new user following example of admin (the leading % not needed)
+Give the user ssh access
+:~$ sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.original
+:~$ sudo chmod a-w /etc/ssh/sshd_config Change PasswordAuthentication to yes
+:~$ sudo /etc/init.d/ssh restart
