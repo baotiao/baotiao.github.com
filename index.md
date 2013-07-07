@@ -1,5 +1,5 @@
 ---
-title: Nothing replaces hard work!
+title: 做有积累的事情
 pagetitle: 空谷幽兰
 layout: page
 ---
