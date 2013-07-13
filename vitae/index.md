@@ -1,43 +1,19 @@
 ---
 layout: page
-pagetitle: 自信、专注
-title: 简历（赖明星）
+pagetitle: 做有积累的事情
+title: 简历(陈宗志)
 ---
 
 # 联系方式
 
-Email：mingxinglai@gmail.com
+Email：baotiao@gmail.com
 
-地址：厦门大学海韵园科研2号楼303室（邮编：361005）
 
-主页：<http://mingxinglai.com/>
-
-更多：<http://about.me/mingxinglai/>
+主页：<http://baotiao.github.com/>
 
 # 专业技能
 
-- 不会Microsoft office
-- 不会盗QQ号
-- 也无法帮忙在`www.12306.com`抢到火车票
-- 熟悉linux，C/C++，makefile，awk，精通Shell脚本
+- 熟悉linux, C/C++, makefile, awk, 精通Shell脚本
 - 掌握基本的数据结构和算法
-- 能够在linux下全键盘工作（vim，tmux，apvlv，awesome）
-- 熟悉MySql，了解Python
-- 对网络编程和NoSql有极大的兴趣
-
-# 教育背景
-
-- 2011.09 ~ 至今 厦门大学信息科学与技术学院，硕士
-- 2009.09 ~ 2011.07 杭州电子科技大学，本科
-- 2007.09 ~ 2009.07 宁波大红鹰职业技术学院，专科
-- 2004.09 ~ 2007.07 杭州市余杭区成人中等专业学校，中专
-
-# 获得奖励
-
-- 2006.12 杭州市职高类数学竞赛二等奖
-- 2007.02 杭州市余杭区三好学生
-- 2008.06 优秀学生干部
-- 2008.12 国家励志奖学金
-- 2009.06 浙江省优秀毕业生
-- 2010 杭州电子科技大学校二等奖学金、三等奖学金
-
+- 喜欢Mac, 喜欢Vim, 不喜欢IDE
+- 对网络编程和分布式系统感兴趣
