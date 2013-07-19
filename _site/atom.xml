@@ -4,13 +4,107 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2013-07-14T02:44:06+08:00</updated>
+ <updated>2013-07-19T13:11:34+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
    <email></email>
  </author>
 
+ 
+ <entry>
+   <title>Mac 换上SSD硬盘</title>
+   <link href="http://baotiao.github.io//2013/07/add-ssd/"/>
+   <updated>2013-07-18T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2013/07/add-ssd</id>
+   <content type="html">&lt;p&gt;给Mac换上的SSD硬盘步骤&lt;/p&gt;
+
+&lt;p&gt;[前期准备]&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;支持SATA的移动硬盘盒&lt;/li&gt;
+&lt;li&gt;一套电子维修专用改锥&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;[第一步:安装克隆软件]&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;在mac上安装Carbon copy cloner软件（简称CCC,请支持正版）&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;[第二步:克隆磁盘]&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;将SSD装入移动硬盘,接到mac上&lt;/li&gt;
+&lt;li&gt;使用CCC将HDD的内容克隆到SSD,一切按提示操作,注意要创建恢复分区,否则SSD无法引导&lt;/li&gt;
+&lt;li&gt;等待30~60分钟&lt;/li&gt;
+&lt;li&gt;重启电脑,并按住option,选择从SSD启动,检查是否成功启动&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;[第三步:安装SSD]&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;将SSD装入mac,外面10颗螺丝,里面6颗螺丝,注意硬盘上有四颗内五角螺丝需要专用改锥&lt;/li&gt;
+&lt;li&gt;启动电脑,体验非一般的感觉吧&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;pre&gt;&lt;code&gt;    all: TRIM SMS noatime reboot 
+
+    checkroot:
+        @echo -n checking privilege...
+        @touch / &amp;amp;&amp;gt;/dev/null || ( echo error!;exit 1; )
+        @echo ok!
+
+
+    SMS: checkroot
+        @echo -n disabling Sudden Motion Sensor...
+        @pmset -a sms 0 || ( echo error!;exit 1; )
+        @echo done!
+
+    TRIM: checkroot
+        @echo -n enabling TRIM...
+        @cp /System/Library/Extensions/IOAHCIFamily.kext/Contents/PlugIns/IOAHCIBlockStorage.kext/Contents/MacOS/IOAHCIBlockStorage /System/Library/Extensions/IOAHCIFamily.kext/Contents/PlugIns/IOAHCIBlockStorage.kext/Contents/MacOS/IOAHCIBlockStorage.bak
+        @perl -pi -e 's|(\x52\x6F\x74\x61\x74\x69\x6F\x6E\x61\x6C\x00).{9}(\x00\x54)|$1\x00\x00\x00\x00\x00\x00\x00\x00\x00$2|sg' /System/Library/Extensions/IOAHCIFamily.kext/Contents/PlugIns/IOAHCIBlockStorage.kext/Contents/MacOS/IOAHCIBlockStorage
+        - @kextcache -system-prelinked-kernel &amp;amp;&amp;gt;/dev/null
+        @kextcache -system-caches
+        @echo done
+
+    noatime: checkroot
+        @echo -n disabling atime...
+        @echo '&amp;lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&amp;gt; &amp;lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&amp;gt; &amp;lt;plist version=&quot;1.0&quot;&amp;gt; &amp;lt;dict&amp;gt; &amp;lt;key&amp;gt;Label&amp;lt;/key&amp;gt; &amp;lt;string&amp;gt;com.noatime.root&amp;lt;/string&amp;gt; &amp;lt;key&amp;gt;ProgramArguments&amp;lt;/key&amp;gt; &amp;lt;array&amp;gt; &amp;lt;string&amp;gt;mount&amp;lt;/string&amp;gt; &amp;lt;string&amp;gt;-uwo&amp;lt;/string&amp;gt; &amp;lt;string&amp;gt;noatime&amp;lt;/string&amp;gt; &amp;lt;string&amp;gt;/&amp;lt;/string&amp;gt; &amp;lt;/array&amp;gt; &amp;lt;key&amp;gt;RunAtLoad&amp;lt;/key&amp;gt; &amp;lt;true/&amp;gt; &amp;lt;/dict&amp;gt; &amp;lt;/plist&amp;gt;' &amp;gt; /Library/LaunchDaemons/com.noatime.root.plist || ( echo error!;exit 1; )
+        @echo done!
+
+    reboot: checkroot
+        @echo Finished !
+        @echo CAUTION: we are going to reboot, press Ctrl-C to abort and you can reboot manually later.;sleep 5;
+        @for i in `seq 10 1`; do clear; echo CAUTION: we are going to reboot in $$i seconds;sleep 1; done;
+        @reboot
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;执行方式为:sudo make -f ssd_opt.makefile&lt;/p&gt;
+
+&lt;h4&gt;执行优化包括:&lt;/h4&gt;
+
+&lt;ul&gt;
+&lt;li&gt;打开TRIM&lt;/li&gt;
+&lt;li&gt;禁用atime&lt;/li&gt;
+&lt;li&gt;禁用磁盘保护&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;h4&gt;注意:&lt;/h4&gt;
+
+&lt;ol&gt;
+&lt;li&gt;打开TRIM时,会误报segment fault,忽略即可&lt;/li&gt;
+&lt;li&gt;由于系统版本原因,TRIM可能打开失败,如何检测成功与否,以及失败了怎么办,请参见:http://www.cnbeta.com/articles/219752.htm&lt;/li&gt;
+&lt;/ol&gt;
+
+</content>
+ </entry>
  
  <entry>
    <title>test markdown</title>
