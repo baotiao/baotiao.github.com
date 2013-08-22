@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2013-08-22T17:15:31+08:00</updated>
+ <updated>2013-08-22T17:41:02+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -81,6 +81,44 @@
 &lt;pre&gt;&lt;code&gt;Iterator* iter = mem-&amp;gt;NewIterator(); //这个是memtable 
 Iterator* iter = table_cache_-&amp;gt;NewIterator(ReadOptions(), output_number, current_bytes); //table_cache 这个类
 &lt;/code&gt;&lt;/pre&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>learn c++ from levelDB</title>
+   <link href="http://baotiao.github.io//2013/08/leveldb-c%2B%2B/"/>
+   <updated>2013-08-22T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2013/08/leveldb-c++</id>
+   <content type="html">&lt;h3&gt;LevelDB是一个学习c++很好的一个代码. 里面有很多写代码的好习惯值得我们学习.&lt;/h3&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;assert 断言, 在一些判断的地方直接用 assert 来提示出错 比如&lt;/p&gt;
+
+&lt;p&gt; char operator&lt;a href=&quot;size_t%20n&quot;&gt;&lt;/a&gt; const { assert(n &amp;lt; size()); return data_[n]; }&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;尽量如果一个成员函数的方法不会改变成员变量的话, 添加上const 结尾&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;如果想让一个类不被复制,那么就设置它的copy construct 和 copy assign 为 私有函数,
+并且你要实现的类继承它就可以了, leveldb 里面的WritableFile 就是这么设置的
+标注的定义一个类的基类的方法:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;  class WritableFile {
+      public:
+          WritableFile() { }
+          virtual ~WritableFile();
+          virtual Status Append(const Slice&amp;amp; data) = 0;
+          virtual Status Close() = 0;
+          virtual Status Flush() = 0;
+          virtual Status Sync() = 0;
+
+      private:
+          // No copying allowed
+          WritableFile(const WritableFile&amp;amp;);
+          void operator=(const WritableFile&amp;amp;);
+  };
+&lt;/code&gt;&lt;/pre&gt;&lt;/li&gt;
+&lt;li&gt;在设计中多用迭代器模型, 可以抽象更多的细节.&lt;/li&gt;
+&lt;li&gt;未完待续...&lt;/li&gt;
+&lt;/ol&gt;
+
 </content>
  </entry>
  
