@@ -8,6 +8,7 @@ tags: [leveldb]
 
 ### 迭代器的设计模式是一种很常用的设计模式. leveldb的实现里面就用到了.
 
+    Iteartor模式:提供一种方法顺序访问一个聚合对象中的各个元素, 而又不暴露其内部的表示.
 
 在leveldb 里面include/iterator.h 定义了 iterator.h 的基类, leveldb 里面有memtable, block 等数据格式. 都是通过定义一个自己的iterator来实现对这一个数据的访问.
 
