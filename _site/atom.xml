@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2013-09-09T17:58:57+08:00</updated>
+ <updated>2013-10-08T23:40:49+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -1426,10 +1426,225 @@ return;
  
  <entry>
    <title>event + 线程池模型的 server 类似 Memcache线程池模型</title>
-   <link href="http://baotiao.github.io//2012/02/event-e7babfe7a88be6b1a0e6a8a1e59e8be79a84-server-e7b1bbe4bcbc-memcachee7babfe7a88be6b1a0e6a8a1e59e8b/"/>
-   <updated>2012-02-04T22:56:34+08:00</updated>
-   <id>http://baotiao.github.io//2012/02/event-e7babfe7a88be6b1a0e6a8a1e59e8be79a84-server-e7b1bbe4bcbc-memcachee7babfe7a88be6b1a0e6a8a1e59e8b</id>
-   <content type="html">
+   <link href="http://baotiao.github.io//2012/02/event-like-memcache/"/>
+   <updated>2012-02-04T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2012/02/event-like-memcache</id>
+   <content type="html">&lt;pre&gt;&lt;code&gt;/*
+    main.h
+    定义了三个数据结构 conn_queue_item,work_thread,dispatch_thread.
+    conn_queue_item 只是存dispatch_thread accept 以后的描述符,然后
+    dispatch_thread 将conn_queue_item 存入某一个work_thread.
+    work_thread 真正负责work的thread.
+    dispatch_thread 监听9877端口,并且将accept后的fd传给work_thread.
+*/
+#ifndef MAINH
+#define MAINH
+
+#include &amp;lt;stdio.h&amp;gt;
+#include &amp;lt;stdlib.h&amp;gt;
+#include &amp;lt;fcntl.h&amp;gt;
+#include &amp;lt;event.h&amp;gt;
+#include &amp;lt;unistd.h&amp;gt;
+#include &amp;lt;netinet/in.h&amp;gt;
+#include &amp;lt;sys/socket.h&amp;gt;
+#include &amp;lt;string.h&amp;gt;
+#include &amp;lt;fcntl.h&amp;gt;
+#include &amp;lt;pthread.h&amp;gt;
+#include &amp;lt;errno.h&amp;gt;
+
+typedef struct conn_queue_item CQ;
+
+struct conn_queue_item {
+    int sfd;
+};
+
+struct WORK_THREAD {
+    pthread_t thread_id;
+    struct event_base *base;
+    struct event notify_event;
+    int notify_receive_fd;
+    int notify_send_fd;
+    struct conn_queue_item cq;
+};
+typedef struct WORK_THREAD wk_thread;
+
+struct DISPATCH_THREAD {
+    pthread_t thread_id;
+    struct event_base *base;
+};
+typedef struct DISPATCH_THREAD dh_thread;
+
+#endif
+
+主要的执行函数main.c
+#include &amp;lt;stdio.h&amp;gt;
+#include &amp;lt;stdlib.h&amp;gt;
+#include &amp;lt;fcntl.h&amp;gt;
+#include &amp;lt;event.h&amp;gt;
+#include &amp;lt;unistd.h&amp;gt;
+#include &amp;lt;netinet/in.h&amp;gt;
+#include &amp;lt;sys/socket.h&amp;gt;
+#include &amp;lt;string.h&amp;gt;
+#include &amp;lt;fcntl.h&amp;gt;
+#include &amp;lt;pthread.h&amp;gt;
+#include &amp;lt;errno.h&amp;gt;
+#include &quot;main.h&quot;
+
+static struct event_base *main_base;
+
+void call_accept(int fd, short event, void *arg)
+{
+    fputs(&quot;a socket has come\n&quot;, stdout);
+    struct sockaddr_in cliaddr;
+    socklen_t clilen;
+    int connfd;
+    connfd = accept(fd, (struct sockaddr *) &amp;amp;cliaddr, &amp;amp;clilen);
+    dispatch_new_thread(connfd);
+}
+
+
+
+int main()
+{
+
+    int listenfd, connfd;
+    struct sockaddr_in cliaddr, servaddr;
+    socklen_t clilen;
+
+    listenfd = socket(AF_INET, SOCK_STREAM, 0);
+    memset(&amp;amp;servaddr, 0, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servaddr.sin_port = htons(9877);
+    bind(listenfd, (struct sockaddr *) &amp;amp;servaddr, sizeof(servaddr));
+    listen(listenfd, 10);
+
+    struct event_base *mb;
+    struct event ev;
+    mb = event_init();
+    event_set(&amp;amp;ev, listenfd, EV_READ | EV_PERSIST, call_accept, &amp;amp;ev);
+    //event_base_set(main_base, &amp;amp;ev);
+    event_add(&amp;amp;ev, NULL);
+    printf(&quot;add the event\n&quot;);
+
+    thread_init(10, mb);
+
+    printf(&quot;block before accept\n&quot;);
+    event_base_loop(mb, 0);
+
+    return 0;
+}
+
+线程池模型. 每一个work_thread监听自己的notify_receive_fd READ 事件,然后dispatch_thread 往notify_receive_fd 写入一字节的数据.接着 work_thread
+就处理从dispatch_thread 传送过来的fd 的请求
+#include &amp;lt;stdio.h&amp;gt;
+#include &amp;lt;stdlib.h&amp;gt;
+#include &amp;lt;fcntl.h&amp;gt;
+#include &amp;lt;event.h&amp;gt;
+#include &amp;lt;unistd.h&amp;gt;
+#include &amp;lt;netinet/in.h&amp;gt;
+#include &amp;lt;sys/socket.h&amp;gt;
+#include &amp;lt;string.h&amp;gt;
+#include &amp;lt;fcntl.h&amp;gt;
+#include &amp;lt;pthread.h&amp;gt;
+#include &amp;lt;errno.h&amp;gt;
+#include &quot;main.h&quot;
+
+
+static dh_thread dispatch_thread;
+
+static wk_thread *threads;
+
+static int last_thread = -1;
+
+void dispatch_new_thread(int fd)
+{
+    int tid = (last_thread + 1) % 10;
+    wk_thread *thread = threads + tid;
+
+    thread-&amp;gt;cq.sfd = fd;
+    write(thread-&amp;gt;notify_send_fd, &quot;&quot;, 1);
+}
+
+
+void thread_libevent_process(int fd, short which, void *arg)
+{
+    wk_thread *work_thread = arg;
+    char unuse[1];
+    if (read(fd, unuse, 1) != 1) {
+        fprintf(stderr, &quot;Can't read from libevent\n&quot;);
+    }
+    char buf[100];
+    int n;
+    n = read(work_thread-&amp;gt;cq.sfd, buf, 100);
+    write(work_thread-&amp;gt;cq.sfd, buf, n);
+}
+
+void setup_thread(wk_thread *work_thread)
+{   
+    work_thread-&amp;gt;base = event_init();
+    if (!work_thread-&amp;gt;base) {
+        fprintf(stdout, &quot;Can't allocate event base\n&quot;);
+        exit(1);
+    }
+
+    event_set(&amp;amp;work_thread-&amp;gt;notify_event, work_thread-&amp;gt;notify_receive_fd, EV_READ | EV_PERSIST, thread_libevent_process, work_thread);
+    event_base_set(work_thread-&amp;gt;base, &amp;amp;work_thread-&amp;gt;notify_event);
+    if (event_add(&amp;amp;work_thread-&amp;gt;notify_event, 0) == -1) {
+        fprintf(stdout, &quot;Can't add libevent notify pipe\n&quot;);
+        exit(1);
+    }
+}
+
+void worker_libevent(void *arg)
+{
+    wk_thread *work_thread = arg;
+    event_base_loop(work_thread-&amp;gt;base, 0);
+}
+
+void create_worker(void *(*func)(void *), void *arg)
+{
+    pthread_t thread;
+    pthread_attr_t attr;
+    int ret;
+    pthread_attr_init(&amp;amp;attr);
+
+    if ((ret = pthread_create(&amp;amp;thread, &amp;amp;attr, func, arg)) != 0) {
+        fprintf(stdout, &quot;Can't create thread: %s\n&quot;, strerror(ret));
+        exit(1);
+    }
+}
+
+
+void thread_init(int t_num, struct event_base *main_base)
+{
+    dispatch_thread.base = main_base;
+    dispatch_thread.thread_id = pthread_self();
+    int i;
+    threads = calloc(t_num, sizeof(wk_thread));
+    if (!threads) {
+        perror(&quot;Can't alloc so many thread\n&quot;);
+        exit(1);
+    }
+
+    for (i = 0; i &amp;lt; t_num; i++) {
+        int fds[2];
+        if (pipe(fds)) {
+            perror(&quot;can't pipe\n&quot;);
+            exit(1);
+        }
+        threads[i].notify_receive_fd = fds[0];
+        threads[i].notify_send_fd = fds[1];
+
+        setup_thread(&amp;amp;threads[i]);
+    }
+
+    for (i = 0; i &amp;lt; t_num; i++) {
+        create_worker(worker_libevent, &amp;amp;threads[i]);
+    }
+
+}
+&lt;/code&gt;&lt;/pre&gt;
 </content>
  </entry>
  

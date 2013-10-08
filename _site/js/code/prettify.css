@@ -1,0 +1,43 @@
+.str{color:deepPink;}
+.kwd{color:#069;font-weight:bold;}
+.com{color:#008200;font-style:italic;}
+.typ{color:gray}
+.lit{color:#000;}
+.pun{color:#000;}
+.pln{color:#000;}
+.tag{color:#FF8000;}
+.atn{color:#00FF00;}
+.atv{color:#00FF00;}
+.dec{color:#00FF00;}
+
+pre.prettyprint {
+margin-top: 20px;
+margin-bottom: 10px;
+background-color:#EEEEEE; /*f7f7f9*/
+padding-left:1em;
+font-size:15px;
+line-height:1.1;
+}
+@media print {
+    .str{color:#060;}
+    .kwd{color:#006;font-weight:bold;}
+    .com{color:#600;font-style:italic;}
+    .typ{color:#404;font-weight:bold;}
+    .lit{color:#044;}
+    .pun{color:#440;}
+    .pln{color:#000;}
+    .tag{color:#006;font-weight:bold;}
+    .atn{color:#404;}
+    .atv{color:#060;}
+}
+
+pre code {
+font-family:Mono,Monaco,Menlo,"Courier New",monospace;
+background-color:transparent;
+border: none;
+}
+code {
+color:#d14;
+background-color:#FFFFFF;
+border:1px solid #e1e1e8;
+}

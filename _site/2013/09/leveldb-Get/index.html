@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="author" content="陈宗志" />
+	<title>levelDB Get过程 | 陈宗志</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link href="http://baotiao.github.io/feed/" rel="alternate" title="陈宗志" type="application/atom+xml" />
+    <link rel="stylesheet" href="/media/css/style.css">
+    <link rel="stylesheet" href="/media/js/code/prettify.css">|
+  </head>
+
+	<div id="top"></div>
+  <body>
+    <div id="container">
+      <div id="main" role="main">
+        <header>
+        <h1>levelDB Get过程</h1>
+        </header>
+
+        <nav>
+        <span><a title="home page" class="" href="http://baotiao.github.io/">home</a></span>
+        <span><a title="about" class="" href="http://baotiao.github.io/about/">about</a></span>
+        <span><a title="publication" class="" href="http://baotiao.github.io/publication/">publication</a></span>
+        <span><a title="guestbook" class="" href="http://baotiao.github.io/guestbook/">guestbook</a></span>
+        <span><a title="vitae" class="" href="http://baotiao.github.io/vitae/">vitae</a></span>
+        <span><a title="categories" class="" href="http://baotiao.github.io/categories/">categories</a></span>
+        <span><a title="tags" class="" href="http://baotiao.github.io/tags/">tags</a></span>
+        <span><a title="links" class="" href="http://baotiao.github.io/links/">links</a></span>
+        </nav>
+
+        <article class="content">
+
+
+        <section class="post">
+<pre><code>Status DBImpl::Get(const ReadOptions&amp; options,
+        const Slice&amp; key,
+        std::string* value) {
+    Status s;
+    MutexLock l(&amp;mutex_); //这里初始化levelDB的锁, 默认把锁加上
+    SequenceNumber snapshot; //这里就是定义一个最新的一个操作号, 有一个全局
+    唯一的SequenceNumber
+    if (options.snapshot != NULL) { //如果要求取的是某一个版本的数据
+        snapshot = reinterpret_cast&lt;const SnapshotImpl*&gt;(options.snapshot)-&gt;number_;
+    } else {
+        snapshot = versions_-&gt;LastSequence(); //否则就是最新的数据, 也就是当
+        前versions_里面最大的SequenceNumber的数据
+    }
+
+    MemTable* mem = mem_; //mem table
+    MemTable* imm = imm_; //imm table
+    Version* current = versions_-&gt;current(); //当前的version
+    mem-&gt;Ref(); //对mem的引用+1, 这个ref主要是用来删除文件的时候判断, 如果这
+    个ref引用为0了, 那么就可以删除掉.
+    if (imm != NULL) imm-&gt;Ref();
+    current-&gt;Ref(); //同样对当前版本的ref引用+1
+
+    bool have_stat_update = false; //用来是否有更新, 如果有更新再判断是否启动compaction线程
+    Version::GetStats stats;
+
+    // Unlock while reading from files and memtables
+    {
+        mutex_.Unlock(); //把锁放开, 可以看到 正真加锁部分只有获得当前版本号
+        , 以及获得当前最新的版本这一部分, 也就是说在具体的get操作之前就已经
+        可以支持多个线程进行读取了. 为什么可以这么做呢? 首先获得了当前最新的
+        current以后, 并把这个current 的引用+1, 就可以保证当前的这个version
+        是不会被删除的, 同样对于当前的这个imm, mem ref+1 以后可以保证是不会
+        呗删除掉得. 所以只要在这段时间锁住就可以. 如果这个时候又有新的key写
+        入, 那么他这个时候写入的key 是一个新的SequenceNumber. 不会影响我们接
+        下来读的结果.
+
+        // First look in the memtable, then in the immutable memtable (if any).
+        LookupKey lkey(key, snapshot);
+        if (mem-&gt;Get(lkey, value, &amp;s)) { //从mem里面读取这个key的 value  这
+        里要注意memtable里面的kv 是如何排序的. 这里面key的排序是 首先按照
+        SquenceNumber排序, 然后是操作类型(删除排在最前面), 然后是key的大小(
+        具体再看一下Compaction里面)
+            // Done
+        } else if (imm != NULL &amp;&amp; imm-&gt;Get(lkey, value, &amp;s)) {
+            // Done
+        } else {
+            s = current-&gt;Get(options, lkey, value, &amp;stats); //如果mem 和
+            imm 都找不到, 那么这个时候我们要从一个一个level里面去找.
+            have_stat_update = true;
+        }
+        mutex_.Lock();
+    }
+
+    if (have_stat_update &amp;&amp; current-&gt;UpdateStats(stats)) { //
+    这里如果有更新, 那么会判断是否启动后台的Compaction() 进程
+        MaybeScheduleCompaction();
+    }
+    mem-&gt;Unref(); //分别把 mem, imm, current 的ref - 1
+    if (imm != NULL) imm-&gt;Unref();
+    current-&gt;Unref();
+    return s;
+}
+</code></pre>
+
+</section>
+<section class="meta">
+<span class="author">
+  <a href="http://mingxinglai.com/cn">陈宗志</a>
+</span>
+<span class="time">
+  /
+  <time datetime="2013-09-05">2013-09-05</time>
+</span>
+<br />
+<span class="license">
+  Published under <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/3.0/">(CC) BY-NC-SA</a>
+</span>
+
+<span class="categories">
+  in categories
+  
+  <a href="http://baotiao.github.io/categories/#tech" title="tech">tech</a>&nbsp;
+  
+</span>
+
+
+<span class="tags">
+  tagged with 
+  
+  <a href="http://baotiao.github.io/tags/#leveldb" title="leveldb">leveldb</a>&nbsp;
+  
+</span>
+
+</section>
+
+<div class="bshare-custom"><a title="åäº«å°æ°æµªå¾®å" class="bshare-sinaminiblog"></a><a title="åäº«å°Facebook" class="bshare-facebook"></a><a title="åäº«å°Twitter" class="bshare-twitter"></a><a title="æ´å¤å¹³å°" class="bshare-more bshare-more-icon more-style-addthis"></a></div><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/buttonLite.js#style=-1&amp;uuid=17304268-f570-4255-9088-f5132e6fd01b&amp;pophcol=1&amp;lang=zh"></script><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/bshareC0.js"></script>
+<section class="comment">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'mingxing'; // required: replace example with your forum shortname
+		var disqus_rul = 'http://baotiao.github.io/2013/09/leveldb-Get/';
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</section>
+
+<script type="text/javascript">
+$(function(){
+  $(document).keydown(function(e) {
+    if (e.target.nodeName.toUpperCase() != 'BODY') return;
+    var url = false;
+        if (e.which == 37 || e.which == 74) {  // Left arrow and J
+            
+        url = 'http://baotiao.github.io/2013/09/leverdb-thought/';
+        
+        }
+        else if (e.which == 39 || e.which == 75) {  // Right arrow and K
+            
+        }
+        if (url) {
+            window.location = url;
+        }
+  });
+})
+</script>
+
+
+
+        </article>
+
+	<div id="message"><a href="#top">Scroll to top</a></div>
+	</div>
+</div>
+
+<script type="text/javascript" src="/media/js/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="/media/js/code/prettify.js"></script>
+
+ <script type="text/javascript">
+      $(function(){
+        $("pre").addClass("prettyprint linenums");
+        prettyPrint();
+        $('.entry a').each(function(){
+          if($(this).attr("href").indexOf("mingxinglai") == -1){
+            $(this).attr("target", "_blank");
+          }
+        })
+      });
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-35023741-1']);
+  _gaq.push(['_trackPageview']);
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+<script type="text/javascript">
+$(function () {
+
+    /* set variables locally for increased performance */
+    var scroll_timer;
+    var displayed = false;
+    var $message = $('#message a');
+    var $window = $(window);
+    var top = $(document.body).children(0).position().top;
+
+    /* react to scroll event on window */
+    $window.scroll(function () {
+        window.clearTimeout(scroll_timer);
+        scroll_timer = window.setTimeout(function () {
+            if($window.scrollTop() <= top + 800)
+            {
+                displayed = false;
+                $message.fadeOut(1000);
+            }
+            else if(displayed == false)
+            {
+                displayed = true;
+                $message.stop(true, true).show().click(function () { $message.fadeOut(1000); });
+            }
+        }, 100);
+    });
+});
+</script>
+  </body>
+</html>
