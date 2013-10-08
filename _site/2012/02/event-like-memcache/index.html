@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="author" content="陈宗志" />
+	<title>event + 线程池模型的 server 类似 Memcache线程池模型 | 陈宗志</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link href="http://baotiao.github.io/feed/" rel="alternate" title="陈宗志" type="application/atom+xml" />
+    <link rel="stylesheet" href="/media/css/style.css">
+    <link rel="stylesheet" href="/media/js/code/prettify.css">|
+  </head>
+
+	<div id="top"></div>
+  <body>
+    <div id="container">
+      <div id="main" role="main">
+        <header>
+        <h1>event + 线程池模型的 server 类似 Memcache线程池模型</h1>
+        </header>
+
+        <nav>
+        <span><a title="home page" class="" href="http://baotiao.github.io/">home</a></span>
+        <span><a title="about" class="" href="http://baotiao.github.io/about/">about</a></span>
+        <span><a title="publication" class="" href="http://baotiao.github.io/publication/">publication</a></span>
+        <span><a title="guestbook" class="" href="http://baotiao.github.io/guestbook/">guestbook</a></span>
+        <span><a title="vitae" class="" href="http://baotiao.github.io/vitae/">vitae</a></span>
+        <span><a title="categories" class="" href="http://baotiao.github.io/categories/">categories</a></span>
+        <span><a title="tags" class="" href="http://baotiao.github.io/tags/">tags</a></span>
+        <span><a title="links" class="" href="http://baotiao.github.io/links/">links</a></span>
+        </nav>
+
+        <article class="content">
+
+
+        <section class="post">
+<pre><code>/*
+    main.h
+    定义了三个数据结构 conn_queue_item,work_thread,dispatch_thread.
+    conn_queue_item 只是存dispatch_thread accept 以后的描述符,然后
+    dispatch_thread 将conn_queue_item 存入某一个work_thread.
+    work_thread 真正负责work的thread.
+    dispatch_thread 监听9877端口,并且将accept后的fd传给work_thread.
+*/
+#ifndef MAINH
+#define MAINH
+
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;event.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;netinet/in.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;string.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;pthread.h&gt;
+#include &lt;errno.h&gt;
+
+typedef struct conn_queue_item CQ;
+
+struct conn_queue_item {
+    int sfd;
+};
+
+struct WORK_THREAD {
+    pthread_t thread_id;
+    struct event_base *base;
+    struct event notify_event;
+    int notify_receive_fd;
+    int notify_send_fd;
+    struct conn_queue_item cq;
+};
+typedef struct WORK_THREAD wk_thread;
+
+struct DISPATCH_THREAD {
+    pthread_t thread_id;
+    struct event_base *base;
+};
+typedef struct DISPATCH_THREAD dh_thread;
+
+#endif
+
+主要的执行函数main.c
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;event.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;netinet/in.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;string.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;pthread.h&gt;
+#include &lt;errno.h&gt;
+#include "main.h"
+
+static struct event_base *main_base;
+
+void call_accept(int fd, short event, void *arg)
+{
+    fputs("a socket has come\n", stdout);
+    struct sockaddr_in cliaddr;
+    socklen_t clilen;
+    int connfd;
+    connfd = accept(fd, (struct sockaddr *) &amp;cliaddr, &amp;clilen);
+    dispatch_new_thread(connfd);
+}
+
+
+
+int main()
+{
+
+    int listenfd, connfd;
+    struct sockaddr_in cliaddr, servaddr;
+    socklen_t clilen;
+
+    listenfd = socket(AF_INET, SOCK_STREAM, 0);
+    memset(&amp;servaddr, 0, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servaddr.sin_port = htons(9877);
+    bind(listenfd, (struct sockaddr *) &amp;servaddr, sizeof(servaddr));
+    listen(listenfd, 10);
+
+    struct event_base *mb;
+    struct event ev;
+    mb = event_init();
+    event_set(&amp;ev, listenfd, EV_READ | EV_PERSIST, call_accept, &amp;ev);
+    //event_base_set(main_base, &amp;ev);
+    event_add(&amp;ev, NULL);
+    printf("add the event\n");
+
+    thread_init(10, mb);
+
+    printf("block before accept\n");
+    event_base_loop(mb, 0);
+
+    return 0;
+}
+
+线程池模型. 每一个work_thread监听自己的notify_receive_fd READ 事件,然后dispatch_thread 往notify_receive_fd 写入一字节的数据.接着 work_thread
+就处理从dispatch_thread 传送过来的fd 的请求
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;event.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;netinet/in.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;string.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;pthread.h&gt;
+#include &lt;errno.h&gt;
+#include "main.h"
+
+
+static dh_thread dispatch_thread;
+
+static wk_thread *threads;
+
+static int last_thread = -1;
+
+void dispatch_new_thread(int fd)
+{
+    int tid = (last_thread + 1) % 10;
+    wk_thread *thread = threads + tid;
+
+    thread-&gt;cq.sfd = fd;
+    write(thread-&gt;notify_send_fd, "", 1);
+}
+
+
+void thread_libevent_process(int fd, short which, void *arg)
+{
+    wk_thread *work_thread = arg;
+    char unuse[1];
+    if (read(fd, unuse, 1) != 1) {
+        fprintf(stderr, "Can't read from libevent\n");
+    }
+    char buf[100];
+    int n;
+    n = read(work_thread-&gt;cq.sfd, buf, 100);
+    write(work_thread-&gt;cq.sfd, buf, n);
+}
+
+void setup_thread(wk_thread *work_thread)
+{   
+    work_thread-&gt;base = event_init();
+    if (!work_thread-&gt;base) {
+        fprintf(stdout, "Can't allocate event base\n");
+        exit(1);
+    }
+
+    event_set(&amp;work_thread-&gt;notify_event, work_thread-&gt;notify_receive_fd, EV_READ | EV_PERSIST, thread_libevent_process, work_thread);
+    event_base_set(work_thread-&gt;base, &amp;work_thread-&gt;notify_event);
+    if (event_add(&amp;work_thread-&gt;notify_event, 0) == -1) {
+        fprintf(stdout, "Can't add libevent notify pipe\n");
+        exit(1);
+    }
+}
+
+void worker_libevent(void *arg)
+{
+    wk_thread *work_thread = arg;
+    event_base_loop(work_thread-&gt;base, 0);
+}
+
+void create_worker(void *(*func)(void *), void *arg)
+{
+    pthread_t thread;
+    pthread_attr_t attr;
+    int ret;
+    pthread_attr_init(&amp;attr);
+
+    if ((ret = pthread_create(&amp;thread, &amp;attr, func, arg)) != 0) {
+        fprintf(stdout, "Can't create thread: %s\n", strerror(ret));
+        exit(1);
+    }
+}
+
+
+void thread_init(int t_num, struct event_base *main_base)
+{
+    dispatch_thread.base = main_base;
+    dispatch_thread.thread_id = pthread_self();
+    int i;
+    threads = calloc(t_num, sizeof(wk_thread));
+    if (!threads) {
+        perror("Can't alloc so many thread\n");
+        exit(1);
+    }
+
+    for (i = 0; i &lt; t_num; i++) {
+        int fds[2];
+        if (pipe(fds)) {
+            perror("can't pipe\n");
+            exit(1);
+        }
+        threads[i].notify_receive_fd = fds[0];
+        threads[i].notify_send_fd = fds[1];
+
+        setup_thread(&amp;threads[i]);
+    }
+
+    for (i = 0; i &lt; t_num; i++) {
+        create_worker(worker_libevent, &amp;threads[i]);
+    }
+
+}
+</code></pre>
+
+</section>
+<section class="meta">
+<span class="author">
+  <a href="http://mingxinglai.com/cn">陈宗志</a>
+</span>
+<span class="time">
+  /
+  <time datetime="2012-02-04">2012-02-04</time>
+</span>
+<br />
+<span class="license">
+  Published under <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/3.0/">(CC) BY-NC-SA</a>
+</span>
+
+<span class="categories">
+  in categories
+  
+  <a href="http://baotiao.github.io/categories/#tech" title="tech">tech</a>&nbsp;
+  
+</span>
+
+
+<span class="tags">
+  tagged with 
+  
+  <a href="http://baotiao.github.io/tags/#network" title="network">network</a>&nbsp;
+  
+</span>
+
+</section>
+
+<div class="bshare-custom"><a title="åäº«å°æ°æµªå¾®å" class="bshare-sinaminiblog"></a><a title="åäº«å°Facebook" class="bshare-facebook"></a><a title="åäº«å°Twitter" class="bshare-twitter"></a><a title="æ´å¤å¹³å°" class="bshare-more bshare-more-icon more-style-addthis"></a></div><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/buttonLite.js#style=-1&amp;uuid=17304268-f570-4255-9088-f5132e6fd01b&amp;pophcol=1&amp;lang=zh"></script><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/bshareC0.js"></script>
+<section class="comment">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'mingxing'; // required: replace example with your forum shortname
+		var disqus_rul = 'http://baotiao.github.io/2012/02/event-like-memcache/';
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</section>
+
+<script type="text/javascript">
+$(function(){
+  $(document).keydown(function(e) {
+    if (e.target.nodeName.toUpperCase() != 'BODY') return;
+    var url = false;
+        if (e.which == 37 || e.which == 74) {  // Left arrow and J
+            
+        url = 'http://baotiao.github.io/2012/02/memcached-e7babfe7a88be6b1a0e6a8a1e59e8be58886e69e90/';
+        
+        }
+        else if (e.which == 39 || e.which == 75) {  // Right arrow and K
+            
+        url = 'http://baotiao.github.io/2012/02/151/';
+        
+        }
+        if (url) {
+            window.location = url;
+        }
+  });
+})
+</script>
+
+
+
+        </article>
+
+	<div id="message"><a href="#top">Scroll to top</a></div>
+	</div>
+</div>
+
+<script type="text/javascript" src="/media/js/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="/media/js/code/prettify.js"></script>
+
+ <script type="text/javascript">
+      $(function(){
+        $("pre").addClass("prettyprint linenums");
+        prettyPrint();
+        $('.entry a').each(function(){
+          if($(this).attr("href").indexOf("mingxinglai") == -1){
+            $(this).attr("target", "_blank");
+          }
+        })
+      });
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-35023741-1']);
+  _gaq.push(['_trackPageview']);
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+<script type="text/javascript">
+$(function () {
+
+    /* set variables locally for increased performance */
+    var scroll_timer;
+    var displayed = false;
+    var $message = $('#message a');
+    var $window = $(window);
+    var top = $(document.body).children(0).position().top;
+
+    /* react to scroll event on window */
+    $window.scroll(function () {
+        window.clearTimeout(scroll_timer);
+        scroll_timer = window.setTimeout(function () {
+            if($window.scrollTop() <= top + 800)
+            {
+                displayed = false;
+                $message.fadeOut(1000);
+            }
+            else if(displayed == false)
+            {
+                displayed = true;
+                $message.stop(true, true).show().click(function () { $message.fadeOut(1000); });
+            }
+        }, 100);
+    });
+});
+</script>
+  </body>
+</html>
