@@ -5,14 +5,16 @@ pagetitle: 我爱你们
 comments: yes
 ---
 
-# 学习网站
+# tools
 
 - [the unix school][1]
 - [geek for geeks][2]
 
 
-# 博客
+# blogs
 
+- [karma-engineering][3]
 
 [1]: http://www.theunixschool.com/
 [2]: http://geeksforgeeks.org/
+[3]: http://karma-engineering.com/lab/blog
