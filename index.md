@@ -1,6 +1,6 @@
 ---
 title: 做有积累的事情
-pagetitle: 空谷幽兰
+pagetitle: 做有积累的事情
 layout: page
 ---
 
