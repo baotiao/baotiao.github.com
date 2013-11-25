@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "How redis implement data struct"
+title: "How redis implement data structure"
 description: "about redis"
 category: tech
 tags: [survey]
