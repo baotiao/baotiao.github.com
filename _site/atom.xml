@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2013-12-19T17:32:47+08:00</updated>
+ <updated>2013-12-19T18:51:47+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -1271,79 +1271,75 @@ psearch(&quot;root&quot;, &quot;.a.a.a&quot;) 应该能匹配出baxaca, cadakd �
  </entry>
  
  <entry>
-   <title>Memcached 初始化流程</title>
-   <link href="http://baotiao.github.io//2012/03/memcached-e5889de5a78be58c96e6b581e7a88b/"/>
-   <updated>2012-03-07T10:29:05+08:00</updated>
-   <id>http://baotiao.github.io//2012/03/memcached-e5889de5a78be58c96e6b581e7a88b</id>
-   <content type="html">&lt;p&gt;`
-1.signal(SIGINT, sig_handler);&lt;/p&gt;
+   <title>Memcache initialization</title>
+   <link href="http://baotiao.github.io//2012/03/memcached-initialization/"/>
+   <updated>2012-03-07T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2012/03/memcached-initialization</id>
+   <content type="html">&lt;pre&gt;&lt;code&gt;1.signal(SIGINT, sig_handler);
 
-&lt;p&gt;2.seetings_init(); //初始化默认的设置,初始化全局变量struct setting settings
+2.seetings_init(); //初始化默认的设置,初始化全局变量struct setting settings
 static void settings_init(void) {
     settings.use_cas = true;
     settings.access = 0700;
     settings.port = 11211;
     settings.udpport = 11211;
-    /&lt;em&gt; By default this string should be NULL for getaddrinfo() &lt;/em&gt;/
+    /* By default this string should be NULL for getaddrinfo() */
     settings.inter = NULL;
-    settings.maxbytes = 64 * 1024 * 1024; /&lt;em&gt; default is 64MB &lt;/em&gt;/
-    settings.maxconns = 1024;         /&lt;em&gt; to limit connections-related memory to about 5MB &lt;/em&gt;/
+    settings.maxbytes = 64 * 1024 * 1024; /* default is 64MB */
+    settings.maxconns = 1024;         /* to limit connections-related memory to about 5MB */
     settings.verbose = 0;
     settings.oldest_live = 0;
-    settings.evict_to_free = 1;       /&lt;em&gt; push old items out of cache when memory runs out &lt;/em&gt;/
-    settings.socketpath = NULL;       /&lt;em&gt; by default, not using a unix socket &lt;/em&gt;/
+    settings.evict_to_free = 1;       /* push old items out of cache when memory runs out */
+    settings.socketpath = NULL;       /* by default, not using a unix socket */
     settings.factor = 1.25;
-    settings.chunk_size = 48;         /&lt;em&gt; space for a modest key and value &lt;/em&gt;/
-    settings.num_threads = 4;         /&lt;em&gt; N workers &lt;/em&gt;/
+    settings.chunk_size = 48;         /* space for a modest key and value */
+    settings.num_threads = 4;         /* N workers */
     settings.num_threads_per_udp = 0;
     settings.prefix_delimiter = ':';
     settings.detail_enabled = 0;
     settings.reqs_per_event = 20;
     settings.backlog = 1024;
     settings.binding_protocol = negotiating_prot;
-    settings.item_size_max = 1024 * 1024; /&lt;em&gt; The famous 1MB upper limit. &lt;/em&gt;/
+    settings.item_size_max = 1024 * 1024; /* The famous 1MB upper limit. */
     settings.maxconns_fast = false;
     settings.hashpower_init = 0;
-}&lt;/p&gt;
+}
 
-&lt;ol&gt;
-&lt;li&gt;while (-1 != (c = getopt(argc, argv, //对输入的参数进行相应的设置,这种demon,item_max_size 等等&lt;/li&gt;
-&lt;/ol&gt;
+3. while (-1 != (c = getopt(argc, argv, //对输入的参数进行相应的设置,这种demon,item_max_size 等等
 
+4.getrlimit,setrlimit 是系统调用,用来修改最大连接数 struct rlimit .
 
-&lt;p&gt;4.getrlimit,setrlimit 是系统调用,用来修改最大连接数 struct rlimit .&lt;/p&gt;
+5.去掉root权限. 如果是root 通过 -u 参数来启动
 
-&lt;p&gt;5.去掉root权限. 如果是root 通过 -u 参数来启动&lt;/p&gt;
+6.init_sasl() 是否开启 sasl
 
-&lt;p&gt;6.init_sasl() 是否开启 sasl&lt;/p&gt;
+7.daemonize(maxcore, setting.verbose) 开启 daemonize 模式
 
-&lt;p&gt;7.daemonize(maxcore, setting.verbose) 开启 daemonize 模式&lt;/p&gt;
+8.main_base = event_init(); 初始化主线程
 
-&lt;p&gt;8.main_base = event_init(); 初始化主线程&lt;/p&gt;
+9.stats_init() 初始化全局变量stats.
 
-&lt;p&gt;9.stats_init() 初始化全局变量stats.&lt;/p&gt;
+10.assoc_init() 初始化hashtable, 默认calloc(2^16, sizeof(void *))个指针
 
-&lt;p&gt;10.assoc_init() 初始化hashtable, 默认calloc(2&lt;sup&gt;16&lt;/sup&gt;, sizeof(void *))个指针&lt;/p&gt;
+11.conn_init() 初始化连接池conn, 默认的空闲连接池的个数是200 声明calloc(200, sizeof(conn *))
 
-&lt;p&gt;11.conn_init() 初始化连接池conn, 默认的空闲连接池的个数是200 声明calloc(200, sizeof(conn *))&lt;/p&gt;
+12.slabs_init(settings.maxbytes, setting.factor, preallocate) 初始化memcached. setting.maxbytes 是最大内存的大小,setting.factor 成长因子, preallocate是否预先声明空间 . 默认的最小的chunk_size 是48,成长因子是1.25.
 
-&lt;p&gt;12.slabs_init(settings.maxbytes, setting.factor, preallocate) 初始化memcached. setting.maxbytes 是最大内存的大小,setting.factor 成长因子, preallocate是否预先声明空间 . 默认的最小的chunk_size 是48,成长因子是1.25.&lt;/p&gt;
+13.sigignore(SIGPIPE) 忽略SIGPIPE信号。 在Linux下写socket的程序的时候，如果尝试send到一个disconnected socket上，底层将抛出一个SIGPIPE信号。如果程序没有处理或没有忽略，这个信号将导致程序退出。这不是我们需要的.
 
-&lt;p&gt;13.sigignore(SIGPIPE) 忽略SIGPIPE信号。 在Linux下写socket的程序的时候，如果尝试send到一个disconnected socket上，底层将抛出一个SIGPIPE信号。如果程序没有处理或没有忽略，这个信号将导致程序退出。这不是我们需要的.&lt;/p&gt;
+14.thread_init(settings.num_threads, main_base); //初始化线程池模型
 
-&lt;p&gt;14.thread_init(settings.num_threads, main_base); //初始化线程池模型&lt;/p&gt;
+15.start_assoc_maintenance_thread() //在assoc里面,有一个独立的线程来维护从old_hashtable中的数据到相应的primary_hashtable中.开启这个线程
 
-&lt;p&gt;15.start_assoc_maintenance_thread() //在assoc里面,有一个独立的线程来维护从old_hashtable中的数据到相应的primary_hashtable中.开启这个线程&lt;/p&gt;
+16.clock_handler(0, 0, 0); //初始化libevent的时间处理
 
-&lt;p&gt;16.clock_handler(0, 0, 0); //初始化libevent的时间处理&lt;/p&gt;
+17.server_socket_unix(settings.socketpath,settings.access) //建立tcp 或者 udp的socket连接sfd,dispatch_thread开始监听这个sfd连接.
+server_sockets(settings.port, tcp_transport,portnumber_file) //可以让dispatch同时监听多个连接的端口. 到此 服务器初始化结束,等到client的连接
 
-&lt;p&gt;17.server_socket_unix(settings.socketpath,settings.access) //建立tcp 或者 udp的socket连接sfd,dispatch_thread开始监听这个sfd连接.
-server_sockets(settings.port, tcp_transport,portnumber_file) //可以让dispatch同时监听多个连接的端口. 到此 服务器初始化结束,等到client的连接&lt;/p&gt;
+18.if (event_base_loop(main_base, 0) != 0) //循环main_base事件
 
-&lt;p&gt;18.if (event_base_loop(main_base, 0) != 0) //循环main_base事件&lt;/p&gt;
-
-&lt;p&gt;19.stop_assoc_maintenance_thread(); //退出在assoc里面的维护hashtable线程
-`&lt;/p&gt;
+19.stop_assoc_maintenance_thread(); //退出在assoc里面的维护hashtable线程
+&lt;/code&gt;&lt;/pre&gt;
 </content>
  </entry>
  
