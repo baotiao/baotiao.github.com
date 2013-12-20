@@ -1,5 +1,10 @@
 /* desert scheme ported from vim to google prettify */
-pre.prettyprint { display: block; background-color: #333 }
+pre.prettyprint { 
+width: 830px;
+margin: 1em auto;
+padding: 1em;
+white-space: pre-wrap;
+display: block; background-color: #333 }
 pre .nocode { background-color: none; color: #000 }
 pre .str { color: #ffa0a0 } /* string  - pink */
 pre .kwd { color: #f0e68c; font-weight: bold }
@@ -32,4 +37,5 @@ li.L1,li.L3,li.L5,li.L7,li.L9 { }
   pre .atn, code .atn { color: #404 }
   pre .atv, code .atv { color: #060 }
 }
+
 
