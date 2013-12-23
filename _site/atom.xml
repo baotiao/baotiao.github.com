@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2013-12-22T20:20:34+08:00</updated>
+ <updated>2013-12-23T19:31:05+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -2487,26 +2487,51 @@ if (write(thread-&amp;gt;notify_send_fd, &quot;&quot;, 1) != 1) { //这里就是
  
  <entry>
    <title>函数指针和指针函数</title>
-   <link href="http://baotiao.github.io//2011/10/e587bde695b0e68c87e99288e5928ce68c87e99288e587bde695b0/"/>
-   <updated>2011-10-24T02:49:27+08:00</updated>
-   <id>http://baotiao.github.io//2011/10/e587bde695b0e68c87e99288e5928ce68c87e99288e587bde695b0</id>
-   <content type="html">&lt;p&gt;函数指针和指针函数区别. 指针函数. 返回值是指针的函数叫指针函数. 函数的返回值可以是int,char,double,struct,也可以是指针,指针函数就是返回值是指针的函数,也就是返回的是一个地址.比如: &lt;code&gt;char *cp(char *s, char *t) { t = s; return t; } int main() { char s1[10] = &quot;hello&quot;; char s2[10] = &quot;world&quot;; printf(&quot;%s %sn&quot;, s1, s2); printf(&quot;%sn&quot;,cp(s1,s2)); return 0; } [slot machines](http://casinobigben.ca/)&lt;/code&gt; 这里返回值就是一个地址. 这里 char &lt;em&gt;cp(char &lt;/em&gt;s, char &lt;em&gt;t)里面的第一个*我们可以看做是跟定义一个指针 char &lt;/em&gt;p,里面的*是一个意思,就是只是表示这是一个指针而已.所以我们调用cp(s1,s2)返回的就是一个地址,printf(&quot;%s&quot;)的时候,传入的是一个地址或者字符串的名字.如果是一个 int &lt;em&gt;get(),那么获得返回值就是 printf(&quot;%dn&quot;,&lt;/em&gt;get())就可以了.&lt;/p&gt;
+   <link href="http://baotiao.github.io//2011/10/function-point/"/>
+   <updated>2011-10-23T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2011/10/function-point</id>
+   <content type="html">&lt;pre&gt;&lt;code&gt;函数指针和指针函数区别. 指针函数. 返回值是指针的函数叫指针函数. 函数的返回值可以是int,char,double,struct,也可以是指针,指针函数就是返回值是指针的函数,也就是返回的是一个地址.比如: 
 
-&lt;p&gt;函数指针 指向函数的指针叫函数指针. 在C语言中，函数也是一种类型，可以定义指向函数的指针。我们知道，指针变量的内存单元存放一个地址值，而函数指针存放的就是函数的入口地址（位于.text段）。下面看一个简单的例子： 例 23.3. 函数指针 &lt;code&gt;#include void say_hello(const char *str) { printf(&quot;Hello %sn&quot;, str); } int main(void) { void (*f)(const char *) = say_hello; //注意这里*f必须加()否则就和上面说的函数指针混乱了. f(&quot;Guys&quot;); return 0; }&lt;/code&gt;&lt;/p&gt;
+char *cp(char *s, char *t) 
+{ 
+    t = s; return t; 
+}
+int main() 
+{ 
+    char s1[10] = &quot;hello&quot;; 
+    char s2[10] = &quot;world&quot;; 
+    printf(&quot;%s %sn&quot;, s1, s2); 
+    printf(&quot;%sn&quot;,cp(s1,s2)); 
+    return 0; 
+}
 
-&lt;p&gt;分析一下变量f的类型声明void (&lt;em&gt;f)(const char &lt;/em&gt;)，f首先跟*号结合在一起，因此是一个指针。(&lt;em&gt;f)外面是一个函数原型的格式，参数是const char *，返回值是void，所以f是指向这种函数的指针。而say_hello的参数是const char *，返回值是void，正好是这种函数，因此f可以指向say_hello。注意，say_hello是一种函数类型，而函数类型和数组类型类似，做右值使用时自动转换成函数指针类型，所以可以直接赋给f，当然也可以写成void (&lt;/em&gt;f)(const char *) = &amp;amp;say_hello;，把函数say_hello先取地址再赋给f，就不需要自动类型转换了。&lt;/p&gt;
+这里返回值就是一个地址. 这里 char *cp(char *s, char *t)里面的第一个*我们可以看做是跟定义一个指针 char *p,里面的*是一个意思,就是只是表示这是一个指针而已.所以我们调用cp(s1,s2)返回的就是一个地址,printf(&quot;%s&quot;)的时候,传入的是一个地址或者字符串的名字.如果是一个 int *get(),那么获得返回值就是 printf(&quot;%dn&quot;,*get())就可以了.
 
-&lt;p&gt;可以直接通过函数指针调用函数，如上面的f(&quot;Guys&quot;)，也可以先用&lt;em&gt;f取出它所指的函数类型，再调用函数，即(&lt;/em&gt;f)(&quot;Guys&quot;)。可以这么理解：函数调用运算符()要求操作数是函数指针，所以f(&quot;Guys&quot;)是最直接的写法，而say_hello(&quot;Guys&quot;)或(*f)(&quot;Guys&quot;)则是把函数类型自动转换成函数指针然后做函数调用。&lt;/p&gt;
+函数指针 指向函数的指针叫函数指针. 在C语言中，函数也是一种类型，可以定义指向函数的指针。我们知道，指针变量的内存单元存放一个地址值，而函数指针存放的就是函数的入口地址(位于.text段). 下面看一个简单的例子: 例 23.3. 函数指针 
 
-&lt;p&gt;就是我们平常调用函数的时候也是先吧函数类型转换程函数指针,然后在做函数调用,有了函数指针直接把指针指向这一个函数在.text段的位置,就直接做函数调用了.函数指针可以指向所有这一类的函数.&lt;/p&gt;
+void say_hello(const char *str) 
+{ 
+    printf(&quot;Hello %sn&quot;, str); 
+} 
+int main(void) { 
+    void (*f)(const char *) = say_hello; //注意这里*f必须加()否则就和上面说的函数指针混乱了. 
+    f(&quot;Guys&quot;); 
+    return 0; 
+}
+
+
+分析一下变量f的类型声明void (*f)(const char *)，f首先跟*号结合在一起，因此是一个指针。(*f)外面是一个函数原型的格式，参数是const char *，返回值是void，所以f是指向这种函数的指针。而say_hello的参数是const char *，返回值是void，正好是这种函数，因此f可以指向say_hello。注意，say_hello是一种函数类型，而函数类型和数组类型类似，做右值使用时自动转换成函数指针类型，所以可以直接赋给f，当然也可以写成void (*f)(const char *) = &amp;amp;say_hello;，把函数say_hello先取地址再赋给f，就不需要自动类型转换了。
+可以直接通过函数指针调用函数，如上面的f(&quot;Guys&quot;)，也可以先用*f取出它所指的函数类型，再调用函数，即(*f)(&quot;Guys&quot;)。可以这么理解：函数调用运算符()要求操作数是函数指针，所以f(&quot;Guys&quot;)是最直接的写法，而say_hello(&quot;Guys&quot;)或(*f)(&quot;Guys&quot;)则是把函数类型自动转换成函数指针然后做函数调用。
+就是我们平常调用函数的时候也是先吧函数类型转换程函数指针,然后在做函数调用,有了函数指针直接把指针指向这一个函数在.text段的位置,就直接做函数调用了.函数指针可以指向所有这一类的函数.
+&lt;/code&gt;&lt;/pre&gt;
 </content>
  </entry>
  
  <entry>
    <title>introduce awk</title>
-   <link href="http://baotiao.github.io//2011/08/awke59fbae7a180/"/>
+   <link href="http://baotiao.github.io//2011/08/awk-introduce/"/>
    <updated>2011-08-19T00:00:00+08:00</updated>
-   <id>http://baotiao.github.io//2011/08/awke59fbae7a180</id>
+   <id>http://baotiao.github.io//2011/08/awk-introduce</id>
    <content type="html">&lt;p&gt;由于平常的工作都在linux下面进行,所以经常用到linux下面的awk,sed,grep等工具.
 组内的一次分享.&lt;/p&gt;
 
