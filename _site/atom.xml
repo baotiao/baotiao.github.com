@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2013-12-27T19:15:25+08:00</updated>
+ <updated>2013-12-27T19:58:00+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -13,7 +13,7 @@
 
  
  <entry>
-   <title>How redis implement data structure</title>
+   <title>How redis implement data structure111</title>
    <link href="http://baotiao.github.io//2013/11/survey-redis/"/>
    <updated>2013-11-23T00:00:00+08:00</updated>
    <id>http://baotiao.github.io//2013/11/survey-redis</id>
@@ -2562,7 +2562,46 @@ index.php 会调用cola 的config 函数把规则保存在$&lt;/em&gt;config 变
    <link href="http://baotiao.github.io//2011/08/grep-in-awk/"/>
    <updated>2011-08-17T10:05:32+08:00</updated>
    <id>http://baotiao.github.io//2011/08/grep-in-awk</id>
-   <content type="html">
+   <content type="html">&lt;pre&gt;&lt;code&gt;awk 'BEGIN {while (( getline &amp;lt; &quot;f2&quot; &amp;gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&amp;lt;lc; i++) { if (match (f2[i], $1)) print f2[i];}}' f1
+
+awk 'BEGIN {while (( getline &amp;lt; &quot;f2&quot; &amp;gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&amp;lt;lc; i++) { if (f2[i] ~ $1) print f2[i];}}' f1
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt; 其中 match 函数 match(s,r)              测试s是否包含匹配r的字符串
+有 两个文件 f1 包含
+czz 234
+xyy 2ee
+ghy 2g3
+f2包含
+au=xyygxh
+ssssssssssssss
+au=xyy;xyygxhgxh
+au=czz;andxyy
+au=czz;andguanxiaohong&lt;/p&gt;
+
+&lt;p&gt;现在 要把 f2 搜索一次 如果有包含 czz 就列出来, 然后 再把f2搜索一次 有xyy就列出来
+所以答案应该是
+au=czz;andxyy
+au=czz;andguanxiaohong
+au=xyy;xyygxhgxh
+au=czz;andxyy
+au=xyy;xyygxhgxh&lt;/p&gt;
+
+&lt;p&gt;刚开始想到的是 先 awk 然后 里面再用 grep 来做,不过后来试验了无数次 grep 总是报错, 不过也知道了 grep 里面包含awk的方法.
+就是 grep &quot;$(awk '{printf(&quot;%s&quot;), $1;}' f1)&quot; f2 这样就是把  f2 中 包含 czz 或者 xyy 或者 ghy 的找出来.
+后来grep 放弃了, 后来看到有这个 match 函数 试了一下,马上就可以了.
+awk 'BEGIN {while (( getline &amp;lt; &quot;f2&quot; &gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&amp;lt;lc; i++) { if (match (f2[i], $1)) print f2[i];}}' f1
+这里 在 BEGIN 的时候 吧 f2的文件都读进来,然后 存在f2数组里面,然后 接下来对每一个f1文件里面的每一行 都 与f2数组做比较.
+match(s,r) 的意思是测试s是否包含匹配r 的字符串. 所以f2[i] 包含 $1 就会输出 f2[i].&lt;/p&gt;
+
+&lt;p&gt;还有一种做法
+awk 'BEGIN {while (( getline &amp;lt; &quot;f2&quot; &gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&amp;lt;lc; i++) { if (f2[i] ~ $1) print f2[i];}}' f1&lt;/p&gt;
+
+&lt;p&gt;这里 匹配的时候要注意两点  if (f2[i] ~ $1) 就是 f2[i] 中 包含 $1 这个正则表达式
+还有 就是 是否要用着 /&quot;&quot;/ 这个问题, 如果是变量就不要用,不是变量就必须用.
+这样这里就不用grep  实际上也是实现了 grep 的功能.
+线上实际用到这个命令的地方.
+awk 'BEGIN { while (( getline &amp;lt; &quot;/var/sankuai/wwwlogs/www.meituan.com-110816-access_log&quot; &gt; 0))  { f2[lc] = $0; lc++;}} -F &quot;,&quot; { name = &quot;au=&quot;$2&quot;[;|\&quot;]&quot;; for (i = 1; i &amp;lt; lc; i++) {if (f2[i] ~ name) print f2[i];} printf(&quot;\n\n&quot;);}' zhuagui.ouput &gt; zhuagui50&lt;/p&gt;
 </content>
  </entry>
  
@@ -2576,42 +2615,44 @@ index.php 会调用cola 的config 函数把规则保存在$&lt;/em&gt;config 变
  </entry>
  
  <entry>
-   <title>我用的比较少的vim 指令</title>
-   <link href="http://baotiao.github.io//2011/08/e68891e794a8e79a84e6af94e8be83e5b091e79a84vim-e68c87e4bba4/"/>
-   <updated>2011-08-12T14:15:18+08:00</updated>
-   <id>http://baotiao.github.io//2011/08/e68891e794a8e79a84e6af94e8be83e5b091e79a84vim-e68c87e4bba4</id>
-   <content type="html">&lt;p&gt;我用的比较少的vim 指令
-x dw是删除单词用的  还有d$是删除到当前行的末尾 U 是用来作回复对当前行的修改
-还有就是 dd 完以后可以直接按p就可以实现复制粘帖 不过貌似只能对一行用
-然后就是修改句子中的某一个字符  就可以直接 r然后一个字符就修改光标处的 字符
-cw 用来改变一个单词的部分或者全部  从光标在的那个地方修改
-同样c 和d 是一系列的 也有 c$ 就是修改的最后为止
-ctrl-g 显示当前光标和文件状态
-/ 是用来做正方向查找，然后?是用来作反方向查找
-%可以找到匹配的括号处
-替换的时候 如果要替换某一行，那么 直接 :s/thee/the/g 就可以直接替换thee为the了
-:s/thee/the/gc 会加一次询问而已
-也可以先选中某一个区域块里面的进行修改，系统默认会多出一些&amp;lt;&gt;什么东西，直接写上:s就可以了
-还有一种全屏替换的方法是  :%s/thee/the/g这样就可以了
-想执行外部命令直接加一个  :!就可以了
-:10,20 w test 是把从几行到几行存起来
-然后 :r test是从这个文件中载入这个test 的文件
-o是在本行下面打开新的一行，O是本行上面打开， Shif O 是在本行上面开一行，不过光标不转过去而已
-a是光标后面一个插入，A是在本行的末尾插入
-R是替换
-按住b是从后面往前面跳一个单词
-ct！，这会删除从光标位置到下一个叹号（但不包括）   比如  ct{ 就算删除到 { 之前为止..
-‘’ 直接是跳回到光标 上一次在的地方
-tabe 是在上面开一个东西,然后可以在vimrc 里面配置 就可以用 ctrl n ctrl p 来来回移动了 vim 在写 html &lt;a href=&quot;http://casinopalace.gr/&quot;&gt;??????????&lt;/a&gt; 的时候有 比如 &lt;h 1&gt;sdfsdsdfsd &lt;/h 1&gt; 那么 你 直接  dit  t 是 tab 的意思  意味着标签,就可以把 中间的东西删掉了   如果是 dat 的话 就连h1也一起删掉了
-同样在写其他的时候也一样  用 'dfdfdfd'  那么 就是  di' 就是中间的东西删除掉  用 da'的话就连‘也一起删除了 fx移动光标到当前行的下一个 x 处。很明显，x 可以是任意一个字母，而且你可以使用 ; 来重复你的上一个 f 命令。
-tx 和上面的命令类似，但是是移动到 x 的左边一个位置。（这真的很有用）
-&quot; 这个符号是用来使用寄存器的 :reg 就可以列出来现在寄存器里面复制的东西
-我们要拷贝当前行到寄存器 k。你应该按 &quot;kyy &quot;kp 来粘贴寄存器 k 里面的内容到你想要的位置
-这个是用来设定搜索的时候要不要注意大小写（:set ic 和 :set noic）
-dG 就是删除某一行下面的所有行  dgg 就是删除某一行上面的所有行
-vim 里面复制的时候到某个地方 要把某几行先删除掉,然后再粘贴过去,应该是先复制好,然后在选择上要删除的那些行,然后p
-yw 是复制某一个单词.
-vim 里面 set ic 和 set noic 就是要不要大小写.&lt;/p&gt;
+   <title>vim 一些命令</title>
+   <link href="http://baotiao.github.io//2011/08/vim/"/>
+   <updated>2011-08-12T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2011/08/vim</id>
+   <content type="html">&lt;ul&gt;
+&lt;li&gt;x dw是删除单词用的  还有d$是删除到当前行的末尾 U 是用来作回复对当前行的修改&lt;/li&gt;
+&lt;li&gt;还有就是 dd 完以后可以直接按p就可以实现复制粘帖 不过貌似只能对一行用&lt;/li&gt;
+&lt;li&gt;然后就是修改句子中的某一个字符  就可以直接 r然后一个字符就修改光标处的 字符&lt;/li&gt;
+&lt;li&gt;cw 用来改变一个单词的部分或者全部  从光标在的那个地方修改&lt;/li&gt;
+&lt;li&gt;同样c 和d 是一系列的 也有 c$ 就是修改的最后为止&lt;/li&gt;
+&lt;li&gt;ctrl-g 显示当前光标和文件状态&lt;/li&gt;
+&lt;li&gt;/ 是用来做正方向查找，然后?是用来作反方向查找&lt;/li&gt;
+&lt;li&gt;%可以找到匹配的括号处&lt;/li&gt;
+&lt;li&gt;替换的时候 如果要替换某一行，那么 直接 :s/thee/the/g 就可以直接替换thee为the了&lt;/li&gt;
+&lt;li&gt;:s/thee/the/gc 会加一次询问而已&lt;/li&gt;
+&lt;li&gt;也可以先选中某一个区域块里面的进行修改，系统默认会多出一些&amp;lt;&gt;什么东西，直接写上:s就可以了&lt;/li&gt;
+&lt;li&gt;还有一种全屏替换的方法是  :%s/thee/the/g这样就可以了&lt;/li&gt;
+&lt;li&gt;想执行外部命令直接加一个  :!就可以了&lt;/li&gt;
+&lt;li&gt;:10,20 w test 是把从几行到几行存起来&lt;/li&gt;
+&lt;li&gt;然后 :r test是从这个文件中载入这个test 的文件&lt;/li&gt;
+&lt;li&gt;o是在本行下面打开新的一行，O是本行上面打开， Shif O 是在本行上面开一行，不过光标不转过去而已&lt;/li&gt;
+&lt;li&gt;a是光标后面一个插入，A是在本行的末尾插入&lt;/li&gt;
+&lt;li&gt;R是替换&lt;/li&gt;
+&lt;li&gt;按住b是从后面往前面跳一个单词&lt;/li&gt;
+&lt;li&gt;ct！，这会删除从光标位置到下一个叹号（但不包括）   比如  ct{ 就算删除到 { 之前为止..&lt;/li&gt;
+&lt;li&gt;‘’ 直接是跳回到光标 上一次在的地方&lt;/li&gt;
+&lt;li&gt;tabe 是在上面开一个东西,然后可以在vimrc 里面配置 就可以用 ctrl n ctrl p 来来回移动了 vim 在写 html 的时候有 比如 &lt;h 1&gt;sdfsdsdfsd &lt;/h 1&gt; 那么 你 直接  dit  t 是 tab 的意思  意味着标签,就可以把 中间的东西删掉了   如果是 dat 的话 就连h1也一起删掉了&lt;/li&gt;
+&lt;li&gt;同样在写其他的时候也一样  用 'dfdfdfd'  那么 就是  di' 就是中间的东西删除掉  用 da'的话就连‘也一起删除了 fx移动光标到当前行的下一个 x 处。很明显，x 可以是任意一个字母，而且你可以使用 ; 来重复你的上一个 f 命令。&lt;/li&gt;
+&lt;li&gt;tx 和上面的命令类似，但是是移动到 x 的左边一个位置。（这真的很有用）&lt;/li&gt;
+&lt;li&gt;&quot; 这个符号是用来使用寄存器的 :reg 就可以列出来现在寄存器里面复制的东西&lt;/li&gt;
+&lt;li&gt;我们要拷贝当前行到寄存器 k。你应该按 &quot;kyy &quot;kp 来粘贴寄存器 k 里面的内容到你想要的位置&lt;/li&gt;
+&lt;li&gt;这个是用来设定搜索的时候要不要注意大小写（:set ic 和 :set noic）&lt;/li&gt;
+&lt;li&gt;dG 就是删除某一行下面的所有行  dgg 就是删除某一行上面的所有行&lt;/li&gt;
+&lt;li&gt;vim 里面复制的时候到某个地方 要把某几行先删除掉,然后再粘贴过去,应该是先复制好,然后在选择上要删除的那些行,然后p&lt;/li&gt;
+&lt;li&gt;yw 是复制某一个单词.&lt;/li&gt;
+&lt;li&gt;vim 里面 set ic 和 set noic 就是要不要大小写.&lt;/li&gt;
+&lt;/ul&gt;
+
 </content>
  </entry>
  
