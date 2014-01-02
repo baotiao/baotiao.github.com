@@ -3,7 +3,7 @@
   <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <meta name="author" content="陈宗志" />
-	<title>How redis implement data structure | 陈宗志</title>
+	<title>CAP theorem | 陈宗志</title>
     <link rel="shortcut icon" href="/favicon.ico">
     <link href="http://baotiao.github.io/feed/" rel="alternate" title="陈宗志" type="application/atom+xml" />
     <link rel="stylesheet" href="/media/css/style.css">
@@ -15,7 +15,7 @@
     <div id="container">
       <div id="main" role="main">
         <header>
-        <h1>How redis implement data structure</h1>
+        <h1>CAP theorem</h1>
         </header>
 
         <nav>
@@ -28,22 +28,34 @@
 
 
         <section class="post">
+<h3>CAP theorem (摘自维基百科)</h3>
+
+<ul>
+<li>Consistency (all nodes see the same data at the same time)</li>
+<li>Availability (a guarantee that every request receives a response about whether it was successful or failed)</li>
+<li>Partition tolerance (the system continues to operate despite arbitrary message loss or failure of part of the system)</li>
+</ul>
+
+
+<p>这里 Availability 可以这么理解, 就是在单位的时间内, 这个分布式系统能否给你返回一个成功或者失败.</p>
+
+<h3>实际工作例子</h3>
+
 <ol>
-<li>redis implement the append command by realloc the space need by the function.</li>
+<li>数据的一致性
+当客户端写入数据, 考虑可用性和一致性的折中<br/>
+可以配置是要eventual consistency 还是 strict consistency.
+
+<ul>
+<li>方案一: 主写入BinLog, 直接返回成功. 然后是将记录插入到DB中, 然后同步给从BinLog, 然后从将数据插入到DB中</li>
+<li>方案二: 主写入BinLog, 然后写入DB成功后返回成功. (Dynamo 在W参数 = 1 的时候情形). 然后从同步BinLog, 然后从将数据插入到DB中</li>
+<li>方案三: 主写入BinLog, 写DB同步数据给从的BinLog. 然后返回成功. (Mola, BigTable, Dynamo在W参数= 2 是这个情形). 然后从将数据插入到DB中</li>
+</ul>
+
+
+<p> 可以看出方案一到三是 一致性越来越强, 可用性越来越弱的过程.(这里指的是用户的写会越来越慢, 只有之前的事物完成,才算完成) 我们最后选择的方案二, 因为我们这里对一致性的需求没有那么强烈, 如果等到将数据同步. 我们的性能是不允许的</p></li>
 </ol>
 
-
-<p>When we append the value. Redis first Makeroom for the result.  Redis control the memory by double the memory. The copy the chars to new space by memcpy.<br/>
-2. use copy-on-write technology to make as less copy as possible.<br/>
-3. <strong>how redis implement list?</strong></p>
-
-<p>redid really implement two kind of list.</p>
-
-<p>the first is the zip list, it is also the default list.  every time we have the value the size, we will transfer the zip list the the second link list.</p>
-
-<p>Why redis implement this way. Because We know link list is the as fast as zip list. At the beginning of time, we just need small space. So we can first encode the chars and store the value. Then if we need the value, what we need to do is just to decode the memory. So It is very quickly. As the data grow, the space is not big enough, and every time the decoding is also waste of time .</p>
-
-<p>So we need to modify the way we save data, we just put the data in link list, and we travel the list by the point.</p>
 
 </section>
 <section class="meta">
@@ -52,7 +64,7 @@
 </span>
 <span class="time">
   /
-  <time datetime="2013-11-23">2013-11-23</time>
+  <time datetime="2014-01-02">2014-01-02</time>
 </span>
 <br />
 <span class="license">
@@ -70,7 +82,7 @@
 <span class="tags">
   tagged with 
   
-  <a href="http://baotiao.github.io/tags/#survey" title="survey">survey</a>&nbsp;
+  <a href="http://baotiao.github.io/tags/#throrem" title="throrem">throrem</a>&nbsp;
   
 </span>
 
@@ -82,7 +94,7 @@
 <script type="text/javascript">
         /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
         var disqus_shortname = 'baotiao'; // required: replace example with your forum shortname
-		var disqus_rul = 'http://baotiao.github.io/2013/11/survey-redis/';
+		var disqus_rul = 'http://baotiao.github.io/2014/01/cap-theorem/';
 
         /* * * DON'T EDIT BELOW THIS LINE * * */
         (function() {
@@ -100,13 +112,11 @@ $(function(){
     var url = false;
         if (e.which == 37 || e.which == 74) {  // Left arrow and J
             
-        url = 'http://baotiao.github.io/2013/11/vector-locks/';
+        url = 'http://baotiao.github.io/2013/11/survey-redis/';
         
         }
         else if (e.which == 39 || e.which == 75) {  // Right arrow and K
             
-        url = 'http://baotiao.github.io/2014/01/cap-theorem/';
-        
         }
         if (url) {
             window.location = url;
