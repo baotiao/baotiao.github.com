@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="author" content="陈宗志" />
+	<title>Leveldb write  | 陈宗志</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link href="http://baotiao.github.io/feed/" rel="alternate" title="陈宗志" type="application/atom+xml" />
+    <link rel="stylesheet" href="/media/css/style.css">
+    <link rel="stylesheet" href="/media/js/code/desert.css">|
+  </head>
+
+	<div id="top"></div>
+  <body>
+    <div id="container">
+      <div id="main" role="main">
+        <header>
+        <h1>Leveldb write </h1>
+        </header>
+
+        <nav>
+        <span><a title="home page" class="" href="http://baotiao.github.io/">home</a></span>
+        <span><a title="categories" class="" href="http://baotiao.github.io/categories/">categories</a></span>
+        <span><a title="links" class="" href="http://baotiao.github.io/links/">links</a></span>
+        </nav>
+
+        <article class="content">
+
+
+        <section class="post">
+<pre><code>年前分享了LevelDB的时候遗留了一个问题
+就是在LevelDB Write操作的时候, 如何做到线程安全的, 以及在代码里面为什么要同时通知这么多个的线程
+    while (true) {
+        Writer* ready = writers_.front();
+        writers_.pop_front();
+        if (ready != &amp;w) {
+            ready-&gt;status = status;
+            ready-&gt;done = true;
+            ready-&gt;cv.Signal();
+        }
+        if (ready == last_writer) break;
+    }
+
+重新看了一下代码应该是这个样子的
+Status DBImpl::Write(const WriteOptions&amp; options, WriteBatch* my_batch) {
+    // 这里用到的就是标准的 condition variable 配合 mutex 使用的例子,
+    // 这里在这个while 里面添加的 w != writes_.front() 同时又保证了只有一个写
+    Writer w(&amp;mutex_); // 这个w锁是一个条件变量, 传入的mutex_是交给条件变量里面的mu_的
+    w.batch = my_batch;
+    w.sync = options.sync;
+    w.done = false;
+
+    // NICE
+    // 这里写的也很精妙, 之所以用MutexLock 来实现, 是因为这样只要在中途退出就会自动
+    // 触发这个MutexLock的析构函数, 析构函数里面写了unLock这个锁的操作, 那么就可以不用在
+    // 每个中间的return 前面都加上这个l-&gt;unLock()操作
+    MutexLock l(&amp;mutex_); // 这里的操作是在做pthread_cond_wait之前把mutex_锁住的操作, 这样保证pthread_cond_wait的时候不会死锁
+    writers_.push_back(&amp;w);
+    //这里用一个队列, 并且只有在队列最头部的那个writeBatch才会被写. 所以进入到下面Write的过程只会有一个线程
+    while (!w.done &amp;&amp; &amp;w != writers_.front()) {
+        w.cv.Wait(); //这里是condition varaible, 这里wait 的时候会同时把mu_这个锁放开
+    }
+    /* 之前解释说这里w.done 是写代码写的很小心, 是错误的, 具体解释见下面 */
+    if (w.done) {
+        return w.status;
+    }
+    // 接下来处理的就是这个writers_ 里面最头的那个的信息
+
+    // May temporarily unlock and wait.
+    // 这里是检查memtable有没有空间可以写入, 如果没有就换一个buffer 和 compaction等操作
+    Status status = MakeRoomForWrite(my_batch == NULL);
+    uint64_t last_sequence = versions_-&gt;LastSequence();
+    Writer* last_writer = &amp;w;
+    if (status.ok() &amp;&amp; my_batch != NULL) {  // NULL batch is for compactions
+
+        /*  主要的地方就是这个BuildBatchGroup 函数, 这个函数做的是将这个队列里面前几个的Writer, 合并成一个Batch.
+            这么做的原因我想主要也是为了性能考虑, 因为这里我们每一次的Put, 都是一个batch, 所以这里会将多个的batch
+            合并成一个Batch来进行处理, 这样能明显的提高性能.
+            所以这里将队列的前几个Batch合并成了一个Batch, 由当前的Batch处理了. 所以刚才上面那个代码会判断一下当前的这个
+            Write 是否已经被处理好了
+
+            代码见下面
+        */
+
+        WriteBatch* updates = BuildBatchGroup(&amp;last_writer);
+
+        WriteBatchInternal::SetSequence(updates, last_sequence + 1);
+        last_sequence += WriteBatchInternal::Count(updates);
+
+        // Add to log and apply to memtable.  We can release the lock
+        // during this phase since &amp;w is currently responsible for logging
+        // and protects against concurrent loggers and concurrent writes
+        // into mem_.
+        {
+            //因为到这里的时候 只有一个writers_里面的一个能到达这里. 所以这里可以保证这有一个线程到了可以AddRecord这一步了.
+            //所以这里把锁release掉
+
+            mutex_.Unlock();
+            status = log_-&gt;AddRecord(WriteBatchInternal::Contents(updates));
+            if (status.ok() &amp;&amp; options.sync) {
+                status = logfile_-&gt;Sync();
+            }
+            if (status.ok()) {
+                status = WriteBatchInternal::InsertInto(updates, mem_);
+            }
+            mutex_.Lock();
+        }
+        if (updates == tmp_batch_) tmp_batch_-&gt;Clear();
+
+        versions_-&gt;SetLastSequence(last_sequence);
+    }
+
+    /*  这里循环判断已经被处理掉的batch, 设置done = true, 并从队列里面取出, 并Pop()掉, 可以看出
+        这里都是因为上面做了Batch合并, 同时处理了多个Batch. 所以这里可以直接将这个done = true. 并
+        触发这个线程, 然后线程进入刚才的Wait()判断成功. 然后
+        if (w.done) {
+        return w.status;
+        }
+        就直接退出了
+        就相当于队里头部的这个线程, 完成多其他线程的几个的写操作
+    */
+
+    while (true) {
+        Writer* ready = writers_.front();
+        writers_.pop_front();
+        if (ready != &amp;w) {
+            ready-&gt;status = status;
+            ready-&gt;done = true;
+            ready-&gt;cv.Signal();
+        }
+        if (ready == last_writer) break;
+    }
+
+    // 这里之前已经把合并一起的Batch都处理完了, 并且已经处理的Batch都从队列里面Pop()出去了, 然后现在就
+    // 唤醒当前队列最前面的线程
+    if (!writers_.empty()) {
+        writers_.front()-&gt;cv.Signal();
+    }
+
+    return status;
+}
+
+WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
+    assert(!writers_.empty());
+    Writer* first = writers_.front();
+    WriteBatch* result = first-&gt;batch;
+    assert(result != NULL);
+
+    size_t size = WriteBatchInternal::ByteSize(first-&gt;batch);
+
+    // Allow the group to grow up to a maximum size, but if the
+    // original write is small, limit the growth so we do not slow
+    // down the small write too much.
+    size_t max_size = 1 &lt;&lt; 20; // 这个size 是设置合并的WriteBatch 的大小
+    if (size &lt;= (128&lt;&lt;10)) {
+        max_size = size + (128&lt;&lt;10);
+    }
+
+    *last_writer = first;
+    std::deque&lt;Writer*&gt;::iterator iter = writers_.begin();
+    ++iter;  // Advance past "first"
+    for (; iter != writers_.end(); ++iter) {
+        Writer* w = *iter;
+        if (w-&gt;sync &amp;&amp; !first-&gt;sync) {
+            // Do not include a sync write into a batch handled by a non-sync write.
+            break;
+        }
+
+        if (w-&gt;batch != NULL) {
+            size += WriteBatchInternal::ByteSize(w-&gt;batch);
+            if (size &gt; max_size) {
+                // Do not make batch too big
+                break;
+            }
+
+            // Append to *reuslt
+            if (result == first-&gt;batch) {
+                // Switch to temporary batch instead of disturbing caller's batch
+                result = tmp_batch_;
+                assert(WriteBatchInternal::Count(result) == 0);
+                WriteBatchInternal::Append(result, first-&gt;batch);
+            }
+            WriteBatchInternal::Append(result, w-&gt;batch);
+        }
+        *last_writer = w;  // 同时更新最后的last_writer 到队列里面最新的last_writer
+    }
+    return result;
+}
+</code></pre>
+
+<h3>总结:    LevelDB Write 的线程安全是通过将所有的写入插入到一个队列中, 然后有且仅有一个线程去消费这个队列来做到的. 消费这个队列的线程会把队列头部的几个Batch合并成一个大的Batch 一起消费掉, 也是为了提高效率.</h3>
+
+</section>
+<section class="meta">
+<span class="author">
+  <a href="http://baotiao.github.io/">陈宗志</a>
+</span>
+<span class="time">
+  /
+  <time datetime="2014-02-12">2014-02-12</time>
+</span>
+<br />
+<span class="license">
+  Published under <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/3.0/">(CC) BY-NC-SA</a>
+</span>
+
+<span class="categories">
+  in categories
+  
+  <a href="http://baotiao.github.io/categories/#tech" title="tech">tech</a>&nbsp;
+  
+</span>
+
+
+<span class="tags">
+  tagged with 
+  
+  <a href="http://baotiao.github.io/tags/#throrem" title="throrem">throrem</a>&nbsp;
+  
+</span>
+
+</section>
+
+<div class="bshare-custom"><a title="åäº«å°æ°æµªå¾®å" class="bshare-sinaminiblog"></a><a title="åäº«å°Facebook" class="bshare-facebook"></a><a title="åäº«å°Twitter" class="bshare-twitter"></a><a title="æ´å¤å¹³å°" class="bshare-more bshare-more-icon more-style-addthis"></a></div><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/buttonLite.js#style=-1&amp;uuid=17304268-f570-4255-9088-f5132e6fd01b&amp;pophcol=1&amp;lang=zh"></script><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/bshareC0.js"></script>
+<section class="comment">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'baotiao'; // required: replace example with your forum shortname
+		var disqus_rul = 'http://baotiao.github.io/2014/02/leveldb-write/';
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+</section>
+
+<script type="text/javascript">
+$(function(){
+  $(document).keydown(function(e) {
+    if (e.target.nodeName.toUpperCase() != 'BODY') return;
+    var url = false;
+        if (e.which == 37 || e.which == 74) {  // Left arrow and J
+            
+        url = 'http://baotiao.github.io/2014/01/cap-theorem/';
+        
+        }
+        else if (e.which == 39 || e.which == 75) {  // Right arrow and K
+            
+        }
+        if (url) {
+            window.location = url;
+        }
+  });
+})
+</script>
+
+
+
+        </article>
+
+	<div id="message"><a href="#top">Scroll to top</a></div>
+	</div>
+</div>
+
+<script type="text/javascript" src="/media/js/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="/media/js/code/prettify.js"></script>
+
+ <script type="text/javascript">
+      $(function(){
+        $("pre").addClass("prettyprint");
+        prettyPrint();
+        $('.entry a').each(function(){
+          if($(this).attr("href").indexOf("chenzongzhi") == -1){
+            $(this).attr("target", "_blank");
+          }
+        })
+      });
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-35023741-1']);
+  _gaq.push(['_trackPageview']);
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+<script type="text/javascript">
+$(function () {
+
+    /* set variables locally for increased performance */
+    var scroll_timer;
+    var displayed = false;
+    var $message = $('#message a');
+    var $window = $(window);
+    var top = $(document.body).children(0).position().top;
+
+    /* react to scroll event on window */
+    $window.scroll(function () {
+        window.clearTimeout(scroll_timer);
+        scroll_timer = window.setTimeout(function () {
+            if($window.scrollTop() <= top + 800)
+            {
+                displayed = false;
+                $message.fadeOut(1000);
+            }
+            else if(displayed == false)
+            {
+                displayed = true;
+                $message.stop(true, true).show().click(function () { $message.fadeOut(1000); });
+            }
+        }, 100);
+    });
+});
+</script>
+  </body>
+</html>
