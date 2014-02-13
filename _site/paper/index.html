@@ -3,7 +3,7 @@
   <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <meta name="author" content="陈宗志" />
-	<title>网络编程 echo server  client | 陈宗志</title>
+	<title>Paper | 陈宗志</title>
     <link rel="shortcut icon" href="/favicon.ico">
     <link href="http://baotiao.github.io/feed/" rel="alternate" title="陈宗志" type="application/atom+xml" />
     <link rel="stylesheet" href="/media/css/style.css">
@@ -15,7 +15,7 @@
     <div id="container">
       <div id="main" role="main">
         <header>
-        <h1>网络编程 echo server  client</h1>
+        <h1>Paper</h1>
         </header>
 
         <nav>
@@ -29,46 +29,29 @@
 
 
         <section class="post">
+<ul>
+<li><a href="http://www.eecs.harvard.edu/~mdw/papers/seda-sosp01.pdf">SEDA</a></li>
+</ul>
+
+
+<p>一个分阶段事件驱动的框架的论文. 核心思想是把一个网络请求分成多个阶段, 每一个阶段称为Stage.<br/>
+然后每一个Stage内部包含一个事件队列, 一个Event Handler, 一个线程池. 然后将不同的Stage 类似Pipe 一样串联起来.<br/>
+与普通的网络模型不同的是普通的多线程+事件驱动的模型是一个请求过来建立连接以后, 则专门交给一个线程去处理这个请求. 比如Memcache 就是这种. 与这种分阶段的事件驱动对比.</p>
+
+<ol>
+<li>由于每一个Stage内部的线程池专注于某一个任务, 所以不同线程之间的锁比较少.</li>
+<li>不同的Stage阶段的线程池需要的磁盘, 网络, CPU 可以动态的调整. 这样更能合理的利用资源</li>
+</ol>
 
 
 </section>
-<section class="meta">
-<span class="author">
-  <a href="http://baotiao.github.io/">陈宗志</a>
-</span>
-<span class="time">
-  /
-  <time datetime="2012-01-08">2012-01-08</time>
-</span>
-<br />
-<span class="license">
-  Published under <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/3.0/">(CC) BY-NC-SA</a>
-</span>
 
-<span class="categories">
-  in categories
-  
-  <a href="http://baotiao.github.io/categories/#c" title="c">c</a>&nbsp;
-  
-</span>
-
-
-<span class="tags">
-  tagged with 
-  
-  <a href="http://baotiao.github.io/tags/#network" title="network">network</a>&nbsp;
-  
-</span>
-
-</section>
-
-<div class="bshare-custom"><a title="åäº«å°æ°æµªå¾®å" class="bshare-sinaminiblog"></a><a title="åäº«å°Facebook" class="bshare-facebook"></a><a title="åäº«å°Twitter" class="bshare-twitter"></a><a title="æ´å¤å¹³å°" class="bshare-more bshare-more-icon more-style-addthis"></a></div><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/buttonLite.js#style=-1&amp;uuid=17304268-f570-4255-9088-f5132e6fd01b&amp;pophcol=1&amp;lang=zh"></script><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/bshareC0.js"></script>
 <section class="comment">
 <div id="disqus_thread"></div>
 <script type="text/javascript">
         /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
         var disqus_shortname = 'baotiao'; // required: replace example with your forum shortname
-		var disqus_rul = 'http://baotiao.github.io/2012/01/echo-server-client/';
+		var disqus_rul = 'http://baotiao.github.io/paper/';
 
         /* * * DON'T EDIT BELOW THIS LINE * * */
         (function() {
@@ -79,27 +62,7 @@
     </script>
 </section>
 
-<script type="text/javascript">
-$(function(){
-  $(document).keydown(function(e) {
-    if (e.target.nodeName.toUpperCase() != 'BODY') return;
-    var url = false;
-        if (e.which == 37 || e.which == 74) {  // Left arrow and J
-            
-        url = 'http://baotiao.github.io/2011/11/beanstalk-e5ada6e4b9a0/';
-        
-        }
-        else if (e.which == 39 || e.which == 75) {  // Right arrow and K
-            
-        url = 'http://baotiao.github.io/2012/01/libevent-e7ae80e58d95e5ada6e4b9a0-e5928c-demo/';
-        
-        }
-        if (url) {
-            window.location = url;
-        }
-  });
-})
-</script>
+
 
 
 

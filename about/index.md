@@ -1,6 +1,8 @@
 ---
-title: 陈宗志(baotiao)
+title: links
 layout: page
+pagetitle: paper
 comments: yes
-pagetitle: 做有积累的事情
 ---
+
+

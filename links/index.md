@@ -1,7 +1,7 @@
 ---
 title: links
 layout: page
-pagetitle: 我爱你们
+pagetitle: link
 comments: yes
 ---
 
