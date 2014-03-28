@@ -4,13 +4,25 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2014-03-15T00:10:30+08:00</updated>
+ <updated>2014-03-28T16:51:05+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
    <email></email>
  </author>
 
+ 
+ <entry>
+   <title>两阶段提交协议</title>
+   <link href="http://baotiao.github.io//2014/03/two-phase-commit/"/>
+   <updated>2014-03-28T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2014/03/two-phase-commit</id>
+   <content type="html">&lt;p&gt;组内的一个分享, 两阶段提交协议&lt;/p&gt;
+
+&lt;iframe src=&quot;http://www.slideshare.net/slideshow/embed_code/32843186&quot; width=&quot;476&quot; height=&quot;400&quot; frameborder=&quot;0&quot; marginwidth=&quot;0&quot; marginheight=&quot;0&quot; scrolling=&quot;no&quot;&gt;&lt;/iframe&gt;
+
+</content>
+ </entry>
  
  <entry>
    <title>多IDC冲突常见解决方案</title>
