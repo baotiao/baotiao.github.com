@@ -9,6 +9,7 @@ title: 简历(陈宗志)
 Email: baotiao@gmail.com
 
 - [Blog][1]
+- [Stackoverflow][7]
 - [Linkedin][2]
 - [Twitter][3]
 - [Facebook][4]
@@ -22,6 +23,7 @@ Email: baotiao@gmail.com
 [4]: https://www.facebook.com/
 [5]: http://weibo.com/1832563813/profile?rightmod=1&wvr=5&mod=personinfo
 [6]: http://instagram.com/czz19891012#
+[7]: http://stackoverflow.com/users/634415/baotiao
 
 
 # 专业技能
