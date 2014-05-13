@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="author" content="陈宗志" />
+	<title>Leveldb env 对文件系统的封装 | 陈宗志</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link href="http://baotiao.github.io/feed/" rel="alternate" title="陈宗志" type="application/atom+xml" />
+    <link rel="stylesheet" href="/media/css/style.css">
+    <link rel="stylesheet" href="/media/js/code/desert.css">|
+  </head>
+
+	<div id="top"></div>
+  <body>
+    <div id="container">
+      <div id="main" role="main">
+        <header>
+        <h1>Leveldb env 对文件系统的封装</h1>
+        </header>
+
+        <nav>
+        <span><a title="home page" class="" href="http://baotiao.github.io/">home</a></span>
+        <span><a title="categories" class="" href="http://baotiao.github.io/categories/">categories</a></span>
+        <span><a title="links" class="" href="http://baotiao.github.io/links/">links</a></span>
+        <span><a title="paper" class="" href="http://baotiao.github.io/paper/">paper</a></span>
+        <span><a title="vitae" class="" href="http://baotiao.github.io/vitae/">vitae</a></span>
+        </nav>
+
+        <article class="content">
+
+
+        <section class="post">
+<p>LevelDB的Env主要封装了操作系统的文件接口, 后台线程的调度, 以及锁等实现
+主要封装了如下三个文件类型</p>
+
+<ol>
+<li>RandomAccessFile  (sst文件的读取)</li>
+<li>SequentialFile (DB的日志文件, mainfest文件 这些文件的读取)</li>
+<li>WritableFile  (DB的日志文件, sst文件, mainfest文件. 这些文件的写入都是这个WritableFile 封装的)</li>
+</ol>
+
+
+<h3>RandomAccessFile</h3>
+
+<p>RandomAccessFile 有两种实现, 一种是Mmap, 一种是pread</p>
+
+<ol>
+<li><p>Pread 的实现方式很简单, 之所以用Pread 就是为了防止多线程读写, lseek和read之间不是原子操作产生的问题</p>
+
+<pre><code> virtual Status Read(uint64_t offset, size_t n, Slice* result,
+         char* scratch) const {
+     Status s;
+     ssize_t r = pread(fd_, scratch, n, static_cast&lt;off_t&gt;(offset));
+     *result = Slice(scratch, (r &lt; 0) ? 0 : r);
+     if (r &lt; 0) {
+         // An error: return a non-ok status
+         s = IOError(filename_, errno);
+     }
+     return s;
+ }
+</code></pre></li>
+<li><p>Mmap 的实现方式是将新建的文件Mmap到虚拟内存空间, 然后在内存里面读取, 从代码里面可以看出默认的RandomAccessFile用的是Mmap的方式, 具体的原因肯定是Mmap的性能优于Pread 的方式</p>
+
+<pre><code> virtual Status NewRandomAccessFile(const std::string&amp; fname,
+         RandomAccessFile** result) {
+     *result = NULL;
+     Status s;
+     int fd = open(fname.c_str(), O_RDONLY);
+     if (fd &lt; 0) {
+         s = IOError(fname, errno);
+     } else if (mmap_limit_.Acquire()) { // 这里是判断是否还能够继续Mmap, 规定默认的Mmap文件的个数是1000个
+         uint64_t size;
+         s = GetFileSize(fname, &amp;size);
+         if (s.ok()) {
+             void* base = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
+             if (base != MAP_FAILED) {
+                 *result = new PosixMmapReadableFile(fname, base, size, &amp;mmap_limit_);
+             } else {
+                 s = IOError(fname, errno);
+             }
+         }
+         close(fd);
+         if (!s.ok()) {
+             mmap_limit_.Release();
+         }
+     } else {
+         *result = new PosixRandomAccessFile(fname, fd);
+     }
+     return s;
+ }
+</code></pre></li>
+</ol>
+
+
+<p>在Mmap的实现方式里面, 有一个MmapLimiter, 这个MmapLimiter主要用处就是防止你Mmap的文件过多, 造成虚拟内存空间被跑满, 或者是由于虚拟内存空间使用过多, 造成内核的性能问题. 所以这里最多允许Mmap 1000个文件. 其中在MmapLimiter里面需要用到Mutex, AtomicPointer主要为了保证修改这个Mmap的限制文件个数是原子操作</p>
+
+<h3>SequentialFile</h3>
+
+<p>SequentialFile 主要就是fread来实现</p>
+
+<h3>WritableFile</h3>
+
+<p>WritableFile 的主要封装是顺序写文件, PosixMmapFile就是用Mmap的封装来实现, 主要思路是因为是顺序写, 所以Mmap一个writefile大小的空间, 那么每次的写入就是Append()操作, 这个操作就直接通过memcpy来拷贝到内存中即可. 如果写入数据超过了writefile的大小, 那么就先ftruncate 将writefile的大小扩大(这里每次扩大的范围是一个增长因子, 从65535开始, 2倍的增长, 最大是1M),然后将原先Mmap的空间释放的, 把writefile新添加的地址Mmap到新的地址空间. 这样做的好处有</p>
+
+<ol>
+<li><p>性能比write快. 具体的测试数据<br/>
+每次写入1024字节, 总共写入1000000次<br/>
+[----------debug--------][writable.cc:224]mmap cost time 6594890<br/>
+[----------debug--------][writable.cc:239]write cost time 15244794<br/>
+可以看出mmap 写1G的数据需要6.5s, 而write则需要15.2s</p></li>
+<li><p>通过动态的扩展Mmap的空间的方式, 不会使用过多的虚拟内存空间.</p></li>
+</ol>
+
+
+<p>当然这个PosixMmapFile 也支持随时将写入的内存flush到磁盘上. 通过msync随时将结果Flush到磁盘</p>
+
+<p>主要的Append()函数实现方式:</p>
+
+<pre><code>    virtual Status Append(const Slice&amp; data) {
+        const char* src = data.data();
+        size_t left = data.size();
+        while (left &gt; 0) {
+            assert(base_ &lt;= dst_);
+            assert(dst_ &lt;= limit_);
+            size_t avail = limit_ - dst_;
+            if (avail == 0) { // 这里判断当前Mmap的空间是否还有可用的空间, 也就是当前writefile是否被写满了
+                if (!UnmapCurrentRegion() || // 被写满以后先Unmap将当前的Mmap去掉
+                        !MapNewRegion()) { // 重新Mmap新的地址空间, 这里Mmap的初始地址从file_offset_开始, 也就是从
+                                          // writefile文件新增的地址开始Mmap
+                    return IOError(filename_, errno);
+                }
+            }
+
+            size_t n = (left &lt;= avail) ? left : avail;
+            memcpy(dst_, src, n);
+            dst_ += n;
+            src += n;
+            left -= n;
+        }
+        return Status::OK();
+    }
+</code></pre>
+
+</section>
+<section class="meta">
+<span class="author">
+  <a href="http://baotiao.github.io/">陈宗志</a>
+</span>
+<span class="time">
+  /
+  <time datetime="2014-05-15">2014-05-15</time>
+</span>
+<br />
+<span class="license">
+  Published under <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/3.0/">(CC) BY-NC-SA</a>
+</span>
+
+<span class="categories">
+  in categories
+  
+  <a href="http://baotiao.github.io/categories/#tech" title="tech">tech</a>&nbsp;
+  
+</span>
+
+
+<span class="tags">
+  tagged with 
+  
+  <a href="http://baotiao.github.io/tags/#distribute" title="distribute">distribute</a>&nbsp;
+  
+  <a href="http://baotiao.github.io/tags/#leveldb" title="leveldb">leveldb</a>&nbsp;
+  
+</span>
+
+</section>
+
+<div class="bshare-custom"><a title="åäº«å°æ°æµªå¾®å" class="bshare-sinaminiblog"></a><a title="åäº«å°Facebook" class="bshare-facebook"></a><a title="åäº«å°Twitter" class="bshare-twitter"></a><a title="æ´å¤å¹³å°" class="bshare-more bshare-more-icon more-style-addthis"></a></div><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/buttonLite.js#style=-1&amp;uuid=17304268-f570-4255-9088-f5132e6fd01b&amp;pophcol=1&amp;lang=zh"></script><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/bshareC0.js"></script>
+<section class="comment">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'baotiao'; // required: replace example with your forum shortname
+		var disqus_rul = 'http://baotiao.github.io/2014/05/leveldb-env/';
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+</section>
+
+<script type="text/javascript">
+$(function(){
+  $(document).keydown(function(e) {
+    if (e.target.nodeName.toUpperCase() != 'BODY') return;
+    var url = false;
+        if (e.which == 37 || e.which == 74) {  // Left arrow and J
+            
+        url = 'http://baotiao.github.io/2014/04/consensus-history/';
+        
+        }
+        else if (e.which == 39 || e.which == 75) {  // Right arrow and K
+            
+        }
+        if (url) {
+            window.location = url;
+        }
+  });
+})
+</script>
+
+
+
+        </article>
+
+	<div id="message"><a href="#top">Scroll to top</a></div>
+	</div>
+</div>
+
+<script type="text/javascript" src="/media/js/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="/media/js/code/prettify.js"></script>
+
+ <script type="text/javascript">
+      $(function(){
+        $("pre").addClass("prettyprint");
+        prettyPrint();
+        $('.entry a').each(function(){
+          if($(this).attr("href").indexOf("chenzongzhi") == -1){
+            $(this).attr("target", "_blank");
+          }
+        })
+      });
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-35023741-1']);
+  _gaq.push(['_trackPageview']);
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+<script type="text/javascript">
+$(function () {
+
+    /* set variables locally for increased performance */
+    var scroll_timer;
+    var displayed = false;
+    var $message = $('#message a');
+    var $window = $(window);
+    var top = $(document.body).children(0).position().top;
+
+    /* react to scroll event on window */
+    $window.scroll(function () {
+        window.clearTimeout(scroll_timer);
+        scroll_timer = window.setTimeout(function () {
+            if($window.scrollTop() <= top + 800)
+            {
+                displayed = false;
+                $message.fadeOut(1000);
+            }
+            else if(displayed == false)
+            {
+                displayed = true;
+                $message.stop(true, true).show().click(function () { $message.fadeOut(1000); });
+            }
+        }, 100);
+    });
+});
+</script>
+  </body>
+</html>
