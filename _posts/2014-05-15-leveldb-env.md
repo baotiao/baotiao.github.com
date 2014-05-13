@@ -8,9 +8,9 @@ tags: [distribute, leveldb]
 LevelDB的Env主要封装了操作系统的文件接口, 后台线程的调度, 以及锁等实现
 主要封装了如下三个文件类型  
 
-1. RandomAccessFile  (sst文件的读取) 
-2. SequentialFile (DB的日志文件, mainfest文件 这些文件的读取)
-3. WritableFile  (DB的日志文件, sst文件, mainfest文件. 这些文件的写入都是这个WritableFile 封装的)
+1. RandomAccessFile  随机读文件 (sst文件的读取) 
+2. SequentialFile 顺序读文件 (DB的日志文件, mainfest文件 这些文件的读取)
+3. WritableFile 顺序写文件 (DB的日志文件, sst文件, mainfest文件. 这些文件的写入都是这个WritableFile 封装的)
 
 ### RandomAccessFile
 RandomAccessFile 有两种实现, 一种是Mmap, 一种是pread

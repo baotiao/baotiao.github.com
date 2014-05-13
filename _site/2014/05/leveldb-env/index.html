@@ -34,9 +34,9 @@
 主要封装了如下三个文件类型</p>
 
 <ol>
-<li>RandomAccessFile  (sst文件的读取)</li>
-<li>SequentialFile (DB的日志文件, mainfest文件 这些文件的读取)</li>
-<li>WritableFile  (DB的日志文件, sst文件, mainfest文件. 这些文件的写入都是这个WritableFile 封装的)</li>
+<li>RandomAccessFile  随机读文件 (sst文件的读取)</li>
+<li>SequentialFile 顺序读文件 (DB的日志文件, mainfest文件 这些文件的读取)</li>
+<li>WritableFile 顺序写文件 (DB的日志文件, sst文件, mainfest文件. 这些文件的写入都是这个WritableFile 封装的)</li>
 </ol>
 
 
