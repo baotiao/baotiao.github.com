@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2014-05-13T12:03:43+08:00</updated>
+ <updated>2014-05-14T15:15:43+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -19,6 +19,8 @@
    <id>http://baotiao.github.io//2014/05/leveldb-env</id>
    <content type="html">&lt;p&gt;LevelDB的Env主要封装了操作系统的文件接口, 后台线程的调度, 以及锁等实现
 主要封装了如下三个文件类型&lt;/p&gt;
+
+&lt;p&gt;为什么要封装不同的文件类型, 因为只有根据文件的类型不同, 进行不同的封装才可以把性能提高, 比如:随机写文件和顺序写文件, 顺序写我们就知道这个文件的修改只有在文件的末尾, 那么我们就可以Mmap文件末尾的部分空间, 然后进行文件写入, 这样既不会浪费空间, 性能也较高.&lt;/p&gt;
 
 &lt;ol&gt;
 &lt;li&gt;RandomAccessFile  随机读文件 (sst文件的读取)&lt;/li&gt;
