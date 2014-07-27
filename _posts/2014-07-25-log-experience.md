@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Log experience"
+title: "日志相关一些经验"
 description: "Log experience"
 category: tech
 tags: [experienct]
