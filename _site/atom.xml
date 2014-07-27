@@ -4,13 +4,25 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2014-05-14T15:15:43+08:00</updated>
+ <updated>2014-07-27T15:47:58+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
    <email></email>
  </author>
 
+ 
+ <entry>
+   <title>Log experience</title>
+   <link href="http://baotiao.github.io//2014/07/log-experience/"/>
+   <updated>2014-07-25T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2014/07/log-experience</id>
+   <content type="html">&lt;p&gt;组内分享, 关于日志&lt;/p&gt;
+
+&lt;iframe src=&quot;http://www.slideshare.net/baotiao/slideshelf&quot; width=&quot;615px&quot; height=&quot;470px&quot; frameborder=&quot;0&quot; marginwidth=&quot;0&quot; marginheight=&quot;0&quot; scrolling=&quot;no&quot; style=&quot;border:none;&quot; allowfullscreen webkitallowfullscreen mozallowfullscreen&gt;&lt;/iframe&gt;
+
+</content>
+ </entry>
  
  <entry>
    <title>Leveldb env 对文件系统的封装</title>
@@ -144,7 +156,7 @@
 
 &lt;p&gt;接下来描述的Paper主要按他们的关联性排序, 并没有根据他们的出版时间进行排序.&lt;/p&gt;
 
-&lt;p&gt;第一个我知道的关于一致性问题的实例是Lamport's &lt;a href=&quot;http://research.microsoft.com/users/lamport/pubs/time-clocks.pdf&quot;&gt;&quot;Time, Clocks and the Ordering of Events in a Distributed System&quot; (1978)&lt;/a&gt;, 虽然这篇文章没有严格的定义了一个一致性的问题. 在这个文章里面 Lamport 讨论了在有限的时间内消息是怎么在进程之间进行传输, 并且将进程之间传递消息和爱因斯坦的相对论进行的对比. 最近在博客上讨论分布式系统和爱因斯坦的相对论的关联非常的热门,但是在1978年的时候 Lamport就已经给出了一个完整的时空图的分析. 这个结论是在一个分布式系统里面, 只有A事件能够触发B事件的发生, 你才能够说明A事件发生在B事件前面, 否则是不行的. 不同的进程看到的事件的顺序是不一致的, 也就是在一个分布式系统里面, 只存在一个偏序关系, 不存在一个全序关系. Lamport 定义了&quot;happens before&quot; 关系和操作, 并且给出了一个在分布式系统里面全局的定义事件顺序关系的算法, 这样所有的进程看到的事件的顺序关系就是一致的&lt;/p&gt;
+&lt;p&gt;第一个我知道的关于一致性问题的实例是Lamport&#39;s &lt;a href=&quot;http://research.microsoft.com/users/lamport/pubs/time-clocks.pdf&quot;&gt;&quot;Time, Clocks and the Ordering of Events in a Distributed System&quot; (1978)&lt;/a&gt;, 虽然这篇文章没有严格的定义了一个一致性的问题. 在这个文章里面 Lamport 讨论了在有限的时间内消息是怎么在进程之间进行传输, 并且将进程之间传递消息和爱因斯坦的相对论进行的对比. 最近在博客上讨论分布式系统和爱因斯坦的相对论的关联非常的热门,但是在1978年的时候 Lamport就已经给出了一个完整的时空图的分析. 这个结论是在一个分布式系统里面, 只有A事件能够触发B事件的发生, 你才能够说明A事件发生在B事件前面, 否则是不行的. 不同的进程看到的事件的顺序是不一致的, 也就是在一个分布式系统里面, 只存在一个偏序关系, 不存在一个全序关系. Lamport 定义了&quot;happens before&quot; 关系和操作, 并且给出了一个在分布式系统里面全局的定义事件顺序关系的算法, 这样所有的进程看到的事件的顺序关系就是一致的&lt;/p&gt;
 
 &lt;p&gt;Lamport还介绍了一个分布式的状态机: 所有的状态机以一个相同的初始状态启动, 并且保证所有的状态机处理的消息是一模一样的. 那么每一个状态机就是其他状态机的副本. 那么, 关键的问题是保证每一个副本约定好下一条要处理的消息: 一个一致性问题. 这个用上面给出的全局的定义事件顺序关系的算法可以做到的. 但是这个系统容错能力是不行的, 假如有一个进程失败了, 那么其他的进程必须等待他恢复.&lt;/p&gt;
 
@@ -394,7 +406,7 @@ WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
 
             // Append to *reuslt
             if (result == first-&amp;gt;batch) {
-                // Switch to temporary batch instead of disturbing caller's batch
+                // Switch to temporary batch instead of disturbing caller&#39;s batch
                 result = tmp_batch_;
                 assert(WriteBatchInternal::Count(result) == 0);
                 WriteBatchInternal::Append(result, first-&amp;gt;batch);
@@ -912,7 +924,7 @@ Iterator* iter = table_cache_-&amp;gt;NewIterator(ReadOptions(), output_number, 
  
  <entry>
    <title>learn c++ from levelDB</title>
-   <link href="http://baotiao.github.io//2013/08/leveldb-c%2B%2B/"/>
+   <link href="http://baotiao.github.io//2013/08/leveldb-c++/"/>
    <updated>2013-08-22T00:00:00+08:00</updated>
    <id>http://baotiao.github.io//2013/08/leveldb-c++</id>
    <content type="html">&lt;h3&gt;LevelDB是一个学习c++很好的一个代码. 里面有很多写代码的好习惯值得我们学习.&lt;/h3&gt;
@@ -1008,14 +1020,14 @@ Iterator* iter = table_cache_-&amp;gt;NewIterator(ReadOptions(), output_number, 
     TRIM: checkroot
         @echo -n enabling TRIM...
         @cp /System/Library/Extensions/IOAHCIFamily.kext/Contents/PlugIns/IOAHCIBlockStorage.kext/Contents/MacOS/IOAHCIBlockStorage /System/Library/Extensions/IOAHCIFamily.kext/Contents/PlugIns/IOAHCIBlockStorage.kext/Contents/MacOS/IOAHCIBlockStorage.bak
-        @perl -pi -e 's|(\x52\x6F\x74\x61\x74\x69\x6F\x6E\x61\x6C\x00).{9}(\x00\x54)|$1\x00\x00\x00\x00\x00\x00\x00\x00\x00$2|sg' /System/Library/Extensions/IOAHCIFamily.kext/Contents/PlugIns/IOAHCIBlockStorage.kext/Contents/MacOS/IOAHCIBlockStorage
+        @perl -pi -e &#39;s|(\x52\x6F\x74\x61\x74\x69\x6F\x6E\x61\x6C\x00).{9}(\x00\x54)|$1\x00\x00\x00\x00\x00\x00\x00\x00\x00$2|sg&#39; /System/Library/Extensions/IOAHCIFamily.kext/Contents/PlugIns/IOAHCIBlockStorage.kext/Contents/MacOS/IOAHCIBlockStorage
         - @kextcache -system-prelinked-kernel &amp;amp;&amp;gt;/dev/null
         @kextcache -system-caches
         @echo done
 
     noatime: checkroot
         @echo -n disabling atime...
-        @echo '&amp;lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&amp;gt; &amp;lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&amp;gt; &amp;lt;plist version=&quot;1.0&quot;&amp;gt; &amp;lt;dict&amp;gt; &amp;lt;key&amp;gt;Label&amp;lt;/key&amp;gt; &amp;lt;string&amp;gt;com.noatime.root&amp;lt;/string&amp;gt; &amp;lt;key&amp;gt;ProgramArguments&amp;lt;/key&amp;gt; &amp;lt;array&amp;gt; &amp;lt;string&amp;gt;mount&amp;lt;/string&amp;gt; &amp;lt;string&amp;gt;-uwo&amp;lt;/string&amp;gt; &amp;lt;string&amp;gt;noatime&amp;lt;/string&amp;gt; &amp;lt;string&amp;gt;/&amp;lt;/string&amp;gt; &amp;lt;/array&amp;gt; &amp;lt;key&amp;gt;RunAtLoad&amp;lt;/key&amp;gt; &amp;lt;true/&amp;gt; &amp;lt;/dict&amp;gt; &amp;lt;/plist&amp;gt;' &amp;gt; /Library/LaunchDaemons/com.noatime.root.plist || ( echo error!;exit 1; )
+        @echo &#39;&amp;lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&amp;gt; &amp;lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&amp;gt; &amp;lt;plist version=&quot;1.0&quot;&amp;gt; &amp;lt;dict&amp;gt; &amp;lt;key&amp;gt;Label&amp;lt;/key&amp;gt; &amp;lt;string&amp;gt;com.noatime.root&amp;lt;/string&amp;gt; &amp;lt;key&amp;gt;ProgramArguments&amp;lt;/key&amp;gt; &amp;lt;array&amp;gt; &amp;lt;string&amp;gt;mount&amp;lt;/string&amp;gt; &amp;lt;string&amp;gt;-uwo&amp;lt;/string&amp;gt; &amp;lt;string&amp;gt;noatime&amp;lt;/string&amp;gt; &amp;lt;string&amp;gt;/&amp;lt;/string&amp;gt; &amp;lt;/array&amp;gt; &amp;lt;key&amp;gt;RunAtLoad&amp;lt;/key&amp;gt; &amp;lt;true/&amp;gt; &amp;lt;/dict&amp;gt; &amp;lt;/plist&amp;gt;&#39; &amp;gt; /Library/LaunchDaemons/com.noatime.root.plist || ( echo error!;exit 1; )
         @echo done!
 
     reboot: checkroot
@@ -1340,7 +1352,7 @@ inline int max(int a, int b); 是没用的, 这里是函数的声明,不是函�
  
  <entry>
    <title>c++泛型单例模式</title>
-   <link href="http://baotiao.github.io//2012/06/c%2B%2B-single-model/"/>
+   <link href="http://baotiao.github.io//2012/06/c++-single-model/"/>
    <updated>2012-06-19T02:23:13+08:00</updated>
    <id>http://baotiao.github.io//2012/06/c++-single-model</id>
    <content type="html">&lt;p&gt;单例模式是在设计模式里面很常见的一种,用来确保一个类只有一个实例. 首先是原生态版本的实现.&lt;/p&gt;
@@ -1509,8 +1521,8 @@ int main()
 &lt;pre&gt;&lt;code&gt;nnoremap y :set operatorfunc=Pbcopyg@
 vnoremap y y:call Pbcopy()
 function! s:Pbcopy()
-    execute 'call system(&quot;pbcopy&quot;, getreg(&quot;\&quot;&quot;))'
-    execute 'call system(&quot;xsel --clipboard --input&quot;, getreg(&quot;\&quot;&quot;))'
+    execute &#39;call system(&quot;pbcopy&quot;, getreg(&quot;\&quot;&quot;))&#39;
+    execute &#39;call system(&quot;xsel --clipboard --input&quot;, getreg(&quot;\&quot;&quot;))&#39;
 endfunction
 &lt;/code&gt;&lt;/pre&gt;
 
@@ -1570,7 +1582,7 @@ typedef struct tnode {
         } else if (*s &amp;gt; p-&amp;gt;s) {
             p = p-&amp;gt;hikid;
         } else {
-            if (*(s) == '\0') { //当*s 是'\0'时候,则查找成功
+            if (*(s) == &#39;\0&#39;) { //当*s 是&#39;\0&#39;时候,则查找成功
                 return 1;
             } //如果*s == p-&amp;gt;s,走向中间节点,并且s++
             s++;
@@ -1595,7 +1607,7 @@ typedef struct tnode {
     } else if (*s &amp;gt; p-&amp;gt;s) {
         p-&amp;gt;hikid = insert(p-&amp;gt;hikid, s);
     } else {
-        if (*s != '\0') {
+        if (*s != &#39;\0&#39;) {
             p-&amp;gt;eqkid = insert(p-&amp;gt;eqkid, ++s);
         } else {
             p-&amp;gt;eqkid = (Tptr) insertstr; //insertstr 是要插入的字符串,方便遍历所有字符串等操作
@@ -1614,7 +1626,7 @@ void traverse(Tptr p) //这里遍历某一个节点以下的所有节点,如果�
 { 
     if (!p) return; 
     traverse(p-&amp;gt;lokid); 
-    if (p-&amp;gt;s != '\0') { 
+    if (p-&amp;gt;s != &#39;\0&#39;) { 
         traverse(p-&amp;gt;eqkid); 
     } else { 
         printf(&quot;%s\n&quot;, (char *)p-&amp;gt;eqkid); 
@@ -1634,18 +1646,18 @@ psearch(&quot;root&quot;, &quot;.a.a.a&quot;) 应该能匹配出baxaca, cadakd �
     if (p == NULL) {
         return ;
     }
-    if (*s == '.' || *s &amp;lt; p-&amp;gt;s) { //如果*s 是'.' 或者 *s &amp;lt; p-&amp;gt;s 就查找左子树
+    if (*s == &#39;.&#39; || *s &amp;lt; p-&amp;gt;s) { //如果*s 是&#39;.&#39; 或者 *s &amp;lt; p-&amp;gt;s 就查找左子树
         psearch1(p-&amp;gt;lokid, s); 
     }
-    if (*s == '.' || *s &amp;gt; p-&amp;gt;s) { //同上
+    if (*s == &#39;.&#39; || *s &amp;gt; p-&amp;gt;s) { //同上
         psearch1(p-&amp;gt;hikid, s); 
     }
-    if (*s == '.' || *s == p-&amp;gt;s) { // *s = '.' 或者 *s == p-&amp;gt;s 则去查找下一个字符
+    if (*s == &#39;.&#39; || *s == p-&amp;gt;s) { // *s = &#39;.&#39; 或者 *s == p-&amp;gt;s 则去查找下一个字符
         if (*s &amp;amp;&amp;amp; p-&amp;gt;s &amp;amp;&amp;amp; p-&amp;gt;eqkid != NULL) { 
             psearch1(p-&amp;gt;eqkid, s + 1);
         }
     }
-    if (*s == '\0' &amp;amp;&amp;amp; p-&amp;gt;s == '\0') {
+    if (*s == &#39;\0&#39; &amp;amp;&amp;amp; p-&amp;gt;s == &#39;\0&#39;) {
         printf(&quot;%s\n&quot;, (char *) p-&amp;gt;eqkid);
     }
 }
@@ -1663,7 +1675,7 @@ psearch(&quot;root&quot;, &quot;.a.a.a&quot;) 应该能匹配出baxaca, cadakd �
     if (d &amp;gt; 0 || *s &amp;gt; p-&amp;gt;s) {
             nearsearch(p-&amp;gt;hikid, s, d);
     }
-    if (p-&amp;gt;s == '\0') {
+    if (p-&amp;gt;s == &#39;\0&#39;) {
         if ((int)strlen(s) &amp;lt;= d) {
             printf(&quot;%s\n&quot;, (char *) p-&amp;gt;eqkid);
         }
@@ -1684,7 +1696,7 @@ psearch(&quot;root&quot;, &quot;.a.a.a&quot;) 应该能匹配出baxaca, cadakd �
     } else if (*s &amp;gt; p-&amp;gt;s) {
         presearch(p-&amp;gt;hikid, s);
     } else {
-        if (*(s + 1) == '\0') {
+        if (*(s + 1) == &#39;\0&#39;) {
             traverse(p-&amp;gt;eqkid); // 遍历这个节点,也就是找出包含这个节点的所有字符
             return ;
         } else {
@@ -1734,7 +1746,7 @@ static void settings_init(void) {
     settings.chunk_size = 48;         /* space for a modest key and value */
     settings.num_threads = 4;         /* N workers */
     settings.num_threads_per_udp = 0;
-    settings.prefix_delimiter = ':';
+    settings.prefix_delimiter = &#39;:&#39;;
     settings.detail_enabled = 0;
     settings.reqs_per_event = 20;
     settings.backlog = 1024;
@@ -1925,7 +1937,7 @@ unsigned int slabs_clsid(const size_t size) {
     if (size == 0)
         return 0;
     while (size &amp;gt; slabclass[res].size)
-        if (res++ == power_largest)     /* won't fit in the biggest slab */
+        if (res++ == power_largest)     /* won&#39;t fit in the biggest slab */
             return 0;
     return res;
 }
@@ -1977,10 +1989,10 @@ static void slabs_preallocate (const unsigned int maxslabs) {
     int i;
     unsigned int prealloc = 0;
 
-    /* pre-allocate a 1MB slab in every size class so people don't get
+    /* pre-allocate a 1MB slab in every size class so people don&#39;t get
        confused by non-intuitive &quot;SERVER_ERROR out of memory&quot;
        messages.  this is the most common question on the mailing
-       list.  if you really don't want this, you can rebuild without
+       list.  if you really don&#39;t want this, you can rebuild without
        these three lines.  */
 
     for (i = POWER_SMALLEST; i &amp;lt;= POWER_LARGEST; i++) {
@@ -2081,7 +2093,7 @@ static void *memory_allocate(size_t size) {
     */
     if (! (p-&amp;gt;end_page_ptr != 0 || p-&amp;gt;sl_curr != 0 ||
            do_slabs_newslab(id) != 0)) {
-        /* We don't have more memory available */
+        /* We don&#39;t have more memory available */
         ret = NULL;
     } else if (p-&amp;gt;sl_curr != 0) {
         /* return off our freelist */
@@ -2292,7 +2304,7 @@ void thread_libevent_process(int fd, short which, void *arg)
     wk_thread *work_thread = arg;
     char unuse[1];
     if (read(fd, unuse, 1) != 1) {
-        fprintf(stderr, &quot;Can't read from libevent\n&quot;);
+        fprintf(stderr, &quot;Can&#39;t read from libevent\n&quot;);
     }
     char buf[100];
     int n;
@@ -2304,14 +2316,14 @@ void setup_thread(wk_thread *work_thread)
 {   
     work_thread-&amp;gt;base = event_init();
     if (!work_thread-&amp;gt;base) {
-        fprintf(stdout, &quot;Can't allocate event base\n&quot;);
+        fprintf(stdout, &quot;Can&#39;t allocate event base\n&quot;);
         exit(1);
     }
 
     event_set(&amp;amp;work_thread-&amp;gt;notify_event, work_thread-&amp;gt;notify_receive_fd, EV_READ | EV_PERSIST, thread_libevent_process, work_thread);
     event_base_set(work_thread-&amp;gt;base, &amp;amp;work_thread-&amp;gt;notify_event);
     if (event_add(&amp;amp;work_thread-&amp;gt;notify_event, 0) == -1) {
-        fprintf(stdout, &quot;Can't add libevent notify pipe\n&quot;);
+        fprintf(stdout, &quot;Can&#39;t add libevent notify pipe\n&quot;);
         exit(1);
     }
 }
@@ -2330,7 +2342,7 @@ void create_worker(void *(*func)(void *), void *arg)
     pthread_attr_init(&amp;amp;attr);
 
     if ((ret = pthread_create(&amp;amp;thread, &amp;amp;attr, func, arg)) != 0) {
-        fprintf(stdout, &quot;Can't create thread: %s\n&quot;, strerror(ret));
+        fprintf(stdout, &quot;Can&#39;t create thread: %s\n&quot;, strerror(ret));
         exit(1);
     }
 }
@@ -2343,14 +2355,14 @@ void thread_init(int t_num, struct event_base *main_base)
     int i;
     threads = calloc(t_num, sizeof(wk_thread));
     if (!threads) {
-        perror(&quot;Can't alloc so many thread\n&quot;);
+        perror(&quot;Can&#39;t alloc so many thread\n&quot;);
         exit(1);
     }
 
     for (i = 0; i &amp;lt; t_num; i++) {
         int fds[2];
         if (pipe(fds)) {
-            perror(&quot;can't pipe\n&quot;);
+            perror(&quot;can&#39;t pipe\n&quot;);
             exit(1);
         }
         threads[i].notify_receive_fd = fds[0];
@@ -2409,7 +2421,7 @@ struct conn_queue {
 
 &lt;p&gt;这个就是connection_queue 每个工作线程都有一个connection queue. CQ中的每个CQ_ITEM都是对一个socket连接的简单描述.&lt;/p&gt;
 
-&lt;pre&gt;&lt;code&gt;/* * Looks for an item on a connection queue, but doesn't block if there isn't
+&lt;pre&gt;&lt;code&gt;/* * Looks for an item on a connection queue, but doesn&#39;t block if there isn&#39;t
  * one.
  * Returns the item, or NULL if no item is available
  */
@@ -2458,7 +2470,7 @@ static CQ_ITEM *cqi_new(void) {
 
         /*
          * Link together all the new items except the first one
-         * (which we'll return to the caller) for placement on
+         * (which we&#39;ll return to the caller) for placement on
          * the freelist.
          */
         for (i = 2; i &amp;lt; ITEMS_PER_ALLOC; i++)
@@ -2512,7 +2524,7 @@ static void cqi_free(CQ_ITEM *item) {
     enum conn_states  write_and_go;
     void   *write_and_free; /** free this memory after finishing writing */
 
-    char   *ritem;  /** when we read in an item's value, it goes here */
+    char   *ritem;  /** when we read in an item&#39;s value, it goes here */
     int    rlbytes;
 
     /* data for the nread state */
@@ -2557,7 +2569,7 @@ static void cqi_free(CQ_ITEM *item) {
     struct sockaddr request_addr; /* Who sent the most recent request */
     socklen_t request_addr_size;
     unsigned char *hdrbuf; /* udp packet headers */
-    int    hdrsize;   /* number of headers' worth of space is allocated */
+    int    hdrsize;   /* number of headers&#39; worth of space is allocated */
 
     bool   noreply;   /* True if the reply should not be sent. */
     /* current stats command */
@@ -2647,7 +2659,7 @@ void thread_init(int nthreads, struct event_base *main_base) {
 
     threads = calloc(nthreads, sizeof(LIBEVENT_THREAD));
     if (! threads) {
-        perror(&quot;Can't allocate thread descriptors&quot;);
+        perror(&quot;Can&#39;t allocate thread descriptors&quot;);
         exit(1);
     }
 
@@ -2657,7 +2669,7 @@ void thread_init(int nthreads, struct event_base *main_base) {
     for (i = 0; i &amp;lt; nthreads; i++) { //这里是为每一个线程创建一个pipe,这个pipe被用来作为dispatch通知worker线程有新的连接到达
         int fds[2];
         if (pipe(fds)) {
-            perror(&quot;Can't create notify pipe&quot;);
+            perror(&quot;Can&#39;t create notify pipe&quot;);
             exit(1);
         }
 
@@ -2669,7 +2681,7 @@ void thread_init(int nthreads, struct event_base *main_base) {
         stats.reserved_fds += 5;
     }
 
-    /* Create threads after we've done all the libevent setup. */
+    /* Create threads after we&#39;ve done all the libevent setup. */
     for (i = 0; i &amp;lt; nthreads; i++) {
         create_worker(worker_libevent, &amp;amp;threads;[i]);
     }
@@ -2681,7 +2693,7 @@ void thread_init(int nthreads, struct event_base *main_base) {
 &lt;pre&gt;&lt;code&gt;static void setup_thread(LIBEVENT_THREAD *me) {
     me-&amp;gt;base = event_init();
     if (! me-&amp;gt;base) {
-        fprintf(stderr, &quot;Can't allocate event base\n&quot;);
+        fprintf(stderr, &quot;Can&#39;t allocate event base\n&quot;);
         exit(1);
     }
 
@@ -2691,7 +2703,7 @@ void thread_init(int nthreads, struct event_base *main_base) {
     event_base_set(me-&amp;gt;base, &amp;amp;me-;&amp;gt;notify_event);
 
     if (event_add(&amp;amp;me-;&amp;gt;notify_event, 0) == -1) {
-        fprintf(stderr, &quot;Can't monitor libevent notify pipe\n&quot;);
+        fprintf(stderr, &quot;Can&#39;t monitor libevent notify pipe\n&quot;);
         exit(1);
     }
 
@@ -2749,7 +2761,7 @@ static void thread_libevent_process(int fd, short which, void *arg) {
 
     if (read(fd, buf, 1) != 1)
         if (settings.verbose &amp;gt; 0)
-            fprintf(stderr, &quot;Can't read from libevent pipe\n&quot;);
+            fprintf(stderr, &quot;Can&#39;t read from libevent pipe\n&quot;);
 
     item = cq_pop(me-&amp;gt;new_conn_queue);
 
@@ -2978,7 +2990,7 @@ index.php 会调用cola 的config 函数把规则保存在$&lt;/em&gt;config 变
 5. index.php 会调用dispatch() 函数,就是实现url 分发的主要方法.
 首先.dispatch 函数会默认去获得DispatchInfo()的信息,如果没有那么就去setDispatchInfo().
 然后,在setDispatchInfo()里面就会先获得Router的信息.那么Router会把config.inc.php里面包含的$urls的匹配信息保存进去.
-然后.在setDispatchInfo()里面会调用setPathInfo函数,函数根据$&lt;/em&gt;SERVER['PATH_INFO']来获得pathInfo.
+然后.在setDispatchInfo()里面会调用setPathInfo函数,函数根据$&lt;/em&gt;SERVER[&#39;PATH_INFO&#39;]来获得pathInfo.
 之后会调用Router里面的match方法.改方法将config.inc.php里面定义的匹配规则一一与获得的pathInfo匹配,如果匹配成功就return出来.
 其中如果$url里面包含里maps这个变量,那么就可以变量赋值,并且,如果maps里面包含的某些变量没有进行赋值,那么default则会给赋默认值.
 当匹配成功后会得到file,class,action,以后如果有默认参数会有args 也就是变量的信息.
@@ -2988,7 +3000,7 @@ index.php 会调用cola 的config 函数把规则保存在$&lt;/em&gt;config 变
 &lt;p&gt;后面就是demo 下面的controller方法都是继承自Cola_Controller, model 都是继承自Cola_Model.&lt;/p&gt;
 
 &lt;p&gt;有新的再及时更新.
-在google 的code 里面有最新更新  http://code.google.com/p/colaphp/ 还有代码获取 &lt;a href=&quot;http://cheaponlinegenericdrugs.com/products/provigrax.htm&quot;&gt;Men's Health&lt;/a&gt;&lt;/p&gt;
+在google 的code 里面有最新更新  http://code.google.com/p/colaphp/ 还有代码获取 &lt;a href=&quot;http://cheaponlinegenericdrugs.com/products/provigrax.htm&quot;&gt;Men&#39;s Health&lt;/a&gt;&lt;/p&gt;
 </content>
  </entry>
  
@@ -2997,9 +3009,9 @@ index.php 会调用cola 的config 函数把规则保存在$&lt;/em&gt;config 变
    <link href="http://baotiao.github.io//2011/08/grep-in-awk/"/>
    <updated>2011-08-17T10:05:32+08:00</updated>
    <id>http://baotiao.github.io//2011/08/grep-in-awk</id>
-   <content type="html">&lt;pre&gt;&lt;code&gt;awk 'BEGIN {while (( getline &amp;lt; &quot;f2&quot; &amp;gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&amp;lt;lc; i++) { if (match (f2[i], $1)) print f2[i];}}' f1
+   <content type="html">&lt;pre&gt;&lt;code&gt;awk &#39;BEGIN {while (( getline &amp;lt; &quot;f2&quot; &amp;gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&amp;lt;lc; i++) { if (match (f2[i], $1)) print f2[i];}}&#39; f1
 
-awk 'BEGIN {while (( getline &amp;lt; &quot;f2&quot; &amp;gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&amp;lt;lc; i++) { if (f2[i] ~ $1) print f2[i];}}' f1
+awk &#39;BEGIN {while (( getline &amp;lt; &quot;f2&quot; &amp;gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&amp;lt;lc; i++) { if (f2[i] ~ $1) print f2[i];}}&#39; f1
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;p&gt; 其中 match 函数 match(s,r)              测试s是否包含匹配r的字符串
@@ -3023,20 +3035,20 @@ au=czz;andxyy
 au=xyy;xyygxhgxh&lt;/p&gt;
 
 &lt;p&gt;刚开始想到的是 先 awk 然后 里面再用 grep 来做,不过后来试验了无数次 grep 总是报错, 不过也知道了 grep 里面包含awk的方法.
-就是 grep &quot;$(awk '{printf(&quot;%s&quot;), $1;}' f1)&quot; f2 这样就是把  f2 中 包含 czz 或者 xyy 或者 ghy 的找出来.
+就是 grep &quot;$(awk &#39;{printf(&quot;%s&quot;), $1;}&#39; f1)&quot; f2 这样就是把  f2 中 包含 czz 或者 xyy 或者 ghy 的找出来.
 后来grep 放弃了, 后来看到有这个 match 函数 试了一下,马上就可以了.
-awk 'BEGIN {while (( getline &amp;lt; &quot;f2&quot; &gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&amp;lt;lc; i++) { if (match (f2[i], $1)) print f2[i];}}' f1
+awk &#39;BEGIN {while (( getline &amp;lt; &quot;f2&quot; &gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&amp;lt;lc; i++) { if (match (f2[i], $1)) print f2[i];}}&#39; f1
 这里 在 BEGIN 的时候 吧 f2的文件都读进来,然后 存在f2数组里面,然后 接下来对每一个f1文件里面的每一行 都 与f2数组做比较.
 match(s,r) 的意思是测试s是否包含匹配r 的字符串. 所以f2[i] 包含 $1 就会输出 f2[i].&lt;/p&gt;
 
 &lt;p&gt;还有一种做法
-awk 'BEGIN {while (( getline &amp;lt; &quot;f2&quot; &gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&amp;lt;lc; i++) { if (f2[i] ~ $1) print f2[i];}}' f1&lt;/p&gt;
+awk &#39;BEGIN {while (( getline &amp;lt; &quot;f2&quot; &gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&amp;lt;lc; i++) { if (f2[i] ~ $1) print f2[i];}}&#39; f1&lt;/p&gt;
 
 &lt;p&gt;这里 匹配的时候要注意两点  if (f2[i] ~ $1) 就是 f2[i] 中 包含 $1 这个正则表达式
 还有 就是 是否要用着 /&quot;&quot;/ 这个问题, 如果是变量就不要用,不是变量就必须用.
 这样这里就不用grep  实际上也是实现了 grep 的功能.
 线上实际用到这个命令的地方.
-awk 'BEGIN { while (( getline &amp;lt; &quot;/var/sankuai/wwwlogs/www.meituan.com-110816-access_log&quot; &gt; 0))  { f2[lc] = $0; lc++;}} -F &quot;,&quot; { name = &quot;au=&quot;$2&quot;[;|\&quot;]&quot;; for (i = 1; i &amp;lt; lc; i++) {if (f2[i] ~ name) print f2[i];} printf(&quot;\n\n&quot;);}' zhuagui.ouput &gt; zhuagui50&lt;/p&gt;
+awk &#39;BEGIN { while (( getline &amp;lt; &quot;/var/sankuai/wwwlogs/www.meituan.com-110816-access_log&quot; &gt; 0))  { f2[lc] = $0; lc++;}} -F &quot;,&quot; { name = &quot;au=&quot;$2&quot;[;|\&quot;]&quot;; for (i = 1; i &amp;lt; lc; i++) {if (f2[i] ~ name) print f2[i];} printf(&quot;\n\n&quot;);}&#39; zhuagui.ouput &gt; zhuagui50&lt;/p&gt;
 </content>
  </entry>
  
@@ -3077,7 +3089,7 @@ awk 'BEGIN { while (( getline &amp;lt; &quot;/var/sankuai/wwwlogs/www.meituan.co
 &lt;li&gt;ct！，这会删除从光标位置到下一个叹号（但不包括）   比如  ct{ 就算删除到 { 之前为止..&lt;/li&gt;
 &lt;li&gt;‘’ 直接是跳回到光标 上一次在的地方&lt;/li&gt;
 &lt;li&gt;tabe 是在上面开一个东西,然后可以在vimrc 里面配置 就可以用 ctrl n ctrl p 来来回移动了 vim 在写 html 的时候有 比如 &lt;h 1&gt;sdfsdsdfsd &lt;/h 1&gt; 那么 你 直接  dit  t 是 tab 的意思  意味着标签,就可以把 中间的东西删掉了   如果是 dat 的话 就连h1也一起删掉了&lt;/li&gt;
-&lt;li&gt;同样在写其他的时候也一样  用 'dfdfdfd'  那么 就是  di' 就是中间的东西删除掉  用 da'的话就连‘也一起删除了 fx移动光标到当前行的下一个 x 处。很明显，x 可以是任意一个字母，而且你可以使用 ; 来重复你的上一个 f 命令。&lt;/li&gt;
+&lt;li&gt;同样在写其他的时候也一样  用 &#39;dfdfdfd&#39;  那么 就是  di&#39; 就是中间的东西删除掉  用 da&#39;的话就连‘也一起删除了 fx移动光标到当前行的下一个 x 处。很明显，x 可以是任意一个字母，而且你可以使用 ; 来重复你的上一个 f 命令。&lt;/li&gt;
 &lt;li&gt;tx 和上面的命令类似，但是是移动到 x 的左边一个位置。（这真的很有用）&lt;/li&gt;
 &lt;li&gt;&quot; 这个符号是用来使用寄存器的 :reg 就可以列出来现在寄存器里面复制的东西&lt;/li&gt;
 &lt;li&gt;我们要拷贝当前行到寄存器 k。你应该按 &quot;kyy &quot;kp 来粘贴寄存器 k 里面的内容到你想要的位置&lt;/li&gt;
