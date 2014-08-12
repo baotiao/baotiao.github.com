@@ -3,7 +3,7 @@
   <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <meta name="author" content="陈宗志" />
-	<title>vector locks | 陈宗志</title>
+	<title>vector clocks | 陈宗志</title>
     <link rel="shortcut icon" href="/favicon.ico">
     <link href="http://baotiao.github.io/feed/" rel="alternate" title="陈宗志" type="application/atom+xml" />
     <link rel="stylesheet" href="/media/css/style.css">
@@ -15,7 +15,7 @@
     <div id="container">
       <div id="main" role="main">
         <header>
-        <h1>vector locks</h1>
+        <h1>vector clocks</h1>
         </header>
 
         <nav>
@@ -30,21 +30,21 @@
 
 
         <section class="post">
-<p>vector locks 是Amazon 的Dynamo 论文提出的一个处理冲突的解决方案</p>
+<p>vector clocks 是Amazon 的Dynamo 论文提出的一个处理冲突的解决方案</p>
 
 <p>核心思想是由于server知道的信息有限, 如果发生了冲突, 能做的做大的办法
 就是根据timestamp取最新的数据. 如果把冲突放在客户端解决, 由于客户端
 知道数据所代表的含义, 那么冲突可以得到更好的解决</p>
 
-<p>vector locks 很好理解, 可以看:</p>
+<p>vector clocks 很好理解, 可以看:</p>
 
 <p><a href="http://basho.com/why-vector-clocks-are-easy/">why-vector-clocks-are-easy</a></p>
 
-<p>vector locks 存在的问题:</p>
+<p>vector clocks 存在的问题:</p>
 
 <p><a href="http://basho.com/why-vector-clocks-are-hard/">why-vector-clocks-are-hard</a></p>
 
-<p>为什么Cassandra 不用vector locks. 然后Cassandra的解决方案是什么</p>
+<p>为什么Cassandra 不用vector clocks. 然后Cassandra的解决方案是什么</p>
 
 <p><a href="http://www.datastax.com/dev/blog/why-cassandra-doesnt-need-vector-clocks">why-cassandra-doesnt-need-vector-clocks</a></p>
 

@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2014-07-28T01:08:43+08:00</updated>
+ <updated>2014-08-12T15:00:22+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -484,25 +484,25 @@ WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
  </entry>
  
  <entry>
-   <title>vector locks</title>
+   <title>vector clocks</title>
    <link href="http://baotiao.github.io//2013/11/vector-locks/"/>
    <updated>2013-11-12T00:00:00+08:00</updated>
    <id>http://baotiao.github.io//2013/11/vector-locks</id>
-   <content type="html">&lt;p&gt;vector locks 是Amazon 的Dynamo 论文提出的一个处理冲突的解决方案&lt;/p&gt;
+   <content type="html">&lt;p&gt;vector clocks 是Amazon 的Dynamo 论文提出的一个处理冲突的解决方案&lt;/p&gt;
 
 &lt;p&gt;核心思想是由于server知道的信息有限, 如果发生了冲突, 能做的做大的办法
 就是根据timestamp取最新的数据. 如果把冲突放在客户端解决, 由于客户端
 知道数据所代表的含义, 那么冲突可以得到更好的解决&lt;/p&gt;
 
-&lt;p&gt;vector locks 很好理解, 可以看:&lt;/p&gt;
+&lt;p&gt;vector clocks 很好理解, 可以看:&lt;/p&gt;
 
 &lt;p&gt;&lt;a href=&quot;http://basho.com/why-vector-clocks-are-easy/&quot;&gt;why-vector-clocks-are-easy&lt;/a&gt;&lt;/p&gt;
 
-&lt;p&gt;vector locks 存在的问题:&lt;/p&gt;
+&lt;p&gt;vector clocks 存在的问题:&lt;/p&gt;
 
 &lt;p&gt;&lt;a href=&quot;http://basho.com/why-vector-clocks-are-hard/&quot;&gt;why-vector-clocks-are-hard&lt;/a&gt;&lt;/p&gt;
 
-&lt;p&gt;为什么Cassandra 不用vector locks. 然后Cassandra的解决方案是什么&lt;/p&gt;
+&lt;p&gt;为什么Cassandra 不用vector clocks. 然后Cassandra的解决方案是什么&lt;/p&gt;
 
 &lt;p&gt;&lt;a href=&quot;http://www.datastax.com/dev/blog/why-cassandra-doesnt-need-vector-clocks&quot;&gt;why-cassandra-doesnt-need-vector-clocks&lt;/a&gt;&lt;/p&gt;
 
