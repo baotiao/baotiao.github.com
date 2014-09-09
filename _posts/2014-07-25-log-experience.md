@@ -3,7 +3,7 @@ layout: post
 title: "日志相关一些经验"
 description: "Log experience"
 category: tech
-tags: [experienct]
+tags: [experience]
 ---
 
 组内分享, 关于日志

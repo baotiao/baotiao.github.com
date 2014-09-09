@@ -4,13 +4,27 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2014-08-12T15:00:22+08:00</updated>
+ <updated>2014-09-09T17:30:30+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
    <email></email>
  </author>
 
+ 
+ <entry>
+   <title>Paxos introduction</title>
+   <link href="http://baotiao.github.io//2014/09/paxos-introduction/"/>
+   <updated>2014-09-09T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2014/09/paxos-introduction</id>
+   <content type="html">&lt;p&gt;Introduction of Paxos protocol in my company.&lt;/p&gt;
+
+&lt;iframe src=&quot;//www.slideshare.net/slideshow/embed_code/38862630&quot; width=&quot;512&quot; height=&quot;421&quot; frameborder=&quot;0&quot; marginwidth=&quot;0&quot; marginheight=&quot;0&quot; scrolling=&quot;no&quot; style=&quot;border:1px solid #CCC; border-width:1px; margin-bottom:5px; max-width: 100%;&quot; allowfullscreen&gt; &lt;/iframe&gt;
+
+
+&lt;p&gt; &lt;div style=&quot;margin-bottom:5px&quot;&gt; &lt;strong&gt; &lt;a href=&quot;https://www.slideshare.net/baotiao/paxos-38862630&quot; title=&quot;Paxos introduction&quot; target=&quot;_blank&quot;&gt;Paxos introduction&lt;/a&gt; &lt;/strong&gt; from &lt;strong&gt;&lt;a href=&quot;http://www.slideshare.net/baotiao&quot; target=&quot;_blank&quot;&gt;宗志 陈&lt;/a&gt;&lt;/strong&gt; &lt;/div&gt;&lt;/p&gt;
+</content>
+ </entry>
  
  <entry>
    <title>日志相关一些经验</title>
