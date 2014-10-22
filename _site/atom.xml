@@ -4,13 +4,77 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2014-09-09T17:30:30+08:00</updated>
+ <updated>2014-10-22T13:22:24+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
    <email></email>
  </author>
 
+ 
+ <entry>
+   <title>CSAPP bomb lab</title>
+   <link href="http://baotiao.github.io//2014/10/caspp-lab2/"/>
+   <updated>2014-10-22T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2014/10/caspp-lab2</id>
+   <content type="html">&lt;h3&gt;CSAPP bobm lab&lt;/h3&gt;
+
+&lt;p&gt;做的是coursera上面这个 The Hardware/Software Interface 这个课程的课后作业, 也就是CSAPP这本书上很有名的bonm实验. 感觉非常有意思, 对汇编和GDB的熟悉认真做完都能有很大的提高&lt;/p&gt;
+
+&lt;p&gt;答案在我的github上有, 不过推荐自己做下来.&lt;br/&gt;
+几个非常有用的GDB操作&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;info registers 查看所有的register信息&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;info frame 查看当前的栈信息, 非常的有用&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;display /10i $pc 这样就可以在nexti 执行以后, 显示当前10行的汇编代码&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;layout asm 线上汇编代码, 加当前指令的布局. 调试起来非常方便&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;print $eax 是显示某一个寄存器里面的内容&lt;br/&gt;
+x/w $eax 是检查保存在寄存器里面的地址的内容, 也就是检查寄存器存的内容的内容&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;思路:&lt;/p&gt;
+
+&lt;p&gt;首先objdump -d bomb &gt; bomb.s 得到汇编代码, 然后就可以gdb了&lt;/p&gt;
+
+&lt;p&gt;bomb 1: 可以看到有一个 callq strings_not_equal, 然后进去就可以获得一个字符串, 然后出来是比较 %eax. 因此可以判断这里是要输入一个相应的字符串&lt;/p&gt;
+
+&lt;p&gt;bomb 2: 可以看到 read_six_numbers, 主要考察的是loops操作&lt;/p&gt;
+
+&lt;p&gt;bomb 3: 可以看到这里有一个 jmpq   *0x401b60(,%rax,8), 可以断定这是一个switch的case, 看汇编可以知道, 只有走到任意一个case, 就可以解这个bomb.
+通过 x/7 0x401b60 就可以找到这个switch语句对应的跳转的表&lt;/p&gt;
+
+&lt;p&gt;bomb 4: 这个bomb主要考察的是递归, 最后结果是一个斐波那契数&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;0x400f92 &amp;lt;func4+14&amp;gt;     mov    %edi,%ebx # 将%edi赋值给$ebx
+0x400f94 &amp;lt;func4+16&amp;gt;     mov    $0x1,%eax
+0x400f99 &amp;lt;func4+21&amp;gt;     cmp    $0x1,%edi # 判断%edi是否比1小
+0x400f9c &amp;lt;func4+24&amp;gt;     jle    0x400fb2 &amp;lt;func4+46&amp;gt; # 比1小就退出
+0x400f9e &amp;lt;func4+26&amp;gt;     lea    -0x1(%rbx),%edi # 其实这里 %edi = %rbx - 1 = %ebx - 1 = %edi - 1
+0x400fa1 &amp;lt;func4+29&amp;gt;     callq  0x400f84 &amp;lt;func4&amp;gt;
+0x400fa6 &amp;lt;func4+34&amp;gt;     mov    %eax,%ebp
+0x400fa8 &amp;lt;func4+36&amp;gt;     lea    -0x2(%rbx),%edi # 这里就是 %edi = %edi - 2
+0x400fab &amp;lt;func4+39&amp;gt;     callq  0x400f84 &amp;lt;func4&amp;gt;
+0x400fb0 &amp;lt;func4+44&amp;gt;     add    %ebp,%eax
+0x400fb2 &amp;lt;func4+46&amp;gt;     mov    0x8(%rsp),%rbx
+0x400fb7 &amp;lt;func4+51&amp;gt;     mov    0x10(%rsp),%rbp
+0x400fbc &amp;lt;func4+56&amp;gt;     add    $0x18,%rsp
+0x400fc0 &amp;lt;func4+60&amp;gt;     retq
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;bomb 5: 这里是对一个数组的不断跳转, 然后正好跳转12次, value是15. 数据的内容可以通过&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;(gdb) x/16wd 0x401ba0
+0x401ba0 &amp;lt;array.3014&amp;gt;:  10      2       14      7
+0x401bb0 &amp;lt;array.3014+16&amp;gt;:       8       12      15      11
+0x401bc0 &amp;lt;array.3014+32&amp;gt;:       0       4       1       13
+0x401bd0 &amp;lt;array.3014+48&amp;gt;:       3       9       6       5
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;这样就可以获得这个数据的内容, 那么接下来就很容易了&lt;/p&gt;
+</content>
+ </entry>
  
  <entry>
    <title>Paxos introduction</title>
