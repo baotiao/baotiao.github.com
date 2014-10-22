@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2014-10-22T13:22:24+08:00</updated>
+ <updated>2014-10-22T16:19:15+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -17,9 +17,7 @@
    <link href="http://baotiao.github.io//2014/10/caspp-lab2/"/>
    <updated>2014-10-22T00:00:00+08:00</updated>
    <id>http://baotiao.github.io//2014/10/caspp-lab2</id>
-   <content type="html">&lt;h3&gt;CSAPP bobm lab&lt;/h3&gt;
-
-&lt;p&gt;做的是coursera上面这个 The Hardware/Software Interface 这个课程的课后作业, 也就是CSAPP这本书上很有名的bonm实验. 感觉非常有意思, 对汇编和GDB的熟悉认真做完都能有很大的提高&lt;/p&gt;
+   <content type="html">&lt;p&gt;做的是coursera上面这个 &lt;a href=&quot;https://class.coursera.org/hwswinterface-002/lecture&quot;&gt;The Hardware/Software Interface&lt;/a&gt; 这个课程的课后作业, 也就是CSAPP这本书上很有名的bonm实验. 感觉非常有意思, 对汇编和GDB的熟悉认真做完都能有很大的提高&lt;/p&gt;
 
 &lt;p&gt;答案在我的github上有, 不过推荐自己做下来.&lt;br/&gt;
 几个非常有用的GDB操作&lt;/p&gt;
