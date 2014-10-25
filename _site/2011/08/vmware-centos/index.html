@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="author" content="陈宗志" />
+	<title>vmware centos 安装 | 陈宗志</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link href="http://baotiao.github.io/feed/" rel="alternate" title="陈宗志" type="application/atom+xml" />
+    <link rel="stylesheet" href="/media/css/style.css">
+    <link rel="stylesheet" href="/media/js/code/desert.css">|
+  </head>
+
+	<div id="top"></div>
+  <body>
+    <div id="container">
+      <div id="main" role="main">
+        <header>
+        <h1>vmware centos 安装</h1>
+        </header>
+
+        <nav>
+        <span><a title="home page" class="" href="http://baotiao.github.io/">home</a></span>
+        <span><a title="categories" class="" href="http://baotiao.github.io/categories/">categories</a></span>
+        <span><a title="links" class="" href="http://baotiao.github.io/links/">links</a></span>
+        <span><a title="paper" class="" href="http://baotiao.github.io/paper/">paper</a></span>
+        <span><a title="vitae" class="" href="http://baotiao.github.io/vitae/">vitae</a></span>
+        </nav>
+
+        <article class="content">
+
+
+        <section class="post">
+<p>分享一下今天在vmware 下 centos 的安装过程遇到的问题.
+centos 在vmware 里面安装的时候 不要选择简单安装.然后就会进入到centos标准安装界面.
+swap 就是linux下的虚拟内存分区,它的作用是在物理内存使用完之后,将磁盘空间(也就是SWAP分区)虚拟成内存来使用.
+需要注意的是他的速度比物理内存慢多了,因为他是从磁盘中读取的.如果想更快速度,swap是没用的然后看鸟哥的centos安装教程 在centos 里面安装好以后要 提示插入第二个盘 那么 选择 CD&amp;DVD 然后 勾上 Connected . 然后在Use disc image 选上那个镜像就可以了.</p>
+
+<p>在centos 里面 安装 VMTool 在 菜单栏 里面有 virtual Machine 然后 里面 <a href="http://hollandslotscasino.nl/">slot machines online</a> install VMTool . 进去以后把 /media 下面的 VMTools 复制出来再安装</p>
+
+<p>在centos 里面可能无法上网, 首先得先装好 VMTool ,然后 在 系统->管理->网络->双击eth0 里面配置设置成自动获取就可以了.然后保存 /etc/init.d/network restart 就可以了.</p>
+
+</section>
+<section class="meta">
+<span class="author">
+  <a href="http://baotiao.github.io/">陈宗志</a>
+</span>
+<span class="time">
+  /
+  <time datetime="2011-08-07">2011-08-07</time>
+</span>
+<br />
+<span class="license">
+  Published under <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/3.0/">(CC) BY-NC-SA</a>
+</span>
+
+<span class="categories">
+  in categories
+  
+  <a href="http://baotiao.github.io/categories/#life" title="life">life</a>&nbsp;
+  
+</span>
+
+
+<span class="tags">
+  tagged with 
+  
+  <a href="http://baotiao.github.io/tags/#centos" title="centos">centos</a>&nbsp;
+  
+  <a href="http://baotiao.github.io/tags/#vmware" title="vmware">vmware</a>&nbsp;
+  
+</span>
+
+</section>
+
+<div class="bshare-custom"><a title="åäº«å°æ°æµªå¾®å" class="bshare-sinaminiblog"></a><a title="åäº«å°Facebook" class="bshare-facebook"></a><a title="åäº«å°Twitter" class="bshare-twitter"></a><a title="æ´å¤å¹³å°" class="bshare-more bshare-more-icon more-style-addthis"></a></div><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/buttonLite.js#style=-1&amp;uuid=17304268-f570-4255-9088-f5132e6fd01b&amp;pophcol=1&amp;lang=zh"></script><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/bshareC0.js"></script>
+<section class="comment">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'baotiao'; // required: replace example with your forum shortname
+		var disqus_rul = 'http://baotiao.github.io/2011/08/vmware-centos/';
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+</section>
+
+<script type="text/javascript">
+$(function(){
+  $(document).keydown(function(e) {
+    if (e.target.nodeName.toUpperCase() != 'BODY') return;
+    var url = false;
+        if (e.which == 37 || e.which == 74) {  // Left arrow and J
+            
+        url = 'http://baotiao.github.io/2011/07/mysql-join/';
+        
+        }
+        else if (e.which == 39 || e.which == 75) {  // Right arrow and K
+            
+        url = 'http://baotiao.github.io/2011/08/iconv/';
+        
+        }
+        if (url) {
+            window.location = url;
+        }
+  });
+})
+</script>
+
+
+
+        </article>
+
+	<div id="message"><a href="#top">Scroll to top</a></div>
+	</div>
+</div>
+
+<script type="text/javascript" src="/media/js/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="/media/js/code/prettify.js"></script>
+
+ <script type="text/javascript">
+      $(function(){
+        $("pre").addClass("prettyprint");
+        prettyPrint();
+        $('.entry a').each(function(){
+          if($(this).attr("href").indexOf("chenzongzhi") == -1){
+            $(this).attr("target", "_blank");
+          }
+        })
+      });
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-35023741-1']);
+  _gaq.push(['_trackPageview']);
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+<script type="text/javascript">
+$(function () {
+
+    /* set variables locally for increased performance */
+    var scroll_timer;
+    var displayed = false;
+    var $message = $('#message a');
+    var $window = $(window);
+    var top = $(document.body).children(0).position().top;
+
+    /* react to scroll event on window */
+    $window.scroll(function () {
+        window.clearTimeout(scroll_timer);
+        scroll_timer = window.setTimeout(function () {
+            if($window.scrollTop() <= top + 800)
+            {
+                displayed = false;
+                $message.fadeOut(1000);
+            }
+            else if(displayed == false)
+            {
+                displayed = true;
+                $message.stop(true, true).show().click(function () { $message.fadeOut(1000); });
+            }
+        }, 100);
+    });
+});
+</script>
+  </body>
+</html>
