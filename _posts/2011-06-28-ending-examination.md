@@ -3,7 +3,6 @@ author: admin
 comments: true
 date: 2011-06-28 07:03:35+00:00
 layout: post
-slug: '%e4%bb%8a%e5%a4%a9%e7%ad%94%e8%be%a9%e7%bb%93%e6%9d%9f'
 title: 今天答辩结束
 wordpress_id: 19
 categories:

@@ -4,13 +4,29 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2014-10-22T16:19:15+08:00</updated>
+ <updated>2014-10-25T19:59:10+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
    <email></email>
  </author>
 
+ 
+ <entry>
+   <title>Mario(a pipe line library)</title>
+   <link href="http://baotiao.github.io//2014/10/introduce-mario/"/>
+   <updated>2014-10-25T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2014/10/introduce-mario</id>
+   <content type="html">&lt;p&gt;Introduce the mario pipe library.&lt;/p&gt;
+
+&lt;p&gt;github address: https://github.com/baotiao/Mario.git&lt;/p&gt;
+
+&lt;iframe src=&quot;//www.slideshare.net/slideshow/embed_code/40708255&quot; width=&quot;476&quot;
+height=&quot;400&quot; frameborder=&quot;0&quot; marginwidth=&quot;0&quot; marginheight=&quot;0&quot;
+scrolling=&quot;no&quot;&gt;&lt;/iframe&gt;
+
+</content>
+ </entry>
  
  <entry>
    <title>CSAPP bomb lab</title>
@@ -1195,9 +1211,9 @@ libc库的数据段 执行权限rw-&lt;/p&gt;
  
  <entry>
    <title>Linux内核的设计与实现:块I/O层</title>
-   <link href="http://baotiao.github.io//2012/10/linuxe58685e6a0b8e79a84e8aebee8aea1e4b88ee5ae9ee78eb0e59d97ioe5b182/"/>
+   <link href="http://baotiao.github.io//2012/10/linux-kernel-io/"/>
    <updated>2012-10-18T23:31:12+08:00</updated>
-   <id>http://baotiao.github.io//2012/10/linuxe58685e6a0b8e79a84e8aebee8aea1e4b88ee5ae9ee78eb0e59d97ioe5b182</id>
+   <id>http://baotiao.github.io//2012/10/linux-kernel-io</id>
    <content type="html">&lt;h1&gt;块设备&lt;/h1&gt;
 
 &lt;h3&gt;扇区:&lt;/h3&gt;
@@ -1254,9 +1270,9 @@ libc库的数据段 执行权限rw-&lt;/p&gt;
  
  <entry>
    <title>c++对象模型 构造函数语义学</title>
-   <link href="http://baotiao.github.io//2012/09/ce5afb9e8b1a1e6a8a1e59e8b-e69e84e980a0e587bde695b0e8afade4b989e5ada6/"/>
+   <link href="http://baotiao.github.io//2012/09/c++-constuct/"/>
    <updated>2012-09-12T15:16:14+08:00</updated>
-   <id>http://baotiao.github.io//2012/09/ce5afb9e8b1a1e6a8a1e59e8b-e69e84e980a0e587bde695b0e8afade4b989e5ada6</id>
+   <id>http://baotiao.github.io//2012/09/c++-constuct</id>
    <content type="html">&lt;h1&gt;1. C++ 不会为所有的class构造默认的constructor&lt;/h1&gt;
 
 &lt;p&gt;(我们经常认为c++会为所有的class默认添加构造函数)
@@ -1293,9 +1309,9 @@ libc库的数据段 执行权限rw-&lt;/p&gt;
  
  <entry>
    <title>c++ 对象模型</title>
-   <link href="http://baotiao.github.io//2012/08/c-e5afb9e8b1a1e6a8a1e59e8b/"/>
+   <link href="http://baotiao.github.io//2012/08/c++-class/"/>
    <updated>2012-08-25T17:15:01+08:00</updated>
-   <id>http://baotiao.github.io//2012/08/c-e5afb9e8b1a1e6a8a1e59e8b</id>
+   <id>http://baotiao.github.io//2012/08/c++-class</id>
    <content type="html">&lt;ol&gt;
 &lt;li&gt;C++的对象模型里面,Nonstatic data members 配置于每一个class object之内, static data members 则被存放在所有的class object之外. static 和 non static function members 也被放在所有的所有的class object 之外. Virtual function 则以两个步骤支持&lt;/li&gt;
 &lt;/ol&gt;
@@ -2953,9 +2969,9 @@ void dispatch_conn_new(int sfd, enum conn_states init_state, int event_flags,
  
  <entry>
    <title>Libevent 学习 和 基于event的 echo server</title>
-   <link href="http://baotiao.github.io//2012/01/libevent-e7ae80e58d95e5ada6e4b9a0-e5928c-demo/"/>
+   <link href="http://baotiao.github.io//2012/01/libevent-demo/"/>
    <updated>2012-01-31T22:07:08+08:00</updated>
-   <id>http://baotiao.github.io//2012/01/libevent-e7ae80e58d95e5ada6e4b9a0-e5928c-demo</id>
+   <id>http://baotiao.github.io//2012/01/libevent-demo</id>
    <content type="html">
 </content>
  </entry>
@@ -2971,9 +2987,9 @@ void dispatch_conn_new(int sfd, enum conn_states init_state, int event_flags,
  
  <entry>
    <title>Beanstalk 学习</title>
-   <link href="http://baotiao.github.io//2011/11/beanstalk-e5ada6e4b9a0/"/>
+   <link href="http://baotiao.github.io//2011/11/beanstalk/"/>
    <updated>2011-11-12T01:41:18+08:00</updated>
-   <id>http://baotiao.github.io//2011/11/beanstalk-e5ada6e4b9a0</id>
+   <id>http://baotiao.github.io//2011/11/beanstalk</id>
    <content type="html">&lt;p&gt;看的Beanstalk第一版的代码,因为代码比较短.小组的分享&lt;/p&gt;
 
 &lt;p&gt;&lt;strong&gt;&lt;a href=&quot;http://www.slideshare.net/baotiao/beanstalk&quot;&gt;Beanstalk&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
@@ -3043,9 +3059,9 @@ int main(void) {
  
  <entry>
    <title>Cola.php的默认配置以及url分发</title>
-   <link href="http://baotiao.github.io//2011/08/cola-phpe79a84e9bb98e8aea4e9858de7bdaee4bba5e58f8aurle58886e58f91/"/>
+   <link href="http://baotiao.github.io//2011/08/cola-framework/"/>
    <updated>2011-08-17T15:10:42+08:00</updated>
-   <id>http://baotiao.github.io//2011/08/cola-phpe79a84e9bb98e8aea4e9858de7bdaee4bba5e58f8aurle58886e58f91</id>
+   <id>http://baotiao.github.io//2011/08/cola-framework</id>
    <content type="html">&lt;p&gt;和cola.php 是一个叫付超群写得框架,可能对比较大型的框架理解不清楚,可以先看这个比较小型的.
 0.1版就包含了框架里面最主要的几个文件,那些扩张功能还不包括在里面,非常适合让我们理解如何实现一个mvc框架的过程.
 这里是对 0.1版代码的阅读记录.
@@ -3129,15 +3145,6 @@ awk &#39;BEGIN { while (( getline &amp;lt; &quot;/var/sankuai/wwwlogs/www.meitua
  </entry>
  
  <entry>
-   <title>spl_autoload_rigister auto_prepend 用法</title>
-   <link href="http://baotiao.github.io//2011/08/spl_autoload_rigister-auto_prepend-e794a8e6b395/"/>
-   <updated>2011-08-14T04:05:43+08:00</updated>
-   <id>http://baotiao.github.io//2011/08/spl_autoload_rigister-auto_prepend-e794a8e6b395</id>
-   <content type="html">
-</content>
- </entry>
- 
- <entry>
    <title>vim 一些命令</title>
    <link href="http://baotiao.github.io//2011/08/vim/"/>
    <updated>2011-08-12T00:00:00+08:00</updated>
@@ -3181,9 +3188,9 @@ awk &#39;BEGIN { while (( getline &amp;lt; &quot;/var/sankuai/wwwlogs/www.meitua
  
  <entry>
    <title>iconv 脚本 转换字符编码脚本</title>
-   <link href="http://baotiao.github.io//2011/08/iconv-e8849ae69cac-e8bdace68da2e5ad97e7aca6e7bc96e7a081e8849ae69cac/"/>
+   <link href="http://baotiao.github.io//2011/08/iconv/"/>
    <updated>2011-08-10T10:34:58+08:00</updated>
-   <id>http://baotiao.github.io//2011/08/iconv-e8849ae69cac-e8bdace68da2e5ad97e7aca6e7bc96e7a081e8849ae69cac</id>
+   <id>http://baotiao.github.io//2011/08/iconv</id>
    <content type="html">&lt;p&gt;这个脚本碰到有些别字的中文的时候会报错,直接去文件里面该就可以了.iconv: 北京.csv:31:12: cannot convert&lt;/p&gt;
 
 &lt;p&gt;iconv: 总部.csv:315:12: cannot convert&lt;/p&gt;
@@ -3206,9 +3213,9 @@ done
  
  <entry>
    <title>vmware centos 安装</title>
-   <link href="http://baotiao.github.io//2011/08/vmware-centos-e5ae89e8a385/"/>
+   <link href="http://baotiao.github.io//2011/08/vmware-centos/"/>
    <updated>2011-08-07T22:29:07+08:00</updated>
-   <id>http://baotiao.github.io//2011/08/vmware-centos-e5ae89e8a385</id>
+   <id>http://baotiao.github.io//2011/08/vmware-centos</id>
    <content type="html">&lt;p&gt;分享一下今天在vmware 下 centos 的安装过程遇到的问题.
 centos 在vmware 里面安装的时候 不要选择简单安装.然后就会进入到centos标准安装界面.
 swap 就是linux下的虚拟内存分区,它的作用是在物理内存使用完之后,将磁盘空间(也就是SWAP分区)虚拟成内存来使用.
@@ -3222,18 +3229,18 @@ swap 就是linux下的虚拟内存分区,它的作用是在物理内存使用完
  
  <entry>
    <title>mysql join 学习</title>
-   <link href="http://baotiao.github.io//2011/07/mysql-join-e5ada6e4b9a0/"/>
+   <link href="http://baotiao.github.io//2011/07/mysql-join/"/>
    <updated>2011-07-30T02:13:57+08:00</updated>
-   <id>http://baotiao.github.io//2011/07/mysql-join-e5ada6e4b9a0</id>
+   <id>http://baotiao.github.io//2011/07/mysql-join</id>
    <content type="html">&lt;p&gt;join 的学习: 在SQL标准中规划的（Join）联结大致分为下面四种： 1． 内联结：将两个表中存在联结关系的字段符合联结关系的那些记录形成记录集的联结。 2． 外联结：分为外左联结和外右联结。 左联结A、B表的意思就是将表A中的全部记录和表B中联结的字段与表A的联结字段符合联结条件的那些记录形成的记录集的联结，这里注意的是最后出来的记录集会包括表A的全部记录。 右联结A、B表的结果和左联结B、A的结果是一样的，也就是说： Select A.name B.name From A Left Join B On A.id=B.id 和Select A.name B.name From B Right Join A on B.id=A.id执行后的结果是一样的。 还有其他的联结就不用管了. 这里 就是 内联结是只将符合条件的列出来,而外联接是将全部的都列出来,分左右外联接啦. 这里我有个比较简便的记忆方法，内外联结的区别是内联结将去除所有不符合条件的记录，而外联结则保留其中部分。外左联结与外右联结的区别在于如果用A左联结B则A中所有记录都会保 留在结果中，此时B中只有符合联结条件的记录，而右联结相反，这样也就不会混淆了比如表t1 有 2数据 1,2 表 t2 有一个数据 1. 那么 select t1.s1,t2.s1 from t1 inner join t2 on t1.s1=t2.s1; ------ ------ | s1 | s1 | ------ ------ | 1 | 1 | ------ ------ 这个时候 t1里面的 2 这个数据由于在t2表里面找不到 就会被除去. left join &lt;a href=&quot;http://britishcasino.org.uk/&quot;&gt;casino online&lt;/a&gt; 的时候 select t1.s1,t2.s1 from t1 left join t2 on t1.s1=t2.s1; ------ ------ | s1 | s1 | ------ ------ | 1 | 1 | | 2 | NULL | 这个时候是 t1为左表都保存下来. ------ ------ 同样 right join 的时候 select t1.s1,t2.s1 from t1 right join t2 on t1.s1=t2.s1; ------ ------ | s1 | s1 | ------ ------ | 1 | 1 |&lt;/p&gt;
 </content>
  </entry>
  
  <entry>
    <title>OpenParty 第一次参加这种交流会</title>
-   <link href="http://baotiao.github.io//2011/07/openparty-e7acace4b880e6aca1e58f82e58aa0e8bf99e7a78de4baa4e6b581e4bc9a/"/>
+   <link href="http://baotiao.github.io//2011/07/openparty/"/>
    <updated>2011-07-23T21:54:28+08:00</updated>
-   <id>http://baotiao.github.io//2011/07/openparty-e7acace4b880e6aca1e58f82e58aa0e8bf99e7a78de4baa4e6b581e4bc9a</id>
+   <id>http://baotiao.github.io//2011/07/openparty</id>
    <content type="html">&lt;p&gt;来得好像挺多牛B人的.看见挺多个穿TopCoder的.
 听了刘未鹏的暗时间
 总结下吧,提醒自己以后要做到.
@@ -3252,9 +3259,9 @@ swap 就是linux下的虚拟内存分区,它的作用是在物理内存使用完
  
  <entry>
    <title>aws 免密码登陆</title>
-   <link href="http://baotiao.github.io//2011/07/aws-e5858de5af86e7a081e799bbe99986/"/>
+   <link href="http://baotiao.github.io//2011/07/solve-aws/"/>
    <updated>2011-07-17T19:46:13+08:00</updated>
-   <id>http://baotiao.github.io//2011/07/aws-e5858de5af86e7a081e799bbe99986</id>
+   <id>http://baotiao.github.io//2011/07/solve-aws</id>
    <content type="html">&lt;p&gt;aws一直要用密钥登录非常的麻烦.
 可以在aws里面添加一个新的用户
 具体过程:
@@ -3276,9 +3283,9 @@ Give the user ssh access
  
  <entry>
    <title>暂时搞定住处</title>
-   <link href="http://baotiao.github.io//2011/07/e69a82e697b6e6909ee5ae9ae4bd8fe5a484/"/>
+   <link href="http://baotiao.github.io//2011/07/life-in-beijing/"/>
    <updated>2011-07-16T00:00:37+08:00</updated>
-   <id>http://baotiao.github.io//2011/07/e69a82e697b6e6909ee5ae9ae4bd8fe5a484</id>
+   <id>http://baotiao.github.io//2011/07/life-in-beijing</id>
    <content type="html">&lt;p&gt;上周把租房子的事情给搞定了,总之废了各种尽.
 这一周工作唯一接触的新东西还是那个ldap.
 把ldap 好好搞搞,争取在公司里面成为这个领域的专家才可以.
@@ -3291,9 +3298,9 @@ Give the user ssh access
  
  <entry>
    <title>现在在青岛</title>
-   <link href="http://baotiao.github.io//2011/07/e78eb0e59ca8e59ca8e99d92e5b29b/"/>
+   <link href="http://baotiao.github.io//2011/07/qingdao/"/>
    <updated>2011-07-03T01:24:14+08:00</updated>
-   <id>http://baotiao.github.io//2011/07/e78eb0e59ca8e59ca8e99d92e5b29b</id>
+   <id>http://baotiao.github.io//2011/07/qingdao</id>
    <content type="html">&lt;p&gt;应该算是毕业旅行。来了10个人
 陈宗志，官宏宇，赵安安，赵辰星，李华东，陈晓师，李闯，赵鹏阳，王超。
 吴鹏。
@@ -3318,18 +3325,18 @@ Give the user ssh access
  
  <entry>
    <title>今天答辩结束</title>
-   <link href="http://baotiao.github.io//2011/06/e4bb8ae5a4a9e7ad94e8bea9e7bb93e69d9f/"/>
+   <link href="http://baotiao.github.io//2011/06/ending-examination/"/>
    <updated>2011-06-28T15:03:35+08:00</updated>
-   <id>http://baotiao.github.io//2011/06/e4bb8ae5a4a9e7ad94e8bea9e7bb93e69d9f</id>
+   <id>http://baotiao.github.io//2011/06/ending-examination</id>
    <content type="html">&lt;p&gt;答辩还是挺水的.忽悠着,忽悠着,就过了.唉. &lt;a href=&quot;http://hollandonlinecasinos.nl/&quot;&gt;casino nederland&lt;/a&gt;&lt;/p&gt;
 </content>
  </entry>
  
  <entry>
    <title>和俱乐部的散伙饭</title>
-   <link href="http://baotiao.github.io//2011/06/e5928ce4bfb1e4b990e983a8e79a84e695a3e4bc99e9a5ad/"/>
+   <link href="http://baotiao.github.io//2011/06/goodbye-club/"/>
    <updated>2011-06-27T20:25:15+08:00</updated>
-   <id>http://baotiao.github.io//2011/06/e5928ce4bfb1e4b990e983a8e79a84e695a3e4bc99e9a5ad</id>
+   <id>http://baotiao.github.io//2011/06/goodbye-club</id>
    <content type="html">&lt;p&gt;和 俱乐部吃饭了散伙饭。。
 俱乐部 &lt;a href=&quot;http://premiumonlinecasino.de/&quot;&gt;online slot maschinen&lt;/a&gt; 的白姐 给教了很多很多。。&lt;/p&gt;
 </content>
@@ -3337,9 +3344,9 @@ Give the user ssh access
  
  <entry>
    <title>算第一个散伙饭吧,</title>
-   <link href="http://baotiao.github.io//2011/06/e7ae97e7acace4b880e4b8aae695a3e4bc99e9a5ade590a7/"/>
+   <link href="http://baotiao.github.io//2011/06/goobye-dinner/"/>
    <updated>2011-06-24T00:25:24+08:00</updated>
-   <id>http://baotiao.github.io//2011/06/e7ae97e7acace4b880e4b8aae695a3e4bc99e9a5ade590a7</id>
+   <id>http://baotiao.github.io//2011/06/goobye-dinner</id>
    <content type="html">&lt;p&gt;2011.6.24  安哥请大家吃饭,哇咔咔.本来可以去唱歌的,后来没去.
 后来玩杀人还是比较爽的,把安安单挑死了,哇咔咔..
 今天还顺便把成绩的事情给解决了,终于可以拿到毕业证了,为了这毕业证哥累死累活了啊.哎...
@@ -3348,10 +3355,10 @@ Give the user ssh access
  </entry>
  
  <entry>
-   <title>今天刚整好主题,明天弄个域名吧.</title>
-   <link href="http://baotiao.github.io//2011/06/e4bb8ae5a4a9e5889ae695b4e5a5bde4b8bbe9a298e6988ee5a4a9e5bc84e4b8aae59f9fe5908de590a7/"/>
+   <title></title>
+   <link href="http://baotiao.github.io//2011/06/first-post/"/>
    <updated>2011-06-14T15:57:30+08:00</updated>
-   <id>http://baotiao.github.io//2011/06/e4bb8ae5a4a9e5889ae695b4e5a5bde4b8bbe9a298e6988ee5a4a9e5bc84e4b8aae59f9fe5908de590a7</id>
+   <id>http://baotiao.github.io//2011/06/first-post</id>
    <content type="html">&lt;p&gt;今天照毕业照,不过昨晚刚通宵完.&lt;/p&gt;
 </content>
  </entry>
