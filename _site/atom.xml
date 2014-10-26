@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2014-10-25T20:03:06+08:00</updated>
+ <updated>2014-10-26T19:59:19+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -19,11 +19,13 @@
    <id>http://baotiao.github.io//2014/10/introduce-mario</id>
    <content type="html">&lt;p&gt;Introduce the mario pipe library.&lt;/p&gt;
 
-&lt;p&gt;github address: https://github.com/baotiao/Mario.git&lt;/p&gt;
+&lt;p&gt;github address: &lt;a href=&quot;https://github.com/baotiao/Mario.git&quot;&gt;mario&lt;/a&gt;&lt;/p&gt;
 
 &lt;iframe src=&quot;//www.slideshare.net/slideshow/embed_code/40708255&quot; width=&quot;476&quot;
 height=&quot;400&quot; frameborder=&quot;0&quot; marginwidth=&quot;0&quot; marginheight=&quot;0&quot;
 scrolling=&quot;no&quot;&gt;&lt;/iframe&gt;
+
+
 
 </content>
  </entry>

@@ -8,8 +8,11 @@ tags: [c++, library]
 
 Introduce the mario pipe library.
 
-github address: https://github.com/baotiao/Mario.git
-
+github address: [mario][1]
 <iframe src="//www.slideshare.net/slideshow/embed_code/40708255" width="476"
 height="400" frameborder="0" marginwidth="0" marginheight="0"
 scrolling="no"></iframe>
+
+
+[1]: https://github.com/baotiao/Mario.git
+
