@@ -5,15 +5,15 @@ description: "Memcache stats"
 category: tech
 tags: [memcache]
 ---
-
 美团网memcached的使用情况,线上有3个memcached服务器,默认的内存空间是256M.
-stats
+
+** stats **
+
     cmd_get累计的get命令数量 33408439710, cmd_set累计的set命令数量是 4037110852
     get_hits 和 get_misses 分别是 32901704378 和 506735332 我们的命中率大概是98.5%
     incr_misses 和 incr_hists 都是0 我们美团并没有用到incr这部分功能
     decr_misses 和 decr_hists 也都是0 .
     cas_misses 和 cas_hits 也都是0
-
     bytes_read 8160828819650 bytes_written 82925274065843 是这个server 读到的数据的数量和这个服务器写的数据的数量
     limit_maxbytes 268435456 = 256M 这个服务器开的内存的大小
     threads 4 当前线程数
@@ -83,3 +83,4 @@ stats sizes 查看所有的items的大小和个数
     STAT 31:chunk_size 82792 STAT 31:total_pages 1
 
 摘取的数据, 说明大部分的items的大小是304.(这跟我们框架将每一个对象都缓存,一个对象的大小差不多就是304)导致
+

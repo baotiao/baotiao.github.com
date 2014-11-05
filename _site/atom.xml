@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2014-10-26T19:59:19+08:00</updated>
+ <updated>2014-11-05T12:39:04+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -1597,15 +1597,6 @@ int main()
  </entry>
  
  <entry>
-   <title>vim grep插件</title>
-   <link href="http://baotiao.github.io//2012/05/vim-grepe68f92e4bbb6/"/>
-   <updated>2012-05-03T13:41:48+08:00</updated>
-   <id>http://baotiao.github.io//2012/05/vim-grepe68f92e4bbb6</id>
-   <content type="html">
-</content>
- </entry>
- 
- <entry>
    <title>vim复制插件</title>
    <link href="http://baotiao.github.io//2012/05/vim-copy-plugin/"/>
    <updated>2012-05-03T03:34:33+08:00</updated>
@@ -1622,6 +1613,15 @@ endfunction
 
 &lt;p&gt;将代码保存再.vim/plugin/copy.vim的文件即可
 ubuntu环境下 默认得安装一下xsel这个东西&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>vim grep plugin</title>
+   <link href="http://baotiao.github.io//2012/05/vim-grep/"/>
+   <updated>2012-05-03T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2012/05/vim-grep</id>
+   <content type="html">
 </content>
  </entry>
  
@@ -1893,15 +1893,16 @@ server_sockets(settings.port, tcp_transport,portnumber_file) //可以让dispatch
    <link href="http://baotiao.github.io//2012/03/memcached-meituan/"/>
    <updated>2012-03-05T00:00:00+08:00</updated>
    <id>http://baotiao.github.io//2012/03/memcached-meituan</id>
-   <content type="html">&lt;p&gt;美团网memcached的使用情况,线上有3个memcached服务器,默认的内存空间是256M.
-stats
-    cmd_get累计的get命令数量 33408439710, cmd_set累计的set命令数量是 4037110852
-    get_hits 和 get_misses 分别是 32901704378 和 506735332 我们的命中率大概是98.5%
-    incr_misses 和 incr_hists 都是0 我们美团并没有用到incr这部分功能
-    decr_misses 和 decr_hists 也都是0 .
-    cas_misses 和 cas_hits 也都是0&lt;/p&gt;
+   <content type="html">&lt;p&gt;美团网memcached的使用情况,线上有3个memcached服务器,默认的内存空间是256M.&lt;/p&gt;
 
-&lt;pre&gt;&lt;code&gt;bytes_read 8160828819650 bytes_written 82925274065843 是这个server 读到的数据的数量和这个服务器写的数据的数量
+&lt;p&gt;&lt;strong&gt; stats &lt;/strong&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;cmd_get累计的get命令数量 33408439710, cmd_set累计的set命令数量是 4037110852
+get_hits 和 get_misses 分别是 32901704378 和 506735332 我们的命中率大概是98.5%
+incr_misses 和 incr_hists 都是0 我们美团并没有用到incr这部分功能
+decr_misses 和 decr_hists 也都是0 .
+cas_misses 和 cas_hits 也都是0
+bytes_read 8160828819650 bytes_written 82925274065843 是这个server 读到的数据的数量和这个服务器写的数据的数量
 limit_maxbytes 268435456 = 256M 这个服务器开的内存的大小
 threads 4 当前线程数
 curr_items 504204  //当前使用的item的数量
