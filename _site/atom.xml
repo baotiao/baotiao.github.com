@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2014-11-05T12:39:04+08:00</updated>
+ <updated>2014-11-05T15:44:01+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -2971,20 +2971,307 @@ void dispatch_conn_new(int sfd, enum conn_states init_state, int event_flags,
  </entry>
  
  <entry>
-   <title>Libevent 学习 和 基于event的 echo server</title>
+   <title>libevent demo</title>
    <link href="http://baotiao.github.io//2012/01/libevent-demo/"/>
-   <updated>2012-01-31T22:07:08+08:00</updated>
+   <updated>2012-01-31T00:00:00+08:00</updated>
    <id>http://baotiao.github.io//2012/01/libevent-demo</id>
-   <content type="html">
+   <content type="html">&lt;p&gt;libevent 就是对select的封装.&lt;/p&gt;
+
+&lt;p&gt;select 比一般的阻塞调用厉害的地方在于,它能够阻塞在多个调用上.比如read阻塞了以后,程序只能当有新的输入以后,程序才继续运行,socket accept阻塞以后,当socket有请求,这个阻塞才会停止. 而select的叫IO多路复用,就是说调用select 以后可以同时监听这些阻塞.调用select以后,当有新的输入或者有新的socket请求程序都会停止阻塞,继续运行.&lt;/p&gt;
+
+&lt;p&gt;read/write 操作&lt;/p&gt;
+
+&lt;p&gt;libevent 编译时候加-levent&lt;/p&gt;
+
+&lt;p&gt;main 开始的时候event_init();&lt;/p&gt;
+
+&lt;p&gt;event_set(struct event &lt;em&gt;ev, int fd, short event, void (&lt;/em&gt;fn)(int, short, void &lt;em&gt;), void &lt;/em&gt;arg);&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;construct struct event for event_add and event_del, the fourth parameter is the callback function we should implement.&lt;/li&gt;
+&lt;li&gt;event type: EV_TIMEOUT,EV_SIGNAL,EV_READ,EV_WRITE&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;--&gt;The additional flag EV_PERSIST makes an event_add() persistent until event_del() has been called.
+如果没有用EV_PERSIST那么这个时间触发一次以后,这个事件就不再被注册了.所以基本都有EV_PERSIST&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;event_add(struct event *ev, struct timeval *tv)
+event_del(struct event *ev):
+add or del an event.
+
+event_dispatch():
+In order to process events, an application needs to call it.This function only returns on error, and should replace the event core of the application program.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;表示监听多个event type的时候 用| EV_READ | EV_TIMEOUT&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;/* 这个是libevent 的一个例子. 先建立一个FIFO,将其设置为非阻塞.注册这个event,
+event_set(&amp;amp;evfifo, socket, EV_READ | EV_PERSIST, fifo_read, &amp;amp;evfifo);
+意思是监听socket这个描述符的读请求,并且设置EV_PERSIST. 触发以后调用fifo_read这个函数.
+等待管道的另一端写数据.
+此时在另外一个终端执行echo &quot;heihei&quot; &amp;gt; event.fifo 这个就会输出这个heihei.
+
+#include &amp;lt;stdio.h&amp;gt;
+#include &amp;lt;unistd.h&amp;gt;
+#include &amp;lt;sys/types.h&amp;gt;
+#include &amp;lt;sys/stat.h&amp;gt;
+#include &amp;lt;stdio.h&amp;gt;
+#include &amp;lt;stdlib.h&amp;gt;
+#include &amp;lt;unistd.h&amp;gt;
+#include &amp;lt;signal.h&amp;gt;
+#include &amp;lt;event.h&amp;gt;
+#include &amp;lt;errno.h&amp;gt;
+#include &amp;lt;string.h&amp;gt;
+#include &amp;lt;fcntl.h&amp;gt;
+
+void fifo_read(int fd, short event, void *arg)
+{
+    char buf[255];
+    int len;
+    struct event *ev = arg;
+    static int count = 0;
+
+    /* Reschedule this event */
+//    event_add(ev, NULL);
+
+    fprintf(stderr, &quot;fifo_read called with fd: %d, event: %d, arg: %p\n&quot;,
+        fd, event, arg);
+    if (++count == 20) {
+        len = read(fd, buf, sizeof(buf) - 1);
+
+        if (len == -1) {
+            perror(&quot;read&quot;);
+            return;
+        } else if (len == 0) {
+            fprintf(stderr, &quot;Connection closed\n&quot;);
+            return;
+        }
+
+        buf[len] = &#39;\0&#39;;
+        fprintf(stdout, &quot;Read: %s\n&quot;, buf);
+    }
+printf(&quot;over...\n&quot;);
+}
+
+int main()
+{
+    struct event evfifo;
+    char* fifo = &quot;event.fifo&quot;;
+
+    unlink(fifo);
+    if (mkfifo(fifo, 0777) == -1) {
+        perror(&quot;mkfifo&quot;);
+        exit(1);
+    }
+
+    int socket = open(fifo, O_RDWR | O_NONBLOCK, 0);
+    if (socket == -1) {
+        perror(&quot;open&quot;);
+        exit(1);
+    }
+
+    fprintf(stderr, &quot;Write data to %s\n&quot;, fifo);
+    event_init();
+    /* Initalize one event */
+    event_set(&amp;amp;evfifo, socket, EV_READ | EV_PERSIST, fifo_read, &amp;amp;evfifo);
+    /* Add it to the active events, without a timeout */
+    event_add(&amp;amp;evfifo, NULL);
+
+    event_dispatch();
+
+    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;今天做了一堆的实验 可以得出一些结论:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;libevent 的event_base是基于线程的.也就是说一个thread只能有一个event_base.如果有多个event_base 那么后来的event_base则会跑到栈的开头,等这个event_base结束以后,这个event_base会结束,原来的event_base又会顶上来. 表现出来的就是 如果在call_accept 里面新建立一个event_base.那么 当telnet成功连接一次,新过来的telnet的连接就不会进入到call_accept这个事件里面.&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;event_base_loop 启动以后,就不能再往这个event_base添加新的事件了.添加了以后会segmentfault.&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;基于上面这种情况,所以单线程实现不了能够为多个telnet 提供call_accept的服务. 只能一个telnet-&gt;call_accept-&gt;str_echo 然后再处理一个新的telnet的请求.&lt;/p&gt;
+
+&lt;p&gt; 所以想实现这种为多个telnet 提供服务的,要做成多thread这种,然后每个thread有一个自己的event_base.然后就telnet 连接成功以后的 sfd 传给每个线程,让每个线程在自己的event_base里面监听这个sfd的输入.&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;还有就是 在memcached里面,dispatch_thread 往 work_thread 写入1个字节的数据.这个时候如果work_thread在忙,没有办法立刻处理这个事件会怎么办. libevent是这样做的. 在dispatch_thread 往 work_thread notify_receive_fd 写入事件后, 如果work_thread 正在忙,那么这个事件会保存在改线程的内存空间里面,一旦该线程没有阻塞.那么又会立刻执行这个事件.&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;TCP断开连接的过程中client会保持一段时间在TIME_WAIT状态. 因为最后的阶段是srv往cli发一个fin,然后cli返回一个ack给srv. 然后会保持一段时间的TIME_WAIT状态,这个时候如果cli又在这个端口建立新连接会出错.得等会.&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;pre&gt;&lt;code&gt;    #include &amp;lt;stdio.h&amp;gt;
+    #include &amp;lt;stdlib.h&amp;gt;
+    #include &amp;lt;fcntl.h&amp;gt;
+    #include &amp;lt;event.h&amp;gt;
+    #include &amp;lt;unistd.h&amp;gt;
+    #include &amp;lt;netinet/in.h&amp;gt;
+    #include &amp;lt;sys/socket.h&amp;gt;
+    #include &amp;lt;string.h&amp;gt;
+    #include &amp;lt;fcntl.h&amp;gt;
+
+    typedef struct sockaddr * SA;
+    struct event_base *main_base;
+
+    void str_echo(int fd, short event, void *arg)
+    {
+        char buf[100];
+        int n;
+
+        n = read(fd, buf, 100);
+            fputs(&quot;a socket has come\n&quot;, stdout);
+            write(fd, buf, n);
+        if (n &amp;lt; 0) {
+            return ;
+        }
+        return ;
+    }
+    void call_accept(int fd, short event, void *arg)
+    {
+        sleep(10);
+        printf(&quot;come in a new accept\n&quot;);
+        struct sockaddr_in cliaddr;
+        socklen_t clilen;
+        int connfd;
+        connfd = accept(fd, (struct sockaddr *) &amp;amp;cliaddr, &amp;amp;clilen);
+        printf(&quot;accept from cliaddr\n&quot;);
+        char buf[100];
+    //    read(fd, buf, 100);
+        //str_echo(connfd);
+    //    printf(&quot;%d\n&quot;, (void *)base);
+    //    struct event read_ev;
+    //    //fcntl(connfd, F_SETFL, O_NONBLOCK);
+    //    event_set(&amp;amp;read_ev, connfd, EV_READ, str_echo, &amp;amp;read_ev);
+    //    //event_base_set(main_base, &amp;amp;read_ev);
+    //    event_add(&amp;amp;read_ev, NULL);
+
+    //    event_base_loop(base, 0);
+    }
+    int main()
+    {
+        int listenfd, connfd;
+        struct sockaddr_in cliaddr, servaddr;
+        socklen_t clilen;
+
+        listenfd = socket(AF_INET, SOCK_STREAM, 0);
+        memset(&amp;amp;servaddr, 0, sizeof(servaddr));
+        servaddr.sin_family = AF_INET;
+        servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+        servaddr.sin_port = htons(9877);
+        bind(listenfd, (struct sockaddr *) &amp;amp;servaddr, sizeof(servaddr));
+        listen(listenfd, 10);
+
+        struct event ev;
+        main_base = event_init();
+        event_set(&amp;amp;ev, listenfd, EV_READ | EV_PERSIST, call_accept, &amp;amp;ev);
+        //event_base_set(main_base, &amp;amp;ev);
+        event_add(&amp;amp;ev, NULL);
+        printf(&quot;block before accept\n&quot;);
+        event_base_loop(main_base, 0);    
+        printf(&quot;after event_dispatch\n&quot;);
+        return 0;
+    }
+&lt;/code&gt;&lt;/pre&gt;
 </content>
  </entry>
  
  <entry>
-   <title>网络编程 echo server  client</title>
+   <title>network programming echo example</title>
    <link href="http://baotiao.github.io//2012/01/echo-server-client/"/>
-   <updated>2012-01-08T23:17:44+08:00</updated>
+   <updated>2012-01-08T00:00:00+08:00</updated>
    <id>http://baotiao.github.io//2012/01/echo-server-client</id>
-   <content type="html">
+   <content type="html">&lt;p&gt;socket 描述符就跟 file 描述符一样.&lt;/p&gt;
+
+&lt;p&gt;1个字节有8位.也就是1个字节可以表示0~255(2&lt;sup&gt;8&lt;/sup&gt;). 所以short是2个字节,表示的就是0~(2&lt;sup&gt;16&lt;/sup&gt;). 因为int 是4字节,所以int表示的就是0~(2&lt;sup&gt;32&lt;/sup&gt;)
+short s = 0x0100 0x是标志是16进制,所以00是第一个字节,01是第二个字节.所以这里表示的值是256
+所有的套接字地址结构一般都要包含3个字段 sa_family_t sin_family, struct in_addr sin_addr, in_port_t sin_port. 也就是套接字的address family 地址协议,套接字监听的地址,监听的端口号.&lt;/p&gt;
+
+&lt;p&gt;所有客户和服务器都从调用socket开始,它返回一个套接字描述符号.客户随后调用connect,服务器则调用bind,listen和accept.大多数TCP服务器是并发的,所以为每个待处理的客户连接建立一个fork出一个子进程来处理.&lt;/p&gt;
+
+&lt;p&gt;socket 指定期望的通信协议类型(使用ipv4的tcp,使用ipv6的udp等)
+int socket(int family, int type, int protocol)
+其中family参数执行协议组,就是上面讲的address family地址协议,type参数指明套接字的类型.protocol参数为某个协议类型常值.
+函数在成功时返回一个小的非负整数值,它与文件描述符类似,我们把它称为套接字描述符,简称sockfd.&lt;/p&gt;
+
+&lt;p&gt;在server 与 client 交互过程会产生3个sockfd,client 产生一个fd.然后connect server的addr.
+在server端先是产生一个fd,bind()绑定自己的ip地址和端口号. 然后接下来listen.然后accept 阻塞等待client接过来一个请求.等到client正好connect这个server后就生成一个新的connected的fd, 还有就是一个client_addr.这个就是server获得到的两个东西,然后就是写数据或者收数据都是直接对这个sockfd进行的,而不是对这个地址进行的.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;// 这个是srv端程序.
+#include&amp;lt;stdio.h&amp;gt;
+#include&amp;lt;netinet/in.h&amp;gt;
+#include&amp;lt;sys/socket.h&amp;gt;
+#include&amp;lt;string.h&amp;gt;
+void str_echo(int sockfd)
+{
+    ssize_t n;
+    char buf[1000];
+again:
+    while ((n = read(sockfd, buf, 1000)) &amp;gt; 0) { //读已经建立连接的socket的数据.
+        fputs(&quot;a socket has come\n&quot;, stdout);
+        write(sockfd, buf, n+3); // 写入数据
+    }
+    if (n &amp;lt; 0)
+        exit(0);
+}
+int main()
+{
+    int listenfd, connfd;  //这两个分别是监听时候的链接,和accept建立以后的链接.
+    pid_t childpid; //子进程的id.
+    socklen_t clilen; 
+    struct sockaddr_in cliaddr, servaddr; // 基于ipv4的套接字地址结构
+    listenfd = socket(AF_INET, SOCK_STREAM,0); //返回一个socket描述符
+    memset(&amp;amp;servaddr, 0, sizeof(servaddr));// 把这个servaddr地址初始化
+    servaddr.sin_family = AF_INET; // 设置 adress family
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY); // 设置套接字监听的地址为通配地址
+    servaddr.sin_port = htons(9877); // 设置监听的端口号  
+    bind(listenfd, (struct sockaddr *) &amp;amp;servaddr, sizeof(servaddr));
+     //将这个listenfd socket 描述符绑定到servaddr这个地址
+    listen(listenfd, 10); //listenfd 这个socket端口开始监听
+    for(; ; ) { // 一个死循环来server
+        clilen = sizeof(cliaddr);
+        connfd = accept(listenfd, (struct sockaddr *) &amp;amp;cliaddr, &amp;amp;clilen);
+        // 这里阻塞accept 等待 cli 连接. cli 连接成功会一个新的connfd,这个connfd就是通向客户端的socket描述符,往这个描述符写东西就可以送到客户端.
+        if ((childpid = fork() == 0)) {
+            close(listenfd);
+            str_echo(connfd);
+            exit(0);
+        }
+        fputs(&quot;i am parent\n&quot;, stdout);
+        close(connfd);
+    }
+    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;这个是cli端程序&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;//cli 端的程序要做的事情也和srv端一样,不过初始化好地址以后,调用connect.试图与srv端连接.链接成功则将一个文件描述符指向srv端,就可以srv端写入或者读出数据了.
+#include&amp;lt;stdio.h&amp;gt;
+#include&amp;lt;netinet/in.h&amp;gt;
+#include&amp;lt;unistd.h&amp;gt;
+#include&amp;lt;sys/socket.h&amp;gt;
+#include&amp;lt;string.h&amp;gt;
+void str_cli(FILE *fp, int sockfd)
+{
+    char sendline[1000], recvline[1000];
+    while(fgets(sendline, 1000, fp) != NULL) {
+        write(sockfd, sendline, strlen(sendline));
+        if (read(sockfd, recvline, 100) == 0)
+            printf(&quot;server terminated\n&quot;);
+        fputs(recvline, stdout);
+    }
+}
+int main(int argc, char *argv[])
+{
+    int sockfd;
+    struct sockaddr_in servaddr;
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    memset(&amp;amp;servaddr, 0, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(9877);
+    inet_pton(AF_INET, argv[1], &amp;amp;servaddr.sin_addr);
+    connect(sockfd, (struct sockaddr *) &amp;amp;servaddr, sizeof(servaddr));
+    str_cli(stdin, sockfd);
+    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
 </content>
  </entry>
  
