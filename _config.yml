@@ -2,5 +2,5 @@ markdown: rdiscount
 permalink: /:year/:month/:title/
 url: http://baotiao.github.io
 author: 陈宗志
-highlighter: true
+highlighter: pygments
 production_url : http://baotiao.github.io/

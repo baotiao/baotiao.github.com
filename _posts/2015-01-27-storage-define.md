@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "storage type"
+title: "Storage type"
 description: "storage type"
 category: tech
 tags: [nosql, storage]
