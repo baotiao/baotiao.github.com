@@ -5,6 +5,7 @@ pagetitle: paper
 comments: yes
 ---
 
+### Readed
 - [SEDA][1]
 
     一个分阶段事件驱动的框架的论文. 核心思想是把一个网络请求分成多个阶段, 每一个阶段称为Stage.  
@@ -15,5 +16,10 @@ comments: yes
 
 - [Paxos Make Simple][2]
 
+### Want
+
+- [RAID][3]
+
 [1]: http://www.eecs.harvard.edu/~mdw/papers/seda-sosp01.pdf
 [2]: http://research.microsoft.com/en-us/um/people/lamport/pubs/paxos-simple.pdf
+[3]: https://web.eecs.umich.edu/~pmchen/papers/chen94_1.pdf
