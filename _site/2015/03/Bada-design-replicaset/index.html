@@ -3,7 +3,7 @@
   <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <meta name="author" content="陈宗志" />
-	<title>Storage type | 陈宗志</title>
+	<title>Bada系列- 副本策略 | 陈宗志</title>
     <link rel="shortcut icon" href="/favicon.ico">
     <link href="http://baotiao.github.io/feed/" rel="alternate" title="陈宗志" type="application/atom+xml" />
     <link rel="stylesheet" href="/media/css/style.css">
@@ -15,7 +15,7 @@
     <div id="container">
       <div id="main" role="main">
         <header>
-        <h1>Storage type</h1>
+        <h1>Bada系列- 副本策略</h1>
         </header>
 
         <nav>
@@ -30,41 +30,67 @@
 
 
         <section class="post">
-<h2>常见的存储类型</h2>
+<h2>Bada系列 - 副本策略</h2>
 
-<p>我的观点是, 这些存储类型的分类其实是人工的分类, 不存在一个绝对正确的分类.
-分类只是为了有一个系统的认识
-这里主要以aws上面提供的服务来进行分类</p>
+<p>Bada 是360开发的一套Nosql系统, 具备多机房架构, 低延迟, 结构化等特点.</p>
 
-<h3>kv</h3>
+<p>今天我们聊聊Bada的多副本策略</p>
 
-<p>Example: dynamo, simpleDB, DynamoDB, Bada</p>
+<h3>我们知道常见的分布式系统的多副本策略主要分成两类</h3>
 
-<h3>object storage</h3>
+<ol>
+<li><p>以cassandra, dynamo 为主的, 没有主从结构的设计, 读写的时候满足W + R > N, 因此写入的时候写入2个副本成功才能返回. 读的时候需要读副本然后返回最新的. 这里的最新可以是时间戳或者逻辑时间</p></li>
+<li><p>以MongoDB, Bada为主的, 有主从结构的设计, 那么读写的时候, 客户端访问的都是主副本, 通过binlog/oplog 来将数据同步给从副本</p></li>
+</ol>
 
-<p>Example: amazon s3, amazon glacier</p>
 
-<p>object storage 与 kv的区别是, kv是数据库, 而object storage 面向的则是存储, 所以在amazon的观点看来, object storage 存的是冷数据, 访问以对象形式, 常见的比如云盘存音频, 图片等等信息, amazon glacier 更是可以用来存归档很久的历史信息. 而且存储更是要存储海量的数据, 因此一般都是用普通的saas盘来存储</p>
+<p>两种设计都只能满足最终一致性. 那么我们再从<a href="http://baotiao.github.io/2014/01/cap-theorem/">CAP</a>理论上看, 那么都是在哪些维度做了权衡</p>
 
-<p>kv常见的用途就是用来提供线上的快速的存储服务, 以提供高性能的服务为目的, 所以一般配合SSD盘来使用, 比较适合存储小value的数据, 因为比较节省资源</p>
+<ul>
+<li><p>从性能上来看</p>
 
-<p>当然两者也有同样的地方, 比如多副本保证数据的可靠性, 不过这里在我看来kv比较适合用多副本, 而object storage比较适合用erasure code方法</p>
+<p>  有主从的设计很明显性能会由于无主从的, 因为有主从的设计只需要访问一个副本就可以返回, 而无主从的至少两个副本返回才可以.</p></li>
+<li><p>从一致性来看</p>
 
-<p>object storage 可能包含一些历史版本的数据, 因为作为storage 可能必须提供回滚等方案, 因此需要保留历史版本信息</p>
+<p>  有主从的设计如果挂掉一个节点, 如果这个节点是主, 那么就会造成由于数据同步的不及时, 这段时间写入的数据丢失. 如果挂掉的是从节点, 那么则对数据没有任何的影响. 只要这个节点在接下来的时间内能够起来即可.</p>
 
-<h3>block storage</h3>
+<p>  无主从的设计如果挂掉一个节点, 理论上对结果是无影响的, 因为返回的时候会比较最新的结果.</p>
 
-<p>Example: amazon EBS</p>
+<p>  有主从的结构由于写入都在一个节点, 因此不存在冲突. 而无主从的结构由于写入的是任意的两个副本, 会存在对同一个key的修改在不同的副本, 导致客户端读取的时候是两个不一致的版本, 这个时候就需要去解决冲突, 常见的方案就涉及到vector clock, 时间戳等等.</p>
 
-<p>Block storage is a type of data storage typically used in storage-area network (SAN) environments where data is stored in volumes, also referred to as blocks.<br/>
-Each block acts as an individual hard drive and is configured by the storage administrator. These blocks are controlled by the server-based operating system, and are generally accessed by Fibre Channel (FC), Fibre Channel over Ethernet (FCoE) or iSCSI protocols.<br/>
-Because the volumes are treated as individual hard disks, block storage works well for storing a variety of applications such as file systems and databases. While block storage devices tend to be more complex and expensive than file storage, they also tend to be more flexible and provide better performance.</p>
+<p>  不过, 总体来看无主从的设计一致性应该优于有主从的设计.</p></li>
+<li><p>从分区容错来看</p>
 
-<p><strong>block level storage devices are accessible as volumes and accessed directly by the operating system, they can perform well for a variety of use cases.</strong></p>
+<p>  两边都必须有一半以上的节点存活才能够对外提供服务, 因为有主从的设计中必须获得超过一半节点的投票才能成为主节点. 而无主从的结构, 常见在W = 2, R = 2的情况下, 必须2个副本以上才能对外提供服务</p></li>
+<li><p>从可靠性来看</p>
 
-<p>block storage 是把所有的原生的硬盘连接在一起, 然后有一个server提供对所有硬盘的访问, 访问的协议是ECoe, iSCSI等. 然后每一个硬盘的部分或者多个硬盘可以组成一个block, 这个block就可以安装任何的文件系统, NFS, VMFS.<br/>
-其实可以看成block storage 时间裸磁盘进行分隔, 然后一块磁盘上可以使用多种格式, 比如nfs,smb 等等.<br/>
-对应的file storage, 就是一块磁盘上面本身就设定了一个格式, 然后再在上面进行应用.</p>
+<p>  有主从的设计因为只访问一个副本, 性能优于无主从的设计. 而且无主从的设计中, 因为对单条数据必须有两次读取, 因此对系统的访问压力也会比无主从的来的多.</p>
+
+<p>  当然有主从的设计容易造成主落在同一个机器上, 造成负载不均的情况, 但是这里只要将主平均到所有的机器, 就可以解决这个问题.</p>
+
+<p>  但是有主从的设计在切换主从的时候, 必然有一段时间无法对外提供服务, 而无主从的设计则不存在这样的问题</p>
+
+<p>  总体来说, 笔者认为从可靠性的角度来说, 有主从的设计应该比无主从来的可靠.</p></li>
+</ul>
+
+
+<h3>那Bada最后采取的是怎样的副本策略呢?</h3>
+
+<p>Bada采用的是有主从的设计, 主要考虑如下几个情况</p>
+
+<ol>
+<li>Bada主要的应用场景对性能的要求比较高, 大部分的请求需要在1ms左右的时间返回, 因此有主从的设计, 性能更满足需求</li>
+<li>线上服务的可靠性是我们另外一个考虑的因素</li>
+</ol>
+
+
+<p>那么数据的一致性如何解决?</p>
+
+<p>有主从的设计最大的问题在于挂掉一个主副本, 就会造成数据的丢失. 因为后续从副本起来后, 之前主副本的未同步的数据就丢失了. MongoDB 就存在这样的问题. Bada在早期版本也是这样.</p>
+
+<p>这里笔者一直觉得设计就是在做折衷, 比如这里就是一个一致性和性能,可靠性的一个折衷. 在牺牲少量可靠性和性能的情况下, 尽可能的提高数据的一致性.</p>
+
+<p>因此后续我们又做了改进, 比如Binlog Merge等来提高数据的一致性, 只要机器挂了以后能够重启, 那么我们就可以将由于同步不及时的数据找回. 后续可以介绍Bada Binlog/Binlog Merge的实现</p>
 
 </section>
 <section class="meta">
@@ -73,7 +99,7 @@ Because the volumes are treated as individual hard disks, block storage works we
 </span>
 <span class="time">
   /
-  <time datetime="2015-01-27">2015-01-27</time>
+  <time datetime="2015-03-10">2015-03-10</time>
 </span>
 <br />
 <span class="license">
@@ -93,7 +119,9 @@ Because the volumes are treated as individual hard disks, block storage works we
   
   <a href="http://baotiao.github.io/tags/#nosql" title="nosql">nosql</a>&nbsp;
   
-  <a href="http://baotiao.github.io/tags/#storage" title="storage">storage</a>&nbsp;
+  <a href="http://baotiao.github.io/tags/#bada" title="bada">bada</a>&nbsp;
+  
+  <a href="http://baotiao.github.io/tags/#design" title="design">design</a>&nbsp;
   
 </span>
 
@@ -105,7 +133,7 @@ Because the volumes are treated as individual hard disks, block storage works we
 <script type="text/javascript">
         /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
         var disqus_shortname = 'baotiao'; // required: replace example with your forum shortname
-		var disqus_rul = 'http://baotiao.github.io/2015/01/storage-define/';
+		var disqus_rul = 'http://baotiao.github.io/2015/03/Bada-design-replicaset/';
 
         /* * * DON'T EDIT BELOW THIS LINE * * */
         (function() {
@@ -123,13 +151,11 @@ $(function(){
     var url = false;
         if (e.which == 37 || e.which == 74) {  // Left arrow and J
             
-        url = 'http://baotiao.github.io/2015/01/aerospike-note/';
+        url = 'http://baotiao.github.io/2015/01/storage-define/';
         
         }
         else if (e.which == 39 || e.which == 75) {  // Right arrow and K
             
-        url = 'http://baotiao.github.io/2015/03/Bada-design-replicaset/';
-        
         }
         if (url) {
             window.location = url;

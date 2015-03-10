@@ -4,13 +4,82 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2015-02-27T18:42:49+08:00</updated>
+ <updated>2015-03-10T18:30:03+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
    <email></email>
  </author>
 
+ 
+ <entry>
+   <title>Bada系列- 副本策略</title>
+   <link href="http://baotiao.github.io//2015/03/Bada-design-replicaset/"/>
+   <updated>2015-03-10T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2015/03/Bada-design-replicaset</id>
+   <content type="html">&lt;h2&gt;Bada系列 - 副本策略&lt;/h2&gt;
+
+&lt;p&gt;Bada 是360开发的一套Nosql系统, 具备多机房架构, 低延迟, 结构化等特点.&lt;/p&gt;
+
+&lt;p&gt;今天我们聊聊Bada的多副本策略&lt;/p&gt;
+
+&lt;h3&gt;我们知道常见的分布式系统的多副本策略主要分成两类&lt;/h3&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;以cassandra, dynamo 为主的, 没有主从结构的设计, 读写的时候满足W + R &gt; N, 因此写入的时候写入2个副本成功才能返回. 读的时候需要读副本然后返回最新的. 这里的最新可以是时间戳或者逻辑时间&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;以MongoDB, Bada为主的, 有主从结构的设计, 那么读写的时候, 客户端访问的都是主副本, 通过binlog/oplog 来将数据同步给从副本&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;两种设计都只能满足最终一致性. 那么我们再从&lt;a href=&quot;http://baotiao.github.io/2014/01/cap-theorem/&quot;&gt;CAP&lt;/a&gt;理论上看, 那么都是在哪些维度做了权衡&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;从性能上来看&lt;/p&gt;
+
+&lt;p&gt;  有主从的设计很明显性能会由于无主从的, 因为有主从的设计只需要访问一个副本就可以返回, 而无主从的至少两个副本返回才可以.&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;从一致性来看&lt;/p&gt;
+
+&lt;p&gt;  有主从的设计如果挂掉一个节点, 如果这个节点是主, 那么就会造成由于数据同步的不及时, 这段时间写入的数据丢失. 如果挂掉的是从节点, 那么则对数据没有任何的影响. 只要这个节点在接下来的时间内能够起来即可.&lt;/p&gt;
+
+&lt;p&gt;  无主从的设计如果挂掉一个节点, 理论上对结果是无影响的, 因为返回的时候会比较最新的结果.&lt;/p&gt;
+
+&lt;p&gt;  有主从的结构由于写入都在一个节点, 因此不存在冲突. 而无主从的结构由于写入的是任意的两个副本, 会存在对同一个key的修改在不同的副本, 导致客户端读取的时候是两个不一致的版本, 这个时候就需要去解决冲突, 常见的方案就涉及到vector clock, 时间戳等等.&lt;/p&gt;
+
+&lt;p&gt;  不过, 总体来看无主从的设计一致性应该优于有主从的设计.&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;从分区容错来看&lt;/p&gt;
+
+&lt;p&gt;  两边都必须有一半以上的节点存活才能够对外提供服务, 因为有主从的设计中必须获得超过一半节点的投票才能成为主节点. 而无主从的结构, 常见在W = 2, R = 2的情况下, 必须2个副本以上才能对外提供服务&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;从可靠性来看&lt;/p&gt;
+
+&lt;p&gt;  有主从的设计因为只访问一个副本, 性能优于无主从的设计. 而且无主从的设计中, 因为对单条数据必须有两次读取, 因此对系统的访问压力也会比无主从的来的多.&lt;/p&gt;
+
+&lt;p&gt;  当然有主从的设计容易造成主落在同一个机器上, 造成负载不均的情况, 但是这里只要将主平均到所有的机器, 就可以解决这个问题.&lt;/p&gt;
+
+&lt;p&gt;  但是有主从的设计在切换主从的时候, 必然有一段时间无法对外提供服务, 而无主从的设计则不存在这样的问题&lt;/p&gt;
+
+&lt;p&gt;  总体来说, 笔者认为从可靠性的角度来说, 有主从的设计应该比无主从来的可靠.&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;h3&gt;那Bada最后采取的是怎样的副本策略呢?&lt;/h3&gt;
+
+&lt;p&gt;Bada采用的是有主从的设计, 主要考虑如下几个情况&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Bada主要的应用场景对性能的要求比较高, 大部分的请求需要在1ms左右的时间返回, 因此有主从的设计, 性能更满足需求&lt;/li&gt;
+&lt;li&gt;线上服务的可靠性是我们另外一个考虑的因素&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;那么数据的一致性如何解决?&lt;/p&gt;
+
+&lt;p&gt;有主从的设计最大的问题在于挂掉一个主副本, 就会造成数据的丢失. 因为后续从副本起来后, 之前主副本的未同步的数据就丢失了. MongoDB 就存在这样的问题. Bada在早期版本也是这样.&lt;/p&gt;
+
+&lt;p&gt;这里笔者一直觉得设计就是在做折衷, 比如这里就是一个一致性和性能,可靠性的一个折衷. 在牺牲少量可靠性和性能的情况下, 尽可能的提高数据的一致性.&lt;/p&gt;
+
+&lt;p&gt;因此后续我们又做了改进, 比如Binlog Merge等来提高数据的一致性, 只要机器挂了以后能够重启, 那么我们就可以将由于同步不及时的数据找回. 后续可以介绍Bada Binlog/Binlog Merge的实现&lt;/p&gt;
+</content>
+ </entry>
  
  <entry>
    <title>Storage type</title>
