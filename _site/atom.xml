@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2015-05-14T20:06:18+08:00</updated>
+ <updated>2015-05-14T20:08:05+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -17,9 +17,7 @@
    <link href="http://baotiao.github.io//2015/05/Mesos-Synchronized/"/>
    <updated>2015-05-14T00:00:00+08:00</updated>
    <id>http://baotiao.github.io//2015/05/Mesos-Synchronized</id>
-   <content type="html">&lt;h3&gt;Mesos libprocess Synchronized Implement&lt;/h3&gt;
-
-&lt;p&gt;最近由于项目的需要, 在看Mesos 的代码&lt;/p&gt;
+   <content type="html">&lt;p&gt;最近由于项目的需要, 在看Mesos 的代码&lt;/p&gt;
 
 &lt;p&gt;觉得libprocess 里面实现的Synchronized 实现的挺有意思就摘取出来了&lt;/p&gt;
 

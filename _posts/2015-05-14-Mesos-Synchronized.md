@@ -6,8 +6,6 @@ category: tech
 tags: [mesos, c++]
 ---
 
-### Mesos libprocess Synchronized Implement
-
 最近由于项目的需要, 在看Mesos 的代码
 
 觉得libprocess 里面实现的Synchronized 实现的挺有意思就摘取出来了
