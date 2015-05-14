@@ -30,6 +30,7 @@ slabclass 的数据结构
     } slabclass_t;
 
 slabs 模型. (网上找的,我觉得表示最好的一张图,结合图看下面的函数分析)
+![slabs](./pic/memcache-slabs.gif)
 [![](http://chenzongzhi.info/wp-content/uploads/2012/02/slabs.jpeg)](http://chenzongzhi.info/wp-content/uploads/2012/02/slabs.jpeg)﻿
 
 几个重要变量

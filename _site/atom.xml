@@ -4,13 +4,191 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2015-03-10T18:34:52+08:00</updated>
+ <updated>2015-05-14T20:06:18+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
    <email></email>
  </author>
 
+ 
+ <entry>
+   <title>Mesos libprocess Synchronized Implement</title>
+   <link href="http://baotiao.github.io//2015/05/Mesos-Synchronized/"/>
+   <updated>2015-05-14T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2015/05/Mesos-Synchronized</id>
+   <content type="html">&lt;h3&gt;Mesos libprocess Synchronized Implement&lt;/h3&gt;
+
+&lt;p&gt;最近由于项目的需要, 在看Mesos 的代码&lt;/p&gt;
+
+&lt;p&gt;觉得libprocess 里面实现的Synchronized 实现的挺有意思就摘取出来了&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;&quot;&gt;#include &amp;lt;pthread.h&amp;gt;
+#include &amp;lt;iostream&amp;gt;
+
+class Synchronizable
+{
+public:
+    Synchronizable()
+        : initialized(false) {}
+
+    explicit Synchronizable(int _type)
+        : type(_type), initialized(false)
+    {
+        initialize();
+    }
+
+    Synchronizable(const Synchronizable &amp;amp;that)
+    {
+        type = that.type;
+        initialize();
+    }
+
+    Synchronizable &amp;amp; operator = (const Synchronizable &amp;amp;that)
+    {
+        type = that.type;
+        initialize();
+        return *this;
+    }
+
+    void acquire()
+    {
+        if (!initialized) {
+        }
+        pthread_mutex_lock(&amp;amp;mutex);
+    }
+
+    void release()
+    {
+        if (!initialized) {
+        }
+        pthread_mutex_unlock(&amp;amp;mutex);
+    }
+
+private:
+    void initialize()
+    {
+        if (!initialized) {
+            pthread_mutexattr_t attr;
+            pthread_mutexattr_init(&amp;amp;attr);
+            pthread_mutexattr_settype(&amp;amp;attr, type);
+            pthread_mutex_init(&amp;amp;mutex, &amp;amp;attr);
+            pthread_mutexattr_destroy(&amp;amp;attr);
+            initialized = true;
+        } else {
+        }
+    }
+
+    int type;
+    bool initialized;
+    pthread_mutex_t mutex;
+};
+
+
+class Synchronized
+{
+public:
+    explicit Synchronized(Synchronizable *_synchronizable)
+        : synchronizable(_synchronizable)
+    {
+        synchronizable-&amp;gt;acquire();
+    }
+
+    ~Synchronized()
+    {
+        synchronizable-&amp;gt;release();
+    }
+
+    operator bool () { return true; }
+
+private:
+    Synchronizable *synchronizable;
+};
+
+
+#define synchronized(s)                                                 \
+    if (Synchronized __synchronized ## s = Synchronized(&amp;amp;__synchronizable_ ## s))
+
+#define synchronizable(s)                       \
+    Synchronizable __synchronizable_ ## s
+
+#define synchronizer(s)                         \
+    (__synchronizable_ ## s)
+
+
+#define SYNCHRONIZED_INITIALIZER                \
+    Synchronizable(PTHREAD_MUTEX_NORMAL)
+
+#define SYNCHRONIZED_INITIALIZER_DEBUG          \
+    Synchronizable(PTHREAD_MUTEX_ERRORCHECK)
+
+#define SYNCHRONIZED_INITIALIZER_RECURSIVE      \
+    Synchronizable(PTHREAD_MUTEX_RECURSIVE)
+
+
+/*
+ * 这里是libprocess 里面锁的实现, 能够保证的力度是一个函数的力度.
+ * 只要在这一个函数里面声明了不一样的synchronizable(prefixes), 那么就可以保证在
+ * 执行 synchronized (prefixes) 的时候是只有一个线程能够执行到的
+ * 可以 gcc -E % 可以看出这里宏到底做了什么
+ *
+ * string generate(const string&amp;amp; prefix)
+ * {
+ *     static map&amp;lt;string, int&amp;gt;* prefixes = new map&amp;lt;string, int&amp;gt;();
+ *     static Synchronizable __synchronizable_prefixes = Synchronizable(0);
+ * 
+ *     int id;
+ *     这里Synchronized(&amp;amp;__synchronizable_prefixes) 构造函数里面就对这个变量 
+ *     pthread_mutex_lock(&amp;amp;mutex);
+ *     那么如果有多个线程执行到这里, 其实只有一个线程能够执行的.
+ *     那么这里为什么要赋值呢?
+ *     因为这里这个变量没有copy assign 构造函数, 那么默认的就是全拷贝.
+ *     那么这里这个变量的__synchronizedprefixes 的作用域就是 if()之间的内容
+ *     而Synchronized 这个类型默认的析构函数就是释放这个锁,
+ *     因此可以做到进入这个if 内容以后, 就把这个锁给释放了
+ *     
+ *     if (Synchronized __synchronizedprefixes = Synchronized(&amp;amp;__synchronizable_prefixes)) {
+ *         int&amp;amp; _id = (*prefixes)[prefix];
+ *         _id += 1;
+ *         id = _id;
+ *     }
+ *     printf(&quot;%d\n&quot;, id);
+ *     return prefix + &quot;(&quot; + &quot;)&quot;;
+ * }
+ *
+ * 之前有文章介绍leveldb 锁的实现也很好看. 这里与leveldb 对比一下主要区别在于
+ * leveldb 需要在类的内部定义mutex的变量. 不能想用的时候就用
+ * mesos 这里可以想保证锁的时候就可以保证, 但是因为这个声明的变量是 static,
+ * 存在于全局的.data段里面, 因此生命周期是整个进程的生命周期
+ */
+
+using namespace std;
+#include &amp;lt;map&amp;gt;
+#include &amp;lt;string&amp;gt;
+string generate(const string&amp;amp; prefix)
+{
+    static map&amp;lt;string, int&amp;gt;* prefixes = new map&amp;lt;string, int&amp;gt;();
+    static synchronizable(prefixes) = SYNCHRONIZED_INITIALIZER;
+
+    int id;
+    synchronized (prefixes) {
+        int&amp;amp; _id = (*prefixes)[prefix];
+        _id += 1;
+        id = _id;
+    }
+    printf(&quot;%d\n&quot;, id);
+    return prefix + &quot;(&quot; + &quot;)&quot;;
+}
+
+
+int main()
+{
+    printf(&quot;%s\n&quot;, generate(&quot;heihei&quot;).c_str());
+    return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;
+</content>
+ </entry>
  
  <entry>
    <title>Bada系列- 副本策略</title>
@@ -2369,6 +2547,7 @@ slabclass 的数据结构&lt;/p&gt;
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;p&gt;slabs 模型. (网上找的,我觉得表示最好的一张图,结合图看下面的函数分析)
+&lt;img src=&quot;./pic/memcache-slabs.gif&quot; alt=&quot;slabs&quot; /&gt;
 &lt;a href=&quot;http://chenzongzhi.info/wp-content/uploads/2012/02/slabs.jpeg&quot;&gt;&lt;img src=&quot;http://chenzongzhi.info/wp-content/uploads/2012/02/slabs.jpeg&quot; alt=&quot;&quot; /&gt;&lt;/a&gt;﻿&lt;/p&gt;
 
 &lt;p&gt;几个重要变量&lt;/p&gt;
