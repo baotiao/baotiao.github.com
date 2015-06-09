@@ -4,13 +4,135 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2015-05-22T12:16:33+08:00</updated>
+ <updated>2015-06-09T17:54:38+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
    <email></email>
  </author>
 
+ 
+ <entry>
+   <title>Summarize of mesos paper</title>
+   <link href="http://baotiao.github.io//2015/06/mesos-paper/"/>
+   <updated>2015-06-09T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2015/06/mesos-paper</id>
+   <content type="html">&lt;p&gt;以下是看mesos paper 总结的一些东西.&lt;/p&gt;
+
+&lt;p&gt;目前Mesos 已经支持Docker的调度, 不过从代码上面来看属于增加的额外的一种Container,
+官方是系统对Docker的支持与原有的自带的MesosContainer有区别,
+比如官方自带的Container的隔离和限制都是自己做的, 而DockerContainer
+是在Docker启动的时候在命令行里面指定的, 也由于这样, 目前Mesos
+支持的所有的限制必须是Docker本身支持才行.&lt;/p&gt;
+
+&lt;p&gt;后续会加入和Borg 的对比, 以及我对资源调度领域的一些理解.&lt;/p&gt;
+
+&lt;h3&gt;Mesos Paper&lt;/h3&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;Overview 资源调度过程&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;slave 主动汇报资源给 master, framework 向master 申请资源&lt;/li&gt;
+&lt;li&gt;master 返回资源给 framework, 这里面会描述这些资源的构成, 比如内存有多少, cpu 有多少, 以及这些机器是不是都是一个机器上面的等等&lt;/li&gt;
+&lt;li&gt;然后framework&#39;s scheduler 告诉给master 具体它要的这些资源怎么分, 每个任务占多少的cpu, 内存. 总共几个任务等等&lt;/li&gt;
+&lt;li&gt;master 将framework 告诉给自己的任务, 分配在对应的slave机器上,然后用framework&#39;s executor执行起来&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Mesos 允许各个framework 设置filter,  比如说某些任务只在某些机器上面执行等等&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Resource Allocation&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Mesos 提供两种资源分配的算法, 第一种是max-min fairness 调度算法, 另一种是严格的资源限制&lt;/li&gt;
+&lt;li&gt;Mesos 提供两种删除资源的方法, 比如这个framework长时间的占用资源, 这个时候怎么办, 比如想MapReduce 这样的任务, 那么就直接杀死, 因为对MapReduce这种架构而言, 单个任务的影响是不大的. 但是对MPI这种任务就不行, 因为MPI里面任务都不独立.  所以对于想MPI这种任务, allocation module提供了guaranteed allocation 的保证. 现在Mesos的做法比较简单, 如果一个framework在它保证的资源一下, 都不杀死, 如果超过了 全部杀死&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Isolation&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;主要由isolation moduler 模块提供, 这个也是一个插件是模块, 就是LXC下面的那一套. 不过现在基本都被Docker取代了吧&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Making Resource offers scale and robust&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;因为framework 会拒绝某些资源, 比如来自某些机器上的资源不要等等, 为了让这个拒绝的更快, 以免影响资源的等待等等问题, 所以支持框架一些简单的资源判断来达到快速拒绝的目的, 比如框架可以配置只要那些机器上的资源, 或者资源必须来自某一个机架等等&lt;/li&gt;
+&lt;li&gt;Mesos本身会计算自己有多少资源, 所以能够并行的提供资源, 也能够快速决定是否满足framework的需求&lt;/li&gt;
+&lt;li&gt;如果一个framework 在一定的时间没有返回, 那么Mesos 会取消这个资源, 然后分配给其他framework&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Fault Tolerance&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;Mesos 实现了主的状态叫soft state, 也就是一个新的主能够根据slave的信息, framework scheduler信息, 完全恢复这个信息, 可以不用担心宕机, 其实mesos master 里面主要包含active slaves, active frameworks, running tasks. 所以一般mesos 的master 把所有的节点信息放在zk上, 通过zk来选主, 但是里面的信息是通过与slave, framework 来恢复的&lt;/li&gt;
+&lt;li&gt;如果是其他节点的错误或者executor crash, 那么Mesos master 会返回各种错误信息给framework scheduler, 然后让framework scheduler来处理这个信息&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;如果是framework 挂了, 那么mesos 的建议是注册多个framework 在这个mesos上, 如果一个framework 挂了, 那么其他framework 来执行这个任务, marathon 就是这种做法, 把主信息放在zk里面&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Mesos Behavior&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;Placement Preferences&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;每一个framework 都有自己希望运行任务在哪些节点上, 由于Two Level 调度不可能了解到其他Framework 的 Preference, 所以与中心和调度相比, 不能很好的分配&lt;/li&gt;
+&lt;li&gt;虽然这样, 但是因为我们可以多次随机的分配任务给这个framework, 如果不满足. 那么重新在分配其他的资源给这个framework, 因为最后还是能满足不同framework 的 preferences. 只是可能需要多次的重试&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Homogeneous tasks 相同任务的框架&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;从对比可以看出, 支持任务弹性, 并且每一个任务运行时间都相同的框架, 任务的启动时间, 任务完成的时间, 资源的使用率都比较高. 相反, 需要一定资源才能运行, 并且需要的运行任务时间是指数级变化的框架 各项指标都比较低&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Heterogeneous tasks 各种不同任务的框架&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;因为存在有些任务运行时间长, 有些任务运行时间短, 因此会存在长的任务把短任务全部占用的情况&lt;/li&gt;
+&lt;li&gt;为了减少这样的影响, Mesos 提供了一些策略, 比如当向框架提供资源的时候, 限制这些资源的使用时间, 如果超过这个使用时间, 就把上面的任务给杀掉. 当然, 肯定是部分机器上的资源是这样, 如果都是这样的话, 那么长任务就跑不完了&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Framework Incentives&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;Mesos 毕竟是一个无中心化的调度系统, 肯定这个系统对某些framework 支持的比较好&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;运行时间短的任务, 因为运行时间短的任务在任务失败, 或者丢失任务的时候影响比较小&lt;/li&gt;
+&lt;li&gt;支持弹性扩容的任务, 就是任务不需要全部的资源达到了才能运行起来, 因为这样的任务在资源还没有满足的情况下就能够运行起来, 不需要等待资源到位, 而且资源利用率也会比较高&lt;/li&gt;
+&lt;li&gt;不接受不认识的资源, 这样就不会造成资源浪费, 因为Mesos 是会统计哪些资源被占用, 来统计是否有资源, 如果framework 占用了没有使用的资源, 肯定就兰妃 &lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;满足了以上这些支持的framework, Mesos 会支持的更好, 资源的利用率肯定也会更高, 现在很多的开源框架基本满足这些需求, 比如Hadoop, Dryad. &lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Two Level 调度的局限性 &lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;碎片化&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;由于不同framework需要的资源不一样, 这种Two level 调度, 不能把多种类型打包起来, 分配资源不够合理&lt;/li&gt;
+&lt;li&gt;因为在运行各种不同类型的framework的时候, 容易把所有的资源碎片化, 导致有一些framework需要大任务运行不起来. 如果是中心化调度的话, 因为他知道所有的需要调度的请求, 因为不存在这个问题&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;互相依赖的framework 限制&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;有些framework 需要互相配合才能运行的好, 由于Two Level 调度各自的scheduler 都在各自里面, 因此很难很好的配合. 不过这种情况很少见&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;framework 的复杂性&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;中心化调度的话, framework 想中心申请资源就可以了. 而这种Two Level 调度需要Master offer resource 给framework, 然后framework来判断是否使用, 或者接受哪一个offer&lt;/li&gt;
+&lt;li&gt;还有就是有些framework 不能预知这个任务的时间, 还有就是framework 必须处理任务失败等情况&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+
+</content>
+ </entry>
  
  <entry>
    <title>Libprocess source intorduce</title>
@@ -2620,280 +2742,6 @@ STAT 31:chunk_size 82792 STAT 31:total_pages 1
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;p&gt;摘取的数据, 说明大部分的items的大小是304.(这跟我们框架将每一个对象都缓存,一个对象的大小差不多就是304)导致&lt;/p&gt;
-</content>
- </entry>
- 
- <entry>
-   <title>Memcache 内存分配</title>
-   <link href="http://baotiao.github.io//2012/02/memcache-slabs%20(baotiao%20(3)'s%20conflicted%20copy%202015-05-17)/"/>
-   <updated>2012-02-18T00:00:00+08:00</updated>
-   <id>http://baotiao.github.io//2012/02/memcache-slabs (baotiao (3)'s conflicted copy 2015-05-17)</id>
-   <content type="html">&lt;p&gt;内存分配主要在slab.c里面实现.
-slabclass 的数据结构&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;typedef struct {
-    unsigned int size;      /* sizes of items */  每一个chunk的大小
-    unsigned int perslab;   /* how many items per slab */ 每一个slab包含的chunk的数目
-
-    void **slots;           /* list of item ptrs */ 是当前slab class的空闲的chunk块指针数组    
-    unsigned int sl_total;  /* size of previous array */ 已分配的slots数据的大小
-    unsigned int sl_curr;   /* first free slot */ 当前可用的slots数组的索引
-
-    void *end_page_ptr;         /* pointer to next free item at end of page, or 0 */ //这个指针指向最新的那个page可用的chunk处
-    unsigned int end_page_free; /* number of items remaining at end of last alloced page */ //这个是新的那个page里面可用的chunk的个数,如果*end_page_prt != NUll 并且 end_page_free == 0 说明最后一个page也被填满数据了.
-
-    unsigned int slabs;     /* how many slabs were allocated for this class */ //这个是当前已使用的slab_list的数量
-
-    void **slab_list;       /* array of slab pointers */ //这个是所有的page的list, 每新添加一个page.
-    unsigned int list_size; /* size of prev array */ //slab_list指针数组已分配的大小
-
-    unsigned int killing;  /* index+1 of dying slab, or zero if none */
-    size_t requested; /* The number of requested bytes */
-} slabclass_t;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;slabs 模型. (网上找的,我觉得表示最好的一张图,结合图看下面的函数分析)
-&lt;a href=&quot;http://chenzongzhi.info/wp-content/uploads/2012/02/slabs.jpeg&quot;&gt;&lt;img src=&quot;http://chenzongzhi.info/wp-content/uploads/2012/02/slabs.jpeg&quot; alt=&quot;&quot; /&gt;&lt;/a&gt;﻿&lt;/p&gt;
-
-&lt;p&gt;几个重要变量&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;static slabclass_t slabclass[MAX_NUMBER_OF_SLAB_CLASSES];
-static size_t mem_limit = 0; //内存限制的大小
-static size_t mem_malloced = 0;
-static int power_largest;
-
-static void *mem_base = NULL; //分配的整块大内存的位置
-static void *mem_current = NULL; //目前可用的内存的位置
-static size_t mem_avail = 0; //剩余可用的内存的大小
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;函数介绍:&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;/*
-     就是根据传进来的size.找到第一个slab class的size比他大的slab class.返回slab class的id.
-*/
-unsigned int slabs_clsid(const size_t size) {
-    int res = POWER_SMALLEST;
-
-    if (size == 0)
-        return 0;
-    while (size &amp;gt; slabclass[res].size)
-        if (res++ == power_largest)     /* won&#39;t fit in the biggest slab */
-            return 0;
-    return res;
-}
-
-/*
-     slabs初始化函数,初始化了生成一个链表slabclass.
-     slabclass 就是size大小不同的,然后size * perslab = 1M的一个链表,然后在这个链表里面每添加一个slab,这个slab也叫page.也就是不断往这个链表后面添加page.然后每个page里面的有perslab 数的chunk,然后真正的数据是叫item,item存在正好比item大一点的chunk上.
-     以后每次添加新的page,都是先找到相应大小的那个类型的slab,然后插入在slabclass这个链表的slab_list的后面
-*/
-
-void slabs_init(const size_t limit, const double factor, const bool prealloc) {
-    int i = POWER_SMALLEST - 1;
-    unsigned int size = sizeof(item) + settings.chunk_size; //初始化最小的slabclass里面的size
-    mem_limit = limit;
-
-    if (prealloc) { //选择了prealloc就是预先分配一个大内存 然后初始化mem_base,mem_current,mem_avail.
-        /* Allocate everything in a big chunk with malloc */
-        mem_base = malloc(mem_limit); //分配mem_limit大小的内存
-        if (mem_base != NULL) {
-            mem_current = mem_base;
-            mem_avail = mem_limit;
-        } else {
-            fprintf(stderr, &quot;Warning: Failed to allocate requested memory in&quot;
-                    &quot; one large chunk.\nWill allocate in smaller chunks\n&quot;);
-        }
-    }
-
-    memset(slabclass, 0, sizeof(slabclass));
-
-    /*
-        这里是初始化slabclass链表的过程,根据最小的size.然后size*factor 逐渐加上去
-        直到size = 1M 为止
-    */
-    while (++i &amp;lt; POWER_LARGEST &amp;amp;&amp;amp; size &amp;lt;= settings.item_size_max / factor) {
-
-    省略..
-             if (pre_alloc == NULL || atoi(pre_alloc) != 0) {
-            slabs_preallocate(power_largest);
-          //这个函数是给没一个slabclass都预先分配一个slabs,也就是1M的大小.
-          //所以每一个slabclass都会有一个1M大小的空间.不过这样有存在内存浪费,因为有可能有些
-          //slabs不会被用到
-        }
-}
-
-/*
-     预先为所有的slabclass分配空间
-*/
-static void slabs_preallocate (const unsigned int maxslabs) {
-    int i;
-    unsigned int prealloc = 0;
-
-    /* pre-allocate a 1MB slab in every size class so people don&#39;t get
-       confused by non-intuitive &quot;SERVER_ERROR out of memory&quot;
-       messages.  this is the most common question on the mailing
-       list.  if you really don&#39;t want this, you can rebuild without
-       these three lines.  */
-
-    for (i = POWER_SMALLEST; i &amp;lt;= POWER_LARGEST; i++) {
-        if (++prealloc &amp;gt; maxslabs)
-            return;
-        do_slabs_newslab(i);
-    }
-}
-
-/*
-    调整slabclass的slab_list指针数组,如果为空,这默认分配16个,如果存在,那么*2的增加slab_list数组*/
-static int grow_slab_list (const unsigned int id) {
-    slabclass_t *p = &amp;amp;slabclass;[id];
-    if (p-&amp;gt;slabs == p-&amp;gt;list_size) {  //当slabclass里面的slabs(当前已使用的slab_list的数量)和list_size(已分配的slab_list的数量)相等时,
-                                    //表示这个slab_list的已经用完了,需要生成新的slab_list
-        size_t new_size =  (p-&amp;gt;list_size != 0) ? p-&amp;gt;list_size * 2 : 16; //如果list_size是空,自&amp;gt;动生成16个,否则就是*2的增长
-        void *new_list = realloc(p-&amp;gt;slab_list, new_size * sizeof(void *)); //把这个list realloc到新的空间去
-        if (new_list == 0) return 0;
-        p-&amp;gt;list_size = new_size;
-        p-&amp;gt;slab_list = new_list;
-    }
-    return 1;
-}
-
-/*
-    为某一个slabclass分配一个新的slab.真正执行分配一个slab的是memory_allocate函数
-    其实memori_alocate函数做的就是从mem_current找到len大小的空间,并返回mem_current的地址
-*/
-static int do_slabs_newslab(const unsigned int id) {
-    slabclass_t *p = &amp;amp;slabclass;[id];
-    int len = p-&amp;gt;size * p-&amp;gt;perslab;
-    char *ptr;
-
-    /*
-        这里判断slab_list这个指针数据大小够不够,不够分配新的空间.
-        memory_allocate分配新的大小的空间
-    */
-    if ((mem_limit &amp;amp;&amp;amp; mem_malloced + len &amp;gt; mem_limit &amp;amp;&amp;amp; p-&amp;gt;slabs &amp;gt; 0) ||
-        (grow_slab_list(id) == 0) ||
-        ((ptr = memory_allocate((size_t)len)) == 0)) { //在这里声明大小为 1M的page.
-
-        MEMCACHED_SLABS_SLABCLASS_ALLOCATE_FAILED(id);
-        return 0;
-    }     
-
-    memset(ptr, 0, (size_t)len);
-    p-&amp;gt;end_page_ptr = ptr; //将end_page_ptr 也就是表示最新的可用的chunk的指针指向ptr
-    p-&amp;gt;end_page_free = p-&amp;gt;perslab; //end_page_free 因为这里是一个全新的page 所以 end_page_free = p-&amp;gt;perslabs
-    p-&amp;gt;slab_list[p-&amp;gt;slabs++] = ptr; //将ptr 加入道p-&amp;gt;slab_list里面去,并且 page 的个数++
-    mem_malloced += len;
-    MEMCACHED_SLABS_SLABCLASS_ALLOCATE(id);
-
-    return 1;
-}
-
-/*
-    这个是进行给slab分配内存的函数,会判断是否有足够的空间,已经然后将目前的mem_current返回,然后&amp;gt;调整mem_current的值
-*/
-static void *memory_allocate(size_t size) {
-    void *ret;
-
-    if (mem_base == NULL) {
-        /* We are not using a preallocated large memory chunk */
-        ret = malloc(size);
-    } else {
-        ret = mem_current;
-
-        if (size &amp;gt; mem_avail) {
-            return NULL;
-        }
-
-        /* mem_current pointer _must_ be aligned!!! */
-        if (size % CHUNK_ALIGN_BYTES) {
-            size += CHUNK_ALIGN_BYTES - (size % CHUNK_ALIGN_BYTES);
-        }
-
-        mem_current = ((char*)mem_current) + size;
-
-        if (size &amp;lt; mem_avail) {
-            mem_avail -= size;
-        } else {
-            mem_avail = 0;
-        }
-    }
-
-    return ret;
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;到此处理slabs已经初始化结束了.memcached还提供了一个空闲item链表,叫slots.就是当一个slabs里面的item已经过期了,那么这个chunk不是退回给内存池,而是放入到这个空闲链表里面去,同样当申请一个新元素的时候也是先判断这个slots数组是否有空间,没有空间再去slabs里面去获得.&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;static void *do_slabs_alloc(const size_t size, unsigned int id) {
-     ..省略..
-/*
-        这里判断end_page_ptr是否指向可用的chunk, 当前slabclass的slots的空闲chunk个数
-        以及是否可以新分配一块slab
-        如果可以获得空间的话,先从slabclass的slots里面获得,然后才是从slab里面的end_page_ptr处去&amp;gt;获得
-    */
-    if (! (p-&amp;gt;end_page_ptr != 0 || p-&amp;gt;sl_curr != 0 ||
-           do_slabs_newslab(id) != 0)) {
-        /* We don&#39;t have more memory available */
-        ret = NULL;
-    } else if (p-&amp;gt;sl_curr != 0) {
-        /* return off our freelist */
-        ret = p-&amp;gt;slots[--p-&amp;gt;sl_curr];
-    } else {
-        /* if we recently allocated a whole page, return from that */
-        assert(p-&amp;gt;end_page_ptr != NULL);
-        ret = p-&amp;gt;end_page_ptr;
-        if (--p-&amp;gt;end_page_free != 0) {
-            p-&amp;gt;end_page_ptr = ((caddr_t)p-&amp;gt;end_page_ptr) + p-&amp;gt;size;
-        } else {
-            p-&amp;gt;end_page_ptr = 0;
-        }
-    }
-
-    if (ret) {
-        p-&amp;gt;requested += size;
-        MEMCACHED_SLABS_ALLOCATE(size, id, p-&amp;gt;size, ret);
-    } else {
-        MEMCACHED_SLABS_ALLOCATE_FAILED(size, id);
-    }
-
-    return ret;
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;这个函数主要是将slab里面的chunk设置成free. 设置free不是把他归还给内存池
-而是把这个item放入到这个slabclass的slots中&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;static void do_slabs_free(void *ptr, const size_t size, unsigned int id) {
-    slabclass_t *p;
-
-    assert(((item *)ptr)-&amp;gt;slabs_clsid == 0);
-    assert(id &amp;gt;= POWER_SMALLEST &amp;amp;&amp;amp; id &amp;lt;= power_largest);
-    if (id &amp;lt; POWER_SMALLEST || id &amp;gt; power_largest)
-        return;
-
-    MEMCACHED_SLABS_FREE(size, id, ptr);
-    p = &amp;amp;slabclass;[id];
-
-    /*
-        刚开始看这里的时候不明白,为什么slots数组需要malloc空间,
-        因为slots是指针数组,这里malloc分配的内存空间是给这个指针数组的.
-        然后这个数组每一个都指向在slab里面被free的chunk.
-    */
-    if (p-&amp;gt;sl_curr == p-&amp;gt;sl_total) { /* need more space on the free list */
-        int new_size = (p-&amp;gt;sl_total != 0) ? p-&amp;gt;sl_total * 2 : 16;  /* 16 is arbitrary */
-        void **new_slots = realloc(p-&amp;gt;slots, new_size * sizeof(void *));
-        //这里是给slots数组malloc了这么多数量的void指针.
-        if (new_slots == 0)
-            return;
-        p-&amp;gt;slots = new_slots;
-        p-&amp;gt;sl_total = new_size;
-    }
-    p-&amp;gt;slots[p-&amp;gt;sl_curr++] = ptr; //这里把sl_curr指向了这个ptr,这个ptr就是一个slab里面的一个空&amp;gt;闲的chunk处.所以这里空闲数组又获得了一个空间,这里sl_curr可用的slots数+1.
-    p-&amp;gt;requested -= size;
-    return;
-}
-&lt;/code&gt;&lt;/pre&gt;
 </content>
  </entry>
  
