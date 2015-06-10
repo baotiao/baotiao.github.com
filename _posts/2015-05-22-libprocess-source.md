@@ -9,6 +9,13 @@ tags: [mesos, libprocess, c++]
 最近由于项目的需要, 在看Mesos 的代码,
 把Mesos底下的进程管理库libprocess大概过了一遍
 
+* libprocess 主要包含
+    * process and PID 跟erlang 类似, PID可以用来唯一追踪这个process, 然后每一个process其实是一个线程里面的任务
+    * local message via dispatch, delay, defer
+    * functional composition via promise/futures
+    * remote messaging via send, route and install
+
+
 * libprocess 这个库的基础是include/process/event.hpp 这个文件. 这个里面定义了两个基类
 
     * Event
@@ -64,5 +71,33 @@ tags: [mesos, libprocess, c++]
     * 至此这个最重要的initialize 就启动了, 也就是任意第一次建立这个进程的时候, 都会去执行这个初始化的操作
     * 从initialize 里面可以看出启动的时候就会默认去启动线程, 然后线程数至少是8个, 可以猜出来, 以后运行的线程应该在这几个初始化出来的线程上面执行
     * 每个线程启动以后, 执行的函数就是schedule 函数, 那么接下来就是任务过来由这个schedule 来执行这个函数
+
+* include/process/future.hpp 主要定义了future这个类
+    * 其中有定义了一个叫 promise 这个类, 这个类其实就是一个has-a的关系, 就是这个类只包含一个future这个对象, 所以是一个has-a的关系,  然后对future 这个类进行了操作包装
+    * 在future这个类里面, 主要的几个 onReady, onFailed, onDiscarded, onAny 这几个函数都在某一个state的时候调用, 比如 
+
+        ```
+          future
+            .onReady(std::tr1::bind(&Future<T>::set, f, std::tr1::placeholders::_1))
+            .onFailed(std::tr1::bind(&Future<T>::fail, f, std::tr1::placeholders::_1))
+            .onDiscarded(std::tr1::bind(&Future<T>::discard, f));
+        ```
+
+    * 就是说在Ready 这个state的时候, 这行Future<T>::set 这个函数. 这里因为onReady, onFailed等等状态都是返回的*this指针, 所以就是相当于注册了个各种判断的返回
+
+    * 在注册这个执行方法的时候, 如果不是这个状态的话, 那么就把这个执行方法放入到这个执行队列里面去, 比如onFailedCallbacks 等到了相应状态再去执行
+    * 如何做到调用这个Callbacks 队列里面的方法呢?
+        * onAnyCallbacks->front()(*this);
+        * std::queue<AnyCallback>* onAnyCallbacks; 是一个队列, 而里面的元素 就是一个个的AnyCallback, 而AnyCallback 其实是一个function
+        
+        * typedef std::tr1::function<void(const Future<T>&)> AnyCallback;
+
+* dispatch 实现
+    * 在dispatch 低下都会执行到internal::dispatch, 主要做的就是生成一个DispatchEvent, 然后由process_manager 进行deliver(pid, event, __process__); 这样就把对应的事情发送给对应的进程去处理了
+
+* defer 实现
+    * defers a dispatch to current process, 就是向这个process本身发送任务的一个方法, 比如 defer(self(), &Self::_launch, containerId)
+    
+
 
 
