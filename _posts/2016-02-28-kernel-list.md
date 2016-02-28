@@ -82,7 +82,7 @@ struct my_cool_list{
 
 这里可以看到相比较于我们自己实现的list, kernel list 的优点有
 
-1. 直接把这个list_head 结构体放在一个struct 内部, 就可以让这个struct 实现一个list 结构, 不需要知道这个struct 的类型, 实现的非常的通用
+1. 直接把这个list_head 结构体放在一个struct 内部, 就可以让这个struct 实现一个list 结构, 不需要知道这个struct 的类型, 实现的非常的通用, 这里也可以在这个 把这个list 连接的不是这个my_cool_list 类型, 连接其他类型也是完全可以
 2. 可以放多个list_head 结构, 这样这个结构体就可以连成多个list, 虽然原生的方法也可以, 不过这样看上去非常的简洁
 
 
