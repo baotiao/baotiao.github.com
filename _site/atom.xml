@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2016-02-28T18:10:51+08:00</updated>
+ <updated>2016-02-28T18:22:47+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -200,6 +200,135 @@ int main(int argc, char **argv){
   return 0;
 }
 &lt;/code&gt;&lt;/pre&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>kernel file poll operations</title>
+   <link href="http://baotiao.github.io//2016/02/kernel-file-poll-operations/"/>
+   <updated>2016-02-28T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2016/02/kernel-file-poll-operations</id>
+   <content type="html">&lt;h4&gt;在file_operations 里面, poll 这个操作到底是什么意思&lt;/h4&gt;
+
+&lt;p&gt;在ulk 里面poll 操作的解释是&lt;/p&gt;
+
+&lt;p&gt;Checks whether there is activity on a file and goes to sleep until something happens on it.&lt;/p&gt;
+
+&lt;p&gt;然后我看了kernel(2.6.32) 里面的实现, 其实并没有sleep的过程&lt;/p&gt;
+
+&lt;p&gt;看不同kernel 里面fd 的poll 实现可以发现其实poll 操作做的事情主要是两个&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;注册这个唤醒队列的回调函数, 也就是设置当这个fd 有事件到达的时候的执行函数&lt;/li&gt;
+&lt;li&gt;返回当前这个fd 的事件状态, 比如这里pipe 的状态就是根据 nrbufs 里面的内容的多少来返回这个当前fd的状态, tcp的判断就更加复杂一些&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;比如这个是pipe 上面的 poll 操作 pipe_poll()&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;
+/* No kernel lock held - fine */
+static unsigned int
+pipe_poll(struct file *filp, poll_table *wait)
+{
+  unsigned int mask;
+  struct inode *inode = filp-&amp;gt;f_path.dentry-&amp;gt;d_inode;
+  struct pipe_inode_info *pipe = inode-&amp;gt;i_pipe;
+  int nrbufs;
+
+  poll_wait(filp, &amp;amp;pipe-&amp;gt;wait, wait);
+
+  /* Reading only -- no need for acquiring the semaphore.  */
+  nrbufs = pipe-&amp;gt;nrbufs;
+  mask = 0;
+  if (filp-&amp;gt;f_mode &amp;amp; FMODE_READ) {
+    // 这里nrbufs &amp;gt; 0, 说明这个pipe里面是有内容的, 因此这个fd 有可读事件
+    mask = (nrbufs &amp;gt; 0) ? POLLIN | POLLRDNORM : 0;
+    if (!pipe-&amp;gt;writers &amp;amp;&amp;amp; filp-&amp;gt;f_version != pipe-&amp;gt;w_counter)
+      mask |= POLLHUP;
+  }
+
+  if (filp-&amp;gt;f_mode &amp;amp; FMODE_WRITE) {
+    // 只要nrbufs &amp;lt; PIPE_BUFFERS, 说明这个pipe 还没被写满, 那么这个fd 就是可写的
+    mask |= (nrbufs &amp;lt; PIPE_BUFFERS) ? POLLOUT | POLLWRNORM : 0;
+    /*
+     * Most Unices do not set POLLERR for FIFOs but on Linux they
+     * behave exactly like pipes for poll().
+     */
+    if (!pipe-&amp;gt;readers)
+      mask |= POLLERR;
+  }
+
+  return mask;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;对应的tcp 里面是否有时间到达的poll 函数是 tcp_poll()&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
+{
+  unsigned int mask;
+  struct sock *sk = sock-&amp;gt;sk;
+  struct tcp_sock *tp = tcp_sk(sk);
+  sock_poll_wait(file, sk-&amp;gt;sk_sleep, wait);
+  if (sk-&amp;gt;sk_state == TCP_LISTEN)
+    return inet_csk_listen_poll(sk);
+
+  /* Socket is not locked. We are protected from async events
+   * by poll logic and correct handling of state changes
+   * made by other threads is impossible in any case.
+   */
+
+  mask = 0;
+  if (sk-&amp;gt;sk_err)
+    mask = POLLERR;
+
+...
+  if (sk-&amp;gt;sk_shutdown == SHUTDOWN_MASK || sk-&amp;gt;sk_state == TCP_CLOSE)
+    mask |= POLLHUP;
+  if (sk-&amp;gt;sk_shutdown &amp;amp; RCV_SHUTDOWN)
+    mask |= POLLIN | POLLRDNORM | POLLRDHUP;
+
+  /* Connected? */
+  if ((1 &amp;lt;&amp;lt; sk-&amp;gt;sk_state) &amp;amp; ~(TCPF_SYN_SENT | TCPF_SYN_RECV)) {
+    int target = sock_rcvlowat(sk, 0, INT_MAX);
+
+    if (tp-&amp;gt;urg_seq == tp-&amp;gt;copied_seq &amp;amp;&amp;amp;
+        !sock_flag(sk, SOCK_URGINLINE) &amp;amp;&amp;amp;
+        tp-&amp;gt;urg_data)
+      target--;
+
+    /* Potential race condition. If read of tp below will
+     * escape above sk-&amp;gt;sk_state, we can be illegally awaken
+     * in SYN_* states. */
+    if (tp-&amp;gt;rcv_nxt - tp-&amp;gt;copied_seq &amp;gt;= target)
+      mask |= POLLIN | POLLRDNORM;
+
+    if (!(sk-&amp;gt;sk_shutdown &amp;amp; SEND_SHUTDOWN)) {
+      if (sk_stream_wspace(sk) &amp;gt;= sk_stream_min_wspace(sk)) {
+        mask |= POLLOUT | POLLWRNORM;
+      } else {  /* send SIGIO later */
+        set_bit(SOCK_ASYNC_NOSPACE,
+          &amp;amp;sk-&amp;gt;sk_socket-&amp;gt;flags);
+        set_bit(SOCK_NOSPACE, &amp;amp;sk-&amp;gt;sk_socket-&amp;gt;flags);
+    /* Potential race condition. If read of tp below will
+     * escape above sk-&amp;gt;sk_state, we can be illegally awaken
+     * in SYN_* states. */
+    if (tp-&amp;gt;rcv_nxt - tp-&amp;gt;copied_seq &amp;gt;= target)
+      mask |= POLLIN | POLLRDNORM;
+
+    }
+
+    if (tp-&amp;gt;urg_data &amp;amp; TCP_URG_VALID)
+      mask |= POLLPRI;
+  }
+  return mask;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;这里可以看到, tcp 的tcp_poll() 里面也是同样调用socket_poll_wait, 然后socket_poll_wait 调用poll_wait来注册当有时间发生的时候的回调函数.&lt;/p&gt;
+
+&lt;p&gt;然后这里tcp 这个是否有时间到达需要进行的判断就比pipe 要复杂的多, 比如这里需要判断socket 的是否shut_down, 需要判断tp-&gt;rcv_nxt 等等, 最后才能获得这个fd 上面的事件的内容&lt;/p&gt;
 </content>
  </entry>
  

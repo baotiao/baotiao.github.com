@@ -3,7 +3,7 @@
   <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <meta name="author" content="陈宗志" />
-	<title>Haystack object storage | 陈宗志</title>
+	<title>kernel file poll operations | 陈宗志</title>
     <link rel="shortcut icon" href="/favicon.ico">
     <link href="http://baotiao.github.io/feed/" rel="alternate" title="陈宗志" type="application/atom+xml" />
     <link rel="stylesheet" href="/media/css/style.css">
@@ -15,7 +15,7 @@
     <div id="container">
       <div id="main" role="main">
         <header>
-        <h1>Haystack object storage</h1>
+        <h1>kernel file poll operations</h1>
         </header>
 
         <nav>
@@ -30,7 +30,127 @@
 
 
         <section class="post">
+<h4>在file_operations 里面, poll 这个操作到底是什么意思</h4>
 
+<p>在ulk 里面poll 操作的解释是</p>
+
+<p>Checks whether there is activity on a file and goes to sleep until something happens on it.</p>
+
+<p>然后我看了kernel(2.6.32) 里面的实现, 其实并没有sleep的过程</p>
+
+<p>看不同kernel 里面fd 的poll 实现可以发现其实poll 操作做的事情主要是两个</p>
+
+<ol>
+<li>注册这个唤醒队列的回调函数, 也就是设置当这个fd 有事件到达的时候的执行函数</li>
+<li>返回当前这个fd 的事件状态, 比如这里pipe 的状态就是根据 nrbufs 里面的内容的多少来返回这个当前fd的状态, tcp的判断就更加复杂一些</li>
+</ol>
+
+
+<p>比如这个是pipe 上面的 poll 操作 pipe_poll()</p>
+
+<pre><code>
+/* No kernel lock held - fine */
+static unsigned int
+pipe_poll(struct file *filp, poll_table *wait)
+{
+  unsigned int mask;
+  struct inode *inode = filp-&gt;f_path.dentry-&gt;d_inode;
+  struct pipe_inode_info *pipe = inode-&gt;i_pipe;
+  int nrbufs;
+
+  poll_wait(filp, &amp;pipe-&gt;wait, wait);
+
+  /* Reading only -- no need for acquiring the semaphore.  */
+  nrbufs = pipe-&gt;nrbufs;
+  mask = 0;
+  if (filp-&gt;f_mode &amp; FMODE_READ) {
+    // 这里nrbufs &gt; 0, 说明这个pipe里面是有内容的, 因此这个fd 有可读事件
+    mask = (nrbufs &gt; 0) ? POLLIN | POLLRDNORM : 0;
+    if (!pipe-&gt;writers &amp;&amp; filp-&gt;f_version != pipe-&gt;w_counter)
+      mask |= POLLHUP;
+  }
+
+  if (filp-&gt;f_mode &amp; FMODE_WRITE) {
+    // 只要nrbufs &lt; PIPE_BUFFERS, 说明这个pipe 还没被写满, 那么这个fd 就是可写的
+    mask |= (nrbufs &lt; PIPE_BUFFERS) ? POLLOUT | POLLWRNORM : 0;
+    /*
+     * Most Unices do not set POLLERR for FIFOs but on Linux they
+     * behave exactly like pipes for poll().
+     */
+    if (!pipe-&gt;readers)
+      mask |= POLLERR;
+  }
+
+  return mask;
+}
+</code></pre>
+
+<p>对应的tcp 里面是否有时间到达的poll 函数是 tcp_poll()</p>
+
+<pre><code>unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
+{
+  unsigned int mask;
+  struct sock *sk = sock-&gt;sk;
+  struct tcp_sock *tp = tcp_sk(sk);
+  sock_poll_wait(file, sk-&gt;sk_sleep, wait);
+  if (sk-&gt;sk_state == TCP_LISTEN)
+    return inet_csk_listen_poll(sk);
+
+  /* Socket is not locked. We are protected from async events
+   * by poll logic and correct handling of state changes
+   * made by other threads is impossible in any case.
+   */
+
+  mask = 0;
+  if (sk-&gt;sk_err)
+    mask = POLLERR;
+
+...
+  if (sk-&gt;sk_shutdown == SHUTDOWN_MASK || sk-&gt;sk_state == TCP_CLOSE)
+    mask |= POLLHUP;
+  if (sk-&gt;sk_shutdown &amp; RCV_SHUTDOWN)
+    mask |= POLLIN | POLLRDNORM | POLLRDHUP;
+
+  /* Connected? */
+  if ((1 &lt;&lt; sk-&gt;sk_state) &amp; ~(TCPF_SYN_SENT | TCPF_SYN_RECV)) {
+    int target = sock_rcvlowat(sk, 0, INT_MAX);
+
+    if (tp-&gt;urg_seq == tp-&gt;copied_seq &amp;&amp;
+        !sock_flag(sk, SOCK_URGINLINE) &amp;&amp;
+        tp-&gt;urg_data)
+      target--;
+
+    /* Potential race condition. If read of tp below will
+     * escape above sk-&gt;sk_state, we can be illegally awaken
+     * in SYN_* states. */
+    if (tp-&gt;rcv_nxt - tp-&gt;copied_seq &gt;= target)
+      mask |= POLLIN | POLLRDNORM;
+
+    if (!(sk-&gt;sk_shutdown &amp; SEND_SHUTDOWN)) {
+      if (sk_stream_wspace(sk) &gt;= sk_stream_min_wspace(sk)) {
+        mask |= POLLOUT | POLLWRNORM;
+      } else {  /* send SIGIO later */
+        set_bit(SOCK_ASYNC_NOSPACE,
+          &amp;sk-&gt;sk_socket-&gt;flags);
+        set_bit(SOCK_NOSPACE, &amp;sk-&gt;sk_socket-&gt;flags);
+    /* Potential race condition. If read of tp below will
+     * escape above sk-&gt;sk_state, we can be illegally awaken
+     * in SYN_* states. */
+    if (tp-&gt;rcv_nxt - tp-&gt;copied_seq &gt;= target)
+      mask |= POLLIN | POLLRDNORM;
+
+    }
+
+    if (tp-&gt;urg_data &amp; TCP_URG_VALID)
+      mask |= POLLPRI;
+  }
+  return mask;
+}
+</code></pre>
+
+<p>这里可以看到, tcp 的tcp_poll() 里面也是同样调用socket_poll_wait, 然后socket_poll_wait 调用poll_wait来注册当有时间发生的时候的回调函数.</p>
+
+<p>然后这里tcp 这个是否有时间到达需要进行的判断就比pipe 要复杂的多, 比如这里需要判断socket 的是否shut_down, 需要判断tp->rcv_nxt 等等, 最后才能获得这个fd 上面的事件的内容</p>
 
 </section>
 <section class="meta">
@@ -39,7 +159,7 @@
 </span>
 <span class="time">
   /
-  <time datetime="2015-12-25">2015-12-25</time>
+  <time datetime="2016-02-28">2016-02-28</time>
 </span>
 <br />
 <span class="license">
@@ -49,7 +169,7 @@
 <span class="categories">
   in categories
   
-  <a href="http://baotiao.github.io/categories/#tech" title="tech">tech</a>&nbsp;
+  <a href="http://baotiao.github.io/categories/#kernel, tech" title="kernel, tech">kernel, tech</a>&nbsp;
   
 </span>
 
@@ -57,9 +177,7 @@
 <span class="tags">
   tagged with 
   
-  <a href="http://baotiao.github.io/tags/#os" title="os">os</a>&nbsp;
-  
-  <a href="http://baotiao.github.io/tags/#filesystem" title="filesystem">filesystem</a>&nbsp;
+  <a href="http://baotiao.github.io/tags/#kernel" title="kernel">kernel</a>&nbsp;
   
 </span>
 
@@ -71,7 +189,7 @@
 <script type="text/javascript">
         /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
         var disqus_shortname = 'baotiao'; // required: replace example with your forum shortname
-		var disqus_rul = 'http://baotiao.github.io/2015/12/xv6-filesystem/';
+		var disqus_rul = 'http://baotiao.github.io/2016/02/kernel-file-poll-operations/';
 
         /* * * DON'T EDIT BELOW THIS LINE * * */
         (function() {
@@ -89,12 +207,12 @@ $(function(){
     var url = false;
         if (e.which == 37 || e.which == 74) {  // Left arrow and J
             
-        url = 'http://baotiao.github.io/2015/12/facebook-haystack/';
+        url = 'http://baotiao.github.io/2015/12/xv6-filesystem/';
         
         }
         else if (e.which == 39 || e.which == 75) {  // Right arrow and K
             
-        url = 'http://baotiao.github.io/2016/02/kernel-file-poll-operations/';
+        url = 'http://baotiao.github.io/2016/02/kernel-list/';
         
         }
         if (url) {
