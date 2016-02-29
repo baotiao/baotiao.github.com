@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2016-02-28T18:49:41+08:00</updated>
+ <updated>2016-02-29T18:11:46+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -329,15 +329,6 @@ pipe_poll(struct file *filp, poll_table *wait)
 &lt;p&gt;这里可以看到, tcp 的tcp_poll() 里面也是同样调用socket_poll_wait, 然后socket_poll_wait 调用poll_wait来注册当有时间发生的时候的回调函数.&lt;/p&gt;
 
 &lt;p&gt;然后这里tcp 这个是否有时间到达需要进行的判断就比pipe 要复杂的多, 比如这里需要判断socket 的是否shut_down, 需要判断tp-&gt;rcv_nxt 等等, 最后才能获得这个fd 上面的事件的内容&lt;/p&gt;
-</content>
- </entry>
- 
- <entry>
-   <title>Haystack object storage</title>
-   <link href="http://baotiao.github.io//2015/12/xv6-filesystem/"/>
-   <updated>2015-12-25T00:00:00+08:00</updated>
-   <id>http://baotiao.github.io//2015/12/xv6-filesystem</id>
-   <content type="html">
 </content>
  </entry>
  
