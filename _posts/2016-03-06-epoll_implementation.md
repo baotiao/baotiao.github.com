@@ -169,7 +169,7 @@ struct eppoll_entry {
 
 ```
 
-#### epoll_init
+#### epoll_create 的过程
 
 ```
 /*

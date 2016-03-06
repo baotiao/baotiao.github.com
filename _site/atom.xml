@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2016-03-06T22:15:40+08:00</updated>
+ <updated>2016-03-06T22:17:44+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -173,7 +173,7 @@ struct eppoll_entry {
 };
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;h4&gt;epoll_init&lt;/h4&gt;
+&lt;h4&gt;epoll_create 的过程&lt;/h4&gt;
 
 &lt;pre&gt;&lt;code&gt;/*
  * Open an eventpoll file descriptor.
