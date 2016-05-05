@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="author" content="陈宗志" />
+	<title>谈谈paxos, multi-paxos, raft | 陈宗志</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link href="http://baotiao.github.io/feed/" rel="alternate" title="陈宗志" type="application/atom+xml" />
+    <link rel="stylesheet" href="/media/css/style.css">
+    <link rel="stylesheet" href="/media/js/code/desert.css">|
+  </head>
+
+	<div id="top"></div>
+  <body>
+    <div id="container">
+      <div id="main" role="main">
+        <header>
+        <h1>谈谈paxos, multi-paxos, raft</h1>
+        </header>
+
+        <nav>
+        <span><a title="home page" class="" href="http://baotiao.github.io/">home</a></span>
+        <span><a title="categories" class="" href="http://baotiao.github.io/categories/">categories</a></span>
+        <span><a title="links" class="" href="http://baotiao.github.io/links/">links</a></span>
+        <span><a title="paper" class="" href="http://baotiao.github.io/paper/">paper</a></span>
+        <span><a title="vitae" class="" href="http://baotiao.github.io/vitae/">vitae</a></span>
+        </nav>
+
+        <article class="content">
+
+
+        <section class="post">
+<h3>paxos, multi-paxos, raft 看点</h3>
+
+<p>本文假设你已经看过了paxos make simpe, paxos make live, 关于raft 你看过对应的paper, multi-paxos 其实我觉得介绍的最好的还是Diego Ongaro 为了对比raft 和multi-paxos 的学习的难易程度写的<a href="https://www.youtube.com/watch?v=JEpsBg0AO6o">视频</a></p>
+
+<ol>
+<li><p>关于paxos, multi-paxos 的关系</p>
+
+<p> 其实paxos 是关于对某一个问题达成一致的一个协议. paxos make simple 花大部分的时间解释的就是这个一个提案的问题, 然后在结尾的Implementing a State Machine 的章节介绍了我们大部分的应用场景是对一堆连续的问题达成一致, 所以最简单的方法就是实现每一个问题独立运行一个Paxos 的过程, 但是这样每一个问题都需要Prepare, Accept 两个阶段才能够完成. 所以我们能不能把这个过程给减少. 那么可以想到的解决方案就是把Prepare 减少, 那么就引入了leader, 引入了leader 就必然有选leader 的过程. 才有了后续的事情, 这里可以看出其实lamport 对multi-paxos 的具体实现其实是并没有细节的指定的, 只是简单提了一下. 所以才有各种不同的multi-paxos 的实现</p>
+
+<p> 那么paxos make live 这个文章里面主要讲的是如何使用multi paxos 实现chubby 的过程, 以及实现过程中需要解决的问题, 比如需要解决磁盘冲突, 如何优化读请求, 引入了Epoch number等, 可以看成是对实现multi-paxos 的一些</p></li>
+<li><p>关于 multi-paxos 和 raft 的关系</p>
+
+<p> 从上面可以看出其实我们对比的时候不应该拿paxos 和 raft 对比, 因为paxos 是对于一个问题达成一致的协议, 而raft 本身是对一堆连续的问题达成一致的协议. 所以应该比较的是multi-paxos 和raft</p>
+
+<p> 那么multi-paxos 和 raft 的关系是什么呢?</p>
+
+<p> raft 是基于对multi paxos 的两个限制形成的</p>
+
+<ul>
+<li>发送的请求的是连续的, 也就是说raft 的append 操作必须是连续的. 而paxos 可以并发的. (其实这里并发只是append log 的并发提高, 应用的state machine 还是必须是有序的)</li>
+<li>选主是有限制的, 必须有最新, 最全的日志节点才可以当选. 而multi-paxos 是随意的
+所以raft 可以看成是简化版本的multi paxos(这里multi-paxos 因为允许并发的写log, 因此不存在一个最新, 最全的日志节点, 因此只能这么做. 这样带来的麻烦就是选主以后, 需要将主里面没有的log 给补全, 并执行commit 过程)</li>
+</ul>
+
+
+<p> 基于这两个限制, 因此raft 的实现可以更简单, 因为raft 的但是multi-paxos 的并发度理论上是更高的.</p>
+
+<p> 可以对比一下multi-paxos 和 raft 可能出现的日志</p>
+
+<p> <strong>multi-paxos</strong></p>
+
+<p> <img src="http://i.imgur.com/SsIeodM.jpg" alt="" /></p>
+
+<p> <strong>raft</strong></p>
+
+<p> <img src="http://i.imgur.com/2KO9khV.jpg" alt="" /></p>
+
+<p> 可以看出, raft 里面follower 的log 一定是leader log 的子集, 而raft 不做这个保证</p></li>
+<li><p>关于paxos, multi-paxos, raft 的关系</p>
+
+<p> 所以我觉得multi-paxos, raft 都是对一堆连续的问题达成一致的协议, 而paxos 是对一个问题达成一致的协议, 因此multi-paxos, raft 其实都是为了简化paxos 在多个问题上面达成一致的需要的两个阶段, 因此都简化了prepare 阶段, 提出了通过有leader 来简化这个过程. multi-paxos, raft 只是简化不一样, raft 让用户的log 必须是有序, 选主必须是有日志最全的节点, 而multi-paxos 没有这些限制. 因此raft 的实现会更简单.</p>
+
+<p> 因此从这个角度来看, Diego Ongaro 实现raft 这个论文实现的初衷应该是达到了, 让大家更容易理解这个paxos 这个东西</p></li>
+<li><p>关于lock service 和 consensus library 的对比</p></li>
+</ol>
+
+
+<p>chubby 是根据multi-paxos 实现的一个global lock service, 为什么是lock service 而不是一个consensus service 或者 consensus library呢?</p>
+
+<ol>
+<li><p>首先是library 和 service 的对比</p>
+
+<ol>
+<li>当用户需要一个consensus 的需求的时候, 一般是随着业务的增长才需要, 那么如果是一个library 的话, 需要对用户的代码改动比较大才能够需求, 而如果是一个service 的话, 那么需要的改动量就非常的小, 仅仅是从consensus service 获得这个服务的地址等等</li>
+</ol>
+</li>
+<li><p>lock service 和 consensus library 区别</p></li>
+</ol>
+
+
+<p>比如在选主的场景下面,
+我们使用lock service 的做法就是其中的某一个process 去获得这个lock, 然后由这个获得lock 的process 进行选主操作, 这里选主主要涉及每一个process 的log.</p>
+
+<p>另一种是consensus library 的做法, 那么这个时候实现的过程就应该是任意一个process 都可以进行选举操作, 然后选举的过程通过consensus library 来进行.</p>
+
+<p>从这里可以看出 consensus library 的做法是一个业务的本质需求, 但是实现起来对consensus library 需要有深入的了解, consensus library 和上层的逻辑耦合比较高, 而使用lock service 则是一个更简单, 更清晰的做法</p>
+
+<p>最后推广一下我们实现的一个元信息管理模块 <a href="https://github.com/baotiao/floyd">floyd</a>, 是一个Library, 而不是一个service. 提供consensus library, 也提供lock library</p>
+
+</section>
+<section class="meta">
+<span class="author">
+  <a href="http://baotiao.github.io/">陈宗志</a>
+</span>
+<span class="time">
+  /
+  <time datetime="2016-05-05">2016-05-05</time>
+</span>
+<br />
+<span class="license">
+  Published under <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/3.0/">(CC) BY-NC-SA</a>
+</span>
+
+<span class="categories">
+  in categories
+  
+  <a href="http://baotiao.github.io/categories/#distribute, consensus" title="distribute, consensus">distribute, consensus</a>&nbsp;
+  
+</span>
+
+
+<span class="tags">
+  tagged with 
+  
+  <a href="http://baotiao.github.io/tags/#distribute" title="distribute">distribute</a>&nbsp;
+  
+  <a href="http://baotiao.github.io/tags/#consensus" title="consensus">consensus</a>&nbsp;
+  
+</span>
+
+</section>
+
+<div class="bshare-custom"><a title="åäº«å°æ°æµªå¾®å" class="bshare-sinaminiblog"></a><a title="åäº«å°Facebook" class="bshare-facebook"></a><a title="åäº«å°Twitter" class="bshare-twitter"></a><a title="æ´å¤å¹³å°" class="bshare-more bshare-more-icon more-style-addthis"></a></div><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/buttonLite.js#style=-1&amp;uuid=17304268-f570-4255-9088-f5132e6fd01b&amp;pophcol=1&amp;lang=zh"></script><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/bshareC0.js"></script>
+<section class="comment">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'baotiao'; // required: replace example with your forum shortname
+		var disqus_rul = 'http://baotiao.github.io/2016/05/paxos-raft/';
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+</section>
+
+<script type="text/javascript">
+$(function(){
+  $(document).keydown(function(e) {
+    if (e.target.nodeName.toUpperCase() != 'BODY') return;
+    var url = false;
+        if (e.which == 37 || e.which == 74) {  // Left arrow and J
+            
+        url = 'http://baotiao.github.io/2016/03/epoll_implementation/';
+        
+        }
+        else if (e.which == 39 || e.which == 75) {  // Right arrow and K
+            
+        }
+        if (url) {
+            window.location = url;
+        }
+  });
+})
+</script>
+
+
+
+        </article>
+
+	<div id="message"><a href="#top">Scroll to top</a></div>
+	</div>
+</div>
+
+<script type="text/javascript" src="/media/js/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="/media/js/code/prettify.js"></script>
+
+ <script type="text/javascript">
+      $(function(){
+        $("pre").addClass("prettyprint");
+        prettyPrint();
+        $('.entry a').each(function(){
+          if($(this).attr("href").indexOf("chenzongzhi") == -1){
+            $(this).attr("target", "_blank");
+          }
+        })
+      });
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-35023741-1']);
+  _gaq.push(['_trackPageview']);
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+<script type="text/javascript">
+$(function () {
+
+    /* set variables locally for increased performance */
+    var scroll_timer;
+    var displayed = false;
+    var $message = $('#message a');
+    var $window = $(window);
+    var top = $(document.body).children(0).position().top;
+
+    /* react to scroll event on window */
+    $window.scroll(function () {
+        window.clearTimeout(scroll_timer);
+        scroll_timer = window.setTimeout(function () {
+            if($window.scrollTop() <= top + 800)
+            {
+                displayed = false;
+                $message.fadeOut(1000);
+            }
+            else if(displayed == false)
+            {
+                displayed = true;
+                $message.stop(true, true).show().click(function () { $message.fadeOut(1000); });
+            }
+        }, 100);
+    });
+});
+</script>
+  </body>
+</html>
