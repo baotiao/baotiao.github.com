@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2016-05-05T16:52:04+08:00</updated>
+ <updated>2016-05-05T17:08:25+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -17,9 +17,7 @@
    <link href="http://baotiao.github.io//2016/05/paxos-raft/"/>
    <updated>2016-05-05T00:00:00+08:00</updated>
    <id>http://baotiao.github.io//2016/05/paxos-raft</id>
-   <content type="html">&lt;h3&gt;paxos, multi-paxos, raft 看点&lt;/h3&gt;
-
-&lt;p&gt;本文假设你已经看过了paxos make simpe, paxos make live, 关于raft 你看过对应的paper, multi-paxos 其实我觉得介绍的最好的还是Diego Ongaro 为了对比raft 和multi-paxos 的学习的难易程度写的&lt;a href=&quot;https://www.youtube.com/watch?v=JEpsBg0AO6o&quot;&gt;视频&lt;/a&gt;&lt;/p&gt;
+   <content type="html">&lt;p&gt;本文假设你已经看过了paxos make simpe, paxos make live, 关于raft 你看过对应的paper, multi-paxos 其实我觉得介绍的最好的还是Diego Ongaro 为了对比raft 和multi-paxos 的学习的难易程度写的&lt;a href=&quot;https://www.youtube.com/watch?v=JEpsBg0AO6o&quot;&gt;视频&lt;/a&gt;&lt;/p&gt;
 
 &lt;ol&gt;
 &lt;li&gt;&lt;p&gt;关于paxos, multi-paxos 的关系&lt;/p&gt;
