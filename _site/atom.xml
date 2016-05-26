@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2016-05-27T02:11:56+08:00</updated>
+ <updated>2016-05-27T02:16:36+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
@@ -14,9 +14,9 @@
  
  <entry>
    <title>我对存储的一些看法</title>
-   <link href="http://baotiao.github.io//2016/05/storage/"/>
+   <link href="http://baotiao.github.io//2016/05/my-opnion-of-storage/"/>
    <updated>2016-05-27T00:00:00+08:00</updated>
-   <id>http://baotiao.github.io//2016/05/storage</id>
+   <id>http://baotiao.github.io//2016/05/my-opnion-of-storage</id>
    <content type="html">&lt;p&gt;其实计算机主要分成两个部分 计算 + 存储, 存储应该是计算的基石&lt;/p&gt;
 
 &lt;p&gt;那么存储其实又主要分成两个部分 在线存储 + 离线存储&lt;/p&gt;
@@ -204,11 +204,7 @@ Node 1, zone   Normal  10678   5041   1167    705    316    158     61     22   
    <link href="http://baotiao.github.io//2016/05/pika-introduction/"/>
    <updated>2016-05-18T00:00:00+08:00</updated>
    <id>http://baotiao.github.io//2016/05/pika-introduction</id>
-   <content type="html">&lt;h2&gt;本次分享主题&lt;/h2&gt;
-
-&lt;p&gt;很高兴今天我又来分享了, 这是第二次在高可用群分享了&lt;/p&gt;
-
-&lt;p&gt;今天主要向大家介绍一下pika&lt;/p&gt;
+   <content type="html">&lt;p&gt;今天主要向大家介绍一下pika&lt;/p&gt;
 
 &lt;p&gt;pika 是360 DBA和基础架构组联合开发的类redis 存储系统, 完全支持Redis协议，用户不需要修改任何代码, 就可以将服务迁移至pika. 有维护redis 经验的DBA 维护pika 不需要学习成本&lt;/p&gt;
 

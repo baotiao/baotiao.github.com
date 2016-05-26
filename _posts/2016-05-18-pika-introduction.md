@@ -6,10 +6,6 @@ category: storage, redis
 tags: [pika, storage]
 ---
 
-## 本次分享主题
-
-很高兴今天我又来分享了, 这是第二次在高可用群分享了
-
 
 今天主要向大家介绍一下pika
 
