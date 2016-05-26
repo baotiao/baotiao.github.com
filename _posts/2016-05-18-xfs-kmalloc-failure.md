@@ -8,6 +8,8 @@ tags: [kernel, memory, xfs]
 
 记录一次线上实体机的xfs kmem_alloc 操作一直失败排查
 
+Hi all:
+
 
 ### 问题现象
 
@@ -119,7 +121,7 @@ Node 1, zone   Normal  10678   5041   1167    705    316    158     61     22   
 
 因此比较大的可能是线上虽然有少量的空闲内存, 但是这些内存非常的碎片, 因此只要有一个稍微大的的连续内存的请求都无法满足. 但是为什么不使用page cache呢?
 
-到这里. 我们可以看到整个系统的内存基本全部被使用, 有少量的空闲. 但是这里面包含了大量的page cache. 理论上page cache 里面只会包含几M的需要刷回磁盘的内容, 大量的page cache 只是为了加快读, 里面的内容应该可以随时清空掉. 所以在kmalloc申请内存的时候应该能够把page cache 里面的内容清空, 然后给kernel 留出空闲的连续的大内存空间才是. 那么为什么这次申请内存操作\_\_alloc_pages()的时候不把page cache 里面的内容清空一部分, 然后给这次\_\_alloc_pages() 预留出来空间呢?
+到这里. 我们可以看到整个系统的内存基本全部被使用, 有少量的空闲. 但是这里面包含了大量的page cache. 理论上page cache 里面只会包含几M的需要刷回磁盘的内容, 大量的page cache 只是为了加快读, 里面的内容应该可以随时清空掉. 所以在kmalloc申请内存的时候应该能够把page cache 里面的内容清空, 然后给kernel 留出空闲的连续的大内存空间才是. 那么为什么这次申请内存操作`__alloc_pages()`的时候不把page cache 里面的内容清空一部分, 然后给这次`__alloc_pages()` 预留出来空间呢?
 
 这里xfs 的申请内存操作因为是文件系统的申请内存操作, 所以一般带上GFP_NOFS 这个参数, 这个参数的意思是
 
@@ -127,13 +129,11 @@ GFP_NOFS
 
 These flags function like GFP_KERNEL, but they add restrictions on what the kernel can do to satisfy the request. A GFP_NOFS allocation is not allowed to perform any filesystem calls, while GFP_NOIO disallows the initiation of any I/O at all. They are used primarily in the filesystem and virtual memory code where an allocation may be allowed to sleep, but recursive filesystem calls would be a bad idea.
 
-也就是说如果带上这个GFP_NOFS的flag, 那么本次 \_\_alloc_pages() 是不允许有任何的filesystem calls的操作的.
-为什么要这样, 因为如果在文件系统申请内存的时候, 你又出发了一次文件系统相关的操作, 比如把page cache 里面的内容刷会到文件, 那么刷会到文件这个操作必然又会有内存申请相关的操作, 这样就进入是循环了. kernel 为了避免这样的死循环尝试, 所以在文件系统相关的内存申请就不允许有任何filesystem calls. 也就是这个原因导致kernel 本身kmalloc 一直失败
+也就是说如果带上这个GFP_NOFS的flag, 那么本次 `__alloc_pages()` 是不允许有任何的filesystem calls的操作的, 那么如果物理内存不够了, 也就是不能触发这个page_reclaim 的操作. 具体的实现是在page reclaim 的 do_try_to_free_pages 里面shrink_page_list 的时候会判断这次的scan_control 里面有没有这个 __GFP_FS flag, 如果是没有GFP_FS flag, 就不会就行这个page_reclaim
+
+为什么要这样, 因为如果在文件系统申请内存的时候, 你又触发了一次文件系统相关的操作, 比如把page cache 里面的内容刷会到文件, 那么刷会到文件这个操作必然又会有内存申请相关的操作, 这样就进入是循环了. kernel 为了避免这样的死循环尝试, 所以在文件系统相关的内存申请就不允许有任何filesystem calls. 也就是这个原因导致kernel 本身kmalloc 一直失败
 
 那么接下来 sync && echo 3 > /proc/sys/vm/drop_caches 操作为什么能够成功, 并且后续就不会有报错了呢?
 
 因为drop_caches 这个操作属于外部操作, 不属于文件系统本身的操作, 因此没有GFP_NOFS这个flag, 因此可以很轻松的就把page cache 里面的内容清空, 让Kernel 有足够多的连续的大内存. 线上自然就不报错了
-
-
-
 
