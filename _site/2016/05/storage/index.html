@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="author" content="陈宗志" />
+	<title>我对存储的一些看法 | 陈宗志</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link href="http://baotiao.github.io/feed/" rel="alternate" title="陈宗志" type="application/atom+xml" />
+    <link rel="stylesheet" href="/media/css/style.css">
+    <link rel="stylesheet" href="/media/js/code/desert.css">|
+  </head>
+
+	<div id="top"></div>
+  <body>
+    <div id="container">
+      <div id="main" role="main">
+        <header>
+        <h1>我对存储的一些看法</h1>
+        </header>
+
+        <nav>
+        <span><a title="home page" class="" href="http://baotiao.github.io/">home</a></span>
+        <span><a title="categories" class="" href="http://baotiao.github.io/categories/">categories</a></span>
+        <span><a title="links" class="" href="http://baotiao.github.io/links/">links</a></span>
+        <span><a title="paper" class="" href="http://baotiao.github.io/paper/">paper</a></span>
+        <span><a title="vitae" class="" href="http://baotiao.github.io/vitae/">vitae</a></span>
+        </nav>
+
+        <article class="content">
+
+
+        <section class="post">
+<p>其实计算机主要分成两个部分 计算 + 存储, 存储应该是计算的基石</p>
+
+<p>那么存储其实又主要分成两个部分 在线存储 + 离线存储</p>
+
+<p>离线存储的需求很统一, 就是离线数据分析, 产生报表等等. 也因为这统一的需求, 所以目前hdfs 为首的离线存储基本统一了离线存储这个平台. 离线存储最重要的就是吞吐, 以及资源的利用率. 对性能, 可靠性的要求其实并不多. (所以这也是为什么java系在离线存储这块基本一统的原因, java提供的大量的基础库, 包等等. 而离线存储又对性能, 可靠性没有比较高的要求, 因此java GC等问题也不明显)</p>
+
+<p>所以我们可以看到虽然现在离线的分析工具一直在变, 有hadoop, spark, storm 等等, 但是离线的存储基本都没有变化. 还是hdfs 一统这一套. 所以我认为未来离线存储这块不会有太大的变化</p>
+
+<p>在线存储</p>
+
+<p>指的是直接面向用户请求的存储类型. 由于用户请求的多样性, 因此在线存储通常需要满足各种不同场景的需求.</p>
+
+<p>比如用户系统存储是提供对象的服务, 能够直接通过HTTP接口来访问, 那么自然就诞生了对象存储这样的服务</p>
+
+<p>比如用户希望所存储的数据是关系性数据库的模型, 能够以SQL 的形式来访问, 那么其实就是mysql, 或者现在比较火热的NewSql</p>
+
+<p>比如用户只希望访问key, value的形式, 那么我们就可以用最简单的kv接口, 那么就有Nosql, bada, cassandra 等等就提供这样的服务</p>
+
+<p>当然也有多数据结构的求情, hash, list 等等就有了redis, 有POSIX文件系统接口了请求, 那么就有了CephFs. 有了希望提供跟磁盘一样的iSCSI 这样接口的快设备的需求, 就有了块存储, 就是ceph.</p>
+
+<p>从上面可以看到和离线存储对比, 在线存储的需求更加的复杂, 从接口类型, 从对访问延期的需求, 比如对于kv的接口, 我们一般希望是2ms左右, 那么对于对象存储的接口我们一般在10ms~20ms. 对于SQL, 我们的容忍度可能更高一些, 可以允许有100 ms. 处理延迟的需求, 我们还会有数据可靠性的不同, 比如一般在SQL 里面我们一般需要做到强一致. 但是在kv接口里面我们一般只需要做到最终一致性即可. 同样对于资源的利用也是不一样, 如果存储的是稍微偏冷的数据, 一定是EC编码, 然后存在大的机械盘. 对于线上比较热的数据, 延迟要求比较高. 一定是3副本, 存在SSD盘上</p>
+
+<p>从上面可以看到在线存储的需求多样性, 并且对服务的可靠性要求各种不一样, 因此我们很难看到有一个在线存储能够统一满足所有的需求. 这也是为什么现在没有一个开源的在线存储服务能够像hdfs 那样的使用率. 因此一定是在不同的场景下面有不同的存储的解决方案</p>
+
+<p>可以看到Facebook infrastructure stack 里面就包含的各种的在线存储需求</p>
+
+<p><img src="http://i.imgur.com/LpZw633.jpg" alt="Imgur" /></p>
+
+<p>比如里面包含了热的大对象存储Haystack, 一般热的大对象存储f4, 图数据库Tao. key-value 存储memcached 集群等等</p>
+
+<p>同样google 也会有不同的在线存储产品</p>
+
+<p><img src="http://i.imgur.com/aUTxFTN.jpg" alt="Imgur" /></p>
+
+<p>对应于Google 有MegaStore, Spanner 用于线上的SQL 类型的在线存储, BigTable 用于类似稀疏map 的key-value存储等等</p>
+
+<p>个人认为对于在线存储还是比较适合C++来做这一套东西, 因为比较在线存储一般对性能, 可靠性, 延迟的要求比较高.</p>
+
+<p>那么这些不同的存储一般都怎么实现呢?, 很多在线存储比如对象存储的实现一般都是基于底下的key-value进行封装来实现对象存储的接口. ceph 就是这方面这个做法的极致.</p>
+
+<p>ceph 底下的rados 本质是一个对象存储, 这里的对象存储跟s3 的对象存储还不一样, 只是提供了存储以为key 对应的value 是对象的形式.
+然后基于上层基于librados 封装了librbd 就实现了块设备的协议, 那么就是一个块存储. 基于librados 实现了Rados Gateway 提供了s3 的对象存储的协议就封装成s3对象存储. 基于librados 实现了POSIX 文件系统的接口, 就封装成了分布式文件系统Ceph FS. (不过我认为ceph 底下的rados实现的还不够纯粹, 因为rados对应的value 是类似于一个对象文件. 比如在基于librados 实现librbd的时候很多对象属性的一些方法是用不上的)
+<img src="http://i.imgur.com/grsvIND.png" alt="Imgur" /></p>
+
+<p>同样google 的F1 是基于spanner 的key-value 接口实现了SQL了接口. 就封装成了NewSql</p>
+
+<p>因此其实我们也可以这么说对于这么多接口的实现, 其实后续都会转换成基于key-value 接口实现另一种接口的形式, 因为key-value 接口足够简单, 有了稳定的key-value 存储, 只需要在上层提供不同接口转换成key-value 接口的实现即可. 当然不同的接口实现难度还是不太一样, 比如实现SQL接口, POSIX文件系统接口, 图数据库肯定要比实现一个对象存储的接口要容易很多</p>
+
+<p>未来我们应该也在朝这个方向做吧</p>
+
+</section>
+<section class="meta">
+<span class="author">
+  <a href="http://baotiao.github.io/">陈宗志</a>
+</span>
+<span class="time">
+  /
+  <time datetime="2016-05-27">2016-05-27</time>
+</span>
+<br />
+<span class="license">
+  Published under <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/3.0/">(CC) BY-NC-SA</a>
+</span>
+
+<span class="categories">
+  in categories
+  
+  <a href="http://baotiao.github.io/categories/#storage" title="storage">storage</a>&nbsp;
+  
+</span>
+
+
+<span class="tags">
+  tagged with 
+  
+  <a href="http://baotiao.github.io/tags/#storage" title="storage">storage</a>&nbsp;
+  
+  <a href="http://baotiao.github.io/tags/#opnion" title="opnion">opnion</a>&nbsp;
+  
+</span>
+
+</section>
+
+<div class="bshare-custom"><a title="åäº«å°æ°æµªå¾®å" class="bshare-sinaminiblog"></a><a title="åäº«å°Facebook" class="bshare-facebook"></a><a title="åäº«å°Twitter" class="bshare-twitter"></a><a title="æ´å¤å¹³å°" class="bshare-more bshare-more-icon more-style-addthis"></a></div><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/buttonLite.js#style=-1&amp;uuid=17304268-f570-4255-9088-f5132e6fd01b&amp;pophcol=1&amp;lang=zh"></script><script type="text/javascript" charset="utf-8" src="http://static.bshare.cn/b/bshareC0.js"></script>
+<section class="comment">
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'baotiao'; // required: replace example with your forum shortname
+		var disqus_rul = 'http://baotiao.github.io/2016/05/storage/';
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+</section>
+
+<script type="text/javascript">
+$(function(){
+  $(document).keydown(function(e) {
+    if (e.target.nodeName.toUpperCase() != 'BODY') return;
+    var url = false;
+        if (e.which == 37 || e.which == 74) {  // Left arrow and J
+            
+        url = 'http://baotiao.github.io/2016/05/xfs-kmalloc-failure/';
+        
+        }
+        else if (e.which == 39 || e.which == 75) {  // Right arrow and K
+            
+        }
+        if (url) {
+            window.location = url;
+        }
+  });
+})
+</script>
+
+
+
+        </article>
+
+	<div id="message"><a href="#top">Scroll to top</a></div>
+	</div>
+</div>
+
+<script type="text/javascript" src="/media/js/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="/media/js/code/prettify.js"></script>
+
+ <script type="text/javascript">
+      $(function(){
+        $("pre").addClass("prettyprint");
+        prettyPrint();
+        $('.entry a').each(function(){
+          if($(this).attr("href").indexOf("chenzongzhi") == -1){
+            $(this).attr("target", "_blank");
+          }
+        })
+      });
+</script>
+
+
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-35023741-1']);
+  _gaq.push(['_trackPageview']);
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
+
+
+
+<script type="text/javascript">
+$(function () {
+
+    /* set variables locally for increased performance */
+    var scroll_timer;
+    var displayed = false;
+    var $message = $('#message a');
+    var $window = $(window);
+    var top = $(document.body).children(0).position().top;
+
+    /* react to scroll event on window */
+    $window.scroll(function () {
+        window.clearTimeout(scroll_timer);
+        scroll_timer = window.setTimeout(function () {
+            if($window.scrollTop() <= top + 800)
+            {
+                displayed = false;
+                $message.fadeOut(1000);
+            }
+            else if(displayed == false)
+            {
+                displayed = true;
+                $message.stop(true, true).show().click(function () { $message.fadeOut(1000); });
+            }
+        }, 100);
+    });
+});
+</script>
+  </body>
+</html>
