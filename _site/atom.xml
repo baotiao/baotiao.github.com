@@ -4,110 +4,13 @@
  <title></title>
  <link href="http://baotiao.github.io//atom.xml" rel="self"/>
  <link href="http://baotiao.github.io/"/>
- <updated>2016-06-02T02:10:25+08:00</updated>
+ <updated>2016-06-02T02:14:37+08:00</updated>
  <id>http://baotiao.github.io/</id>
  <author>
    <name></name>
    <email></email>
  </author>
 
- 
- <entry>
-   <title>page reclaim wartermark</title>
-   <link href="http://baotiao.github.io//2016/06/page-reclaim-marker/"/>
-   <updated>2016-06-02T00:00:00+08:00</updated>
-   <id>http://baotiao.github.io//2016/06/page-reclaim-marker</id>
-   <content type="html">&lt;p&gt;首先我们知道操作系统的物理页主要被两部分使用, 一部分是实际使用的物理内存, 也叫anonymous page, 另一部分是 page cache. 同时我们还有 swap 区, 用来在内存不够的时候将 anonymous page 里面的页面置换到 swap 上.&lt;/p&gt;
-
-&lt;p&gt;那么kernel 什么时候认为内存是不够的, 需要做 page reclaim呢?&lt;/p&gt;
-
-&lt;p&gt;我们通过 cat /proc/zoneinfo 可以看到这样的信息&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;Node 1, zone   Normal
-  pages free     19387934
-        min      11289
-        low      14111
-        high     16933
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;这里这几个 min, low, high 又是什么意思?&lt;/p&gt;
-
-&lt;p&gt;首先需要了解的一个概念是The Pool of Reserved Page Frames. 意思是每一个 zone 都需要保留一些 page frame. 为什么每一个 zone 都需要保留一些 page frames 呢? 我们知道操作系统在内存不够的时候, 可以直接进行 direct page reclaim, 回收部分的page frame, 那为什么还需要保留一些 page frames 呢?&lt;/p&gt;
-
-&lt;p&gt;因为在 kernel 内部有一些操作是不允许切换的, 比如在处理一个中断的时候或者执行代码的某一临界区域. 在这个时候kernel 的内存申请操作必须是 atomic 的(这个在内存申请的 flag 里面有GFP_ATOMIC). 为了满足这个 atomic 内存申请的需求, 因此我们必须在每个 zone 保留一定数目的 page. 所以低于这个数目的 free pages frame 以后, kernel 就认为自己处于 low_memory 状态了. 我们管这个数叫 min_free_bytes. 那么这个数是怎么算的?&lt;/p&gt;
-
-&lt;p&gt;每一个 zone 的初始化的时候都需要执行&lt;/p&gt;
-
-&lt;p&gt;mm/wmark_alloc:init_per_zone_wmark_min()&lt;/p&gt;
-
-&lt;p&gt;在init_per_zone_wmark_min 里面主要初始化设置了 min_free_kbytes&lt;/p&gt;
-
-&lt;p&gt;The amount of the reserved memory (in kilobytes) is stored in the min_free_kbytes variable. Its initial value is set during kernel initialization and depends on the amount of physical memory that is directly mapped in the kernel’s fourth gigabyte of linear addresses—that is, it depends on the number of page frames included in the ZONE_DMA and ZONE_NORMAL memory zones:&lt;/p&gt;
-
-&lt;p&gt;min_free_kbytes = int_sqrt(16 × directly mapped memory)     (kilobytes)&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&quot;c&quot;&gt;// 这里 lowmem_kbytes 就是映射在操作系统的实际物理内存上面的 physical memory 的 page 数, 其实就是 ZONE_DMA + ZONE_NORMAL 的 page
-lowmem_kbytes = nr_free_buffer_pages() * (wmark_SIZE &amp;gt;&amp;gt; 10);
-min_free_kbytes = int_sqrt(lowmem_kbytes * 16);
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;However, initially min_free_kbytes cannot be lower than 128 and greater than 65,536.&lt;/p&gt;
-
-&lt;p&gt;这个min_free_kbytes 最大64M 最小128k,  所以一般 kernel 里面为 atomic 操作留的 page 数有几十 M. 这个 min_free_kbytes 是对于全部的 zone 而言,  因为希望满足 kernel 的 atomic 类型的内存申请操作肯定是对于全部的物理内存而言的&lt;/p&gt;
-
-&lt;p&gt;有了这个概念以后, 我们就知道每一个 zone 里面的 wmark_min, wmark_low, wmark_high 这些 watermark 数值是什么意思了&lt;/p&gt;
-
-&lt;p&gt;然后接下来设置wmark_min, wmark_low, wmark_high 这几个watermark 主要在setup_per_zone_wmarks() 这个函数里面&lt;/p&gt;
-
-&lt;p&gt;那么具体的计算 wmark_min, wmark_low, wmark_high 过程&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&quot;c&quot;&gt;unsigned long pages_min = min_free_kbytes &amp;gt;&amp;gt; (PAGE_SHIFT - 10);
-unsigned long lowmem_pages = 0;
-struct zone *zone;
-unsigned long flags;
-
-/* Calculate total number of !ZONE_HIGHMEM pages */
-for_each_zone(zone) {
-  if (!is_highmem(zone))
-    lowmem_pages += zone-&amp;gt;present_pages;
-}
-
-for_each_zone(zone) {
-  u64 tmp;
-
-  spin_lock_irqsave(&amp;amp;zone-&amp;gt;lock, flags);
-  tmp = (u64)pages_min * zone-&amp;gt;present_pages;
-  do_div(tmp, lowmem_pages);
-  zone-&amp;gt;watermark[WMARK_MIN] = tmp;
-  zone-&amp;gt;watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp &amp;gt;&amp;gt; 2);
-  zone-&amp;gt;watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp &amp;gt;&amp;gt; 1);
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;可以看出这里每一个 zone 的 wmark_min 的根据自己的内存大小比例分配对应百分比的 min_free_kbytes. 也就是所有 zone 的 wmark_min 加起来就是这个 min_free_kbytes&lt;/p&gt;
-
-&lt;p&gt;wmark_low = 5/4 * wmark_min&lt;/p&gt;
-
-&lt;p&gt;wmark_high = 3/2 * wmark_min&lt;/p&gt;
-
-&lt;p&gt;每一个zone 还有一个reserve page, 用来限制在 high level zone 满足不了请求的情况下, low level zone 自己需要保留的page数.具体的初始化在&lt;/p&gt;
-
-&lt;p&gt;setup_per_zone_lowmem_reserve()&lt;/p&gt;
-
-&lt;p&gt;那么这里来理解一下设置这些wmark_min, wmark_low, wmark_high 的目的了.&lt;/p&gt;
-
-&lt;p&gt;这里min_free_kbytes 主要是kernel 为了留给&lt;code&gt;__GFP_ATOMIC&lt;/code&gt; 类型的内存申请操作, 因为在操作系统里面有一些内存申请操作是不允许切换的,也就是不能在这个时候把当前这个 cpu 交给别的进程, 比如handling an interrupt or executing code inside an critical region. 那么这时候肯定也是希望kernel 内存申请操作应该是非阻塞的. 因此希望系统至少能够留下 min_free_kbytes 的空间用户&lt;code&gt;__GFP_ATOMIC&lt;/code&gt; 类型的内存申请操作.&lt;/p&gt;
-
-&lt;p&gt;wmark_min 是说当前的这个空闲的 page frame 已经极地了, 当有内存申请操作的时候, 如果是非内核的内存申请操作, 那么就返回失败, 如果申请操作来自kernel, 比如调用的是 __alloc_pages_high_priority() 的时候, 就可以返回内存&lt;/p&gt;
-
-&lt;p&gt;wmark_low 是用来唤醒 kswap 进程, 当我们某一个__alloc_pages 的时候发现 free page fram 小于 wmark_low 的时候, 就会唤醒这个kswapd 进程, 进行 page reclaim&lt;/p&gt;
-
-&lt;p&gt;wmark_high 是当 kswapd 这个进程进行 page reclaim 了以后, 什么时候停止的标志, 只有当 page frame 大于这个 pagh_high 的时候, kswapd 进程才会停止, 继续sleep&lt;/p&gt;
-
-&lt;p&gt;所以其实wmark_min, wmark_low, wmark_high 都是为了kernel 能够允许atomic 类型的申请操作成功服务的&lt;/p&gt;
-
-&lt;p&gt;注: 代码都是基于 linux2.6.32版本&lt;/p&gt;
-</content>
- </entry>
  
  <entry>
    <title>swappiness 是否需要设置成0</title>
@@ -229,6 +132,103 @@ file_prio = 200 - sc-&amp;gt;swappiness;
     percent[1] = 100 - percent[0];
 }
 &lt;/code&gt;&lt;/pre&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>page reclaim wartermark</title>
+   <link href="http://baotiao.github.io//2016/06/page-reclaim/"/>
+   <updated>2016-06-01T00:00:00+08:00</updated>
+   <id>http://baotiao.github.io//2016/06/page-reclaim</id>
+   <content type="html">&lt;p&gt;首先我们知道操作系统的物理页主要被两部分使用, 一部分是实际使用的物理内存, 也叫anonymous page, 另一部分是 page cache. 同时我们还有 swap 区, 用来在内存不够的时候将 anonymous page 里面的页面置换到 swap 上.&lt;/p&gt;
+
+&lt;p&gt;那么kernel 什么时候认为内存是不够的, 需要做 page reclaim呢?&lt;/p&gt;
+
+&lt;p&gt;我们通过 cat /proc/zoneinfo 可以看到这样的信息&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;Node 1, zone   Normal
+  pages free     19387934
+        min      11289
+        low      14111
+        high     16933
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;这里这几个 min, low, high 又是什么意思?&lt;/p&gt;
+
+&lt;p&gt;首先需要了解的一个概念是The Pool of Reserved Page Frames. 意思是每一个 zone 都需要保留一些 page frame. 为什么每一个 zone 都需要保留一些 page frames 呢? 我们知道操作系统在内存不够的时候, 可以直接进行 direct page reclaim, 回收部分的page frame, 那为什么还需要保留一些 page frames 呢?&lt;/p&gt;
+
+&lt;p&gt;因为在 kernel 内部有一些操作是不允许切换的, 比如在处理一个中断的时候或者执行代码的某一临界区域. 在这个时候kernel 的内存申请操作必须是 atomic 的(这个在内存申请的 flag 里面有GFP_ATOMIC). 为了满足这个 atomic 内存申请的需求, 因此我们必须在每个 zone 保留一定数目的 page. 所以低于这个数目的 free pages frame 以后, kernel 就认为自己处于 low_memory 状态了. 我们管这个数叫 min_free_bytes. 那么这个数是怎么算的?&lt;/p&gt;
+
+&lt;p&gt;每一个 zone 的初始化的时候都需要执行&lt;/p&gt;
+
+&lt;p&gt;mm/wmark_alloc:init_per_zone_wmark_min()&lt;/p&gt;
+
+&lt;p&gt;在init_per_zone_wmark_min 里面主要初始化设置了 min_free_kbytes&lt;/p&gt;
+
+&lt;p&gt;The amount of the reserved memory (in kilobytes) is stored in the min_free_kbytes variable. Its initial value is set during kernel initialization and depends on the amount of physical memory that is directly mapped in the kernel’s fourth gigabyte of linear addresses—that is, it depends on the number of page frames included in the ZONE_DMA and ZONE_NORMAL memory zones:&lt;/p&gt;
+
+&lt;p&gt;min_free_kbytes = int_sqrt(16 × directly mapped memory)     (kilobytes)&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;c&quot;&gt;// 这里 lowmem_kbytes 就是映射在操作系统的实际物理内存上面的 physical memory 的 page 数, 其实就是 ZONE_DMA + ZONE_NORMAL 的 page
+lowmem_kbytes = nr_free_buffer_pages() * (wmark_SIZE &amp;gt;&amp;gt; 10);
+min_free_kbytes = int_sqrt(lowmem_kbytes * 16);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;However, initially min_free_kbytes cannot be lower than 128 and greater than 65,536.&lt;/p&gt;
+
+&lt;p&gt;这个min_free_kbytes 最大64M 最小128k,  所以一般 kernel 里面为 atomic 操作留的 page 数有几十 M. 这个 min_free_kbytes 是对于全部的 zone 而言,  因为希望满足 kernel 的 atomic 类型的内存申请操作肯定是对于全部的物理内存而言的&lt;/p&gt;
+
+&lt;p&gt;有了这个概念以后, 我们就知道每一个 zone 里面的 wmark_min, wmark_low, wmark_high 这些 watermark 数值是什么意思了&lt;/p&gt;
+
+&lt;p&gt;然后接下来设置wmark_min, wmark_low, wmark_high 这几个watermark 主要在setup_per_zone_wmarks() 这个函数里面&lt;/p&gt;
+
+&lt;p&gt;那么具体的计算 wmark_min, wmark_low, wmark_high 过程&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;c&quot;&gt;unsigned long pages_min = min_free_kbytes &amp;gt;&amp;gt; (PAGE_SHIFT - 10);
+unsigned long lowmem_pages = 0;
+struct zone *zone;
+unsigned long flags;
+
+/* Calculate total number of !ZONE_HIGHMEM pages */
+for_each_zone(zone) {
+  if (!is_highmem(zone))
+    lowmem_pages += zone-&amp;gt;present_pages;
+}
+
+for_each_zone(zone) {
+  u64 tmp;
+
+  spin_lock_irqsave(&amp;amp;zone-&amp;gt;lock, flags);
+  tmp = (u64)pages_min * zone-&amp;gt;present_pages;
+  do_div(tmp, lowmem_pages);
+  zone-&amp;gt;watermark[WMARK_MIN] = tmp;
+  zone-&amp;gt;watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp &amp;gt;&amp;gt; 2);
+  zone-&amp;gt;watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp &amp;gt;&amp;gt; 1);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;可以看出这里每一个 zone 的 wmark_min 的根据自己的内存大小比例分配对应百分比的 min_free_kbytes. 也就是所有 zone 的 wmark_min 加起来就是这个 min_free_kbytes&lt;/p&gt;
+
+&lt;p&gt;wmark_low = 5/4 * wmark_min&lt;/p&gt;
+
+&lt;p&gt;wmark_high = 3/2 * wmark_min&lt;/p&gt;
+
+&lt;p&gt;每一个zone 还有一个reserve page, 用来限制在 high level zone 满足不了请求的情况下, low level zone 自己需要保留的page数.具体的初始化在&lt;/p&gt;
+
+&lt;p&gt;setup_per_zone_lowmem_reserve()&lt;/p&gt;
+
+&lt;p&gt;那么这里来理解一下设置这些wmark_min, wmark_low, wmark_high 的目的了.&lt;/p&gt;
+
+&lt;p&gt;这里min_free_kbytes 主要是kernel 为了留给&lt;code&gt;__GFP_ATOMIC&lt;/code&gt; 类型的内存申请操作, 因为在操作系统里面有一些内存申请操作是不允许切换的,也就是不能在这个时候把当前这个 cpu 交给别的进程, 比如handling an interrupt or executing code inside an critical region. 那么这时候肯定也是希望kernel 内存申请操作应该是非阻塞的. 因此希望系统至少能够留下 min_free_kbytes 的空间用户&lt;code&gt;__GFP_ATOMIC&lt;/code&gt; 类型的内存申请操作.&lt;/p&gt;
+
+&lt;p&gt;wmark_min 是说当前的这个空闲的 page frame 已经极地了, 当有内存申请操作的时候, 如果是非内核的内存申请操作, 那么就返回失败, 如果申请操作来自kernel, 比如调用的是 __alloc_pages_high_priority() 的时候, 就可以返回内存&lt;/p&gt;
+
+&lt;p&gt;wmark_low 是用来唤醒 kswap 进程, 当我们某一个__alloc_pages 的时候发现 free page fram 小于 wmark_low 的时候, 就会唤醒这个kswapd 进程, 进行 page reclaim&lt;/p&gt;
+
+&lt;p&gt;wmark_high 是当 kswapd 这个进程进行 page reclaim 了以后, 什么时候停止的标志, 只有当 page frame 大于这个 pagh_high 的时候, kswapd 进程才会停止, 继续sleep&lt;/p&gt;
+
+&lt;p&gt;所以其实wmark_min, wmark_low, wmark_high 都是为了kernel 能够允许atomic 类型的申请操作成功服务的&lt;/p&gt;
+
+&lt;p&gt;注: 代码都是基于 linux2.6.32版本&lt;/p&gt;
 </content>
  </entry>
  
@@ -4963,9 +4963,9 @@ libc库的数据段 执行权限rw-&lt;/p&gt;
  
  <entry>
    <title>Linux内核的设计与实现:块I/O层</title>
-   <link href="http://baotiao.github.io//2012/10/linux-kernel-io/"/>
+   <link href="http://baotiao.github.io//2012/10/linux-e5-86-85-e6-a0-b8-e7-9a-84-e8-ae-be-e8-ae-a1-e4-b8-8e-e5-ae-9e-e7-8e-b0-e5-9d-97io-e5-b1-82/"/>
    <updated>2012-10-18T23:31:12+08:00</updated>
-   <id>http://baotiao.github.io//2012/10/linux-kernel-io</id>
+   <id>http://baotiao.github.io//2012/10/linux%e5%86%85%e6%a0%b8%e7%9a%84%e8%ae%be%e8%ae%a1%e4%b8%8e%e5%ae%9e%e7%8e%b0%e5%9d%97io%e5%b1%82</id>
    <content type="html">&lt;h1&gt;块设备&lt;/h1&gt;
 
 &lt;h3&gt;扇区:&lt;/h3&gt;
@@ -5061,9 +5061,9 @@ libc库的数据段 执行权限rw-&lt;/p&gt;
  
  <entry>
    <title>c++ 对象模型</title>
-   <link href="http://baotiao.github.io//2012/08/c++-class/"/>
+   <link href="http://baotiao.github.io//2012/08/c-e5-af-b9-e8-b1-a1-e6-a8-a1-e5-9e-8b/"/>
    <updated>2012-08-25T17:15:01+08:00</updated>
-   <id>http://baotiao.github.io//2012/08/c++-class</id>
+   <id>http://baotiao.github.io//2012/08/c-%e5%af%b9%e8%b1%a1%e6%a8%a1%e5%9e%8b</id>
    <content type="html">&lt;ol&gt;
 &lt;li&gt;C++的对象模型里面,Nonstatic data members 配置于每一个class object之内, static data members 则被存放在所有的class object之外. static 和 non static function members 也被放在所有的所有的class object 之外. Virtual function 则以两个步骤支持&lt;/li&gt;
 &lt;/ol&gt;
@@ -5196,9 +5196,9 @@ inline int max(int a, int b); 是没用的, 这里是函数的声明,不是函�
  
  <entry>
    <title>c++泛型单例模式</title>
-   <link href="http://baotiao.github.io//2012/06/c++-single-model/"/>
+   <link href="http://baotiao.github.io//2012/06/c-e6-b3-9b-e5-9e-8b-e5-8d-95-e4-be-8b-e6-a8-a1-e5-bc-8f/"/>
    <updated>2012-06-19T02:23:13+08:00</updated>
-   <id>http://baotiao.github.io//2012/06/c++-single-model</id>
+   <id>http://baotiao.github.io//2012/06/c%e6%b3%9b%e5%9e%8b%e5%8d%95%e4%be%8b%e6%a8%a1%e5%bc%8f</id>
    <content type="html">&lt;p&gt;单例模式是在设计模式里面很常见的一种,用来确保一个类只有一个实例. 首先是原生态版本的实现.&lt;/p&gt;
 
 &lt;pre&gt;&lt;code&gt;#include &amp;lt;iostream&amp;gt;
@@ -5348,9 +5348,9 @@ int main()
  
  <entry>
    <title>vim复制插件</title>
-   <link href="http://baotiao.github.io//2012/05/vim-copy-plugin/"/>
+   <link href="http://baotiao.github.io//2012/05/vim%E5%A4%8D%E5%88%B6%E6%8F%92%E4%BB%B6/"/>
    <updated>2012-05-03T03:34:33+08:00</updated>
-   <id>http://baotiao.github.io//2012/05/vim-copy-plugin</id>
+   <id>http://baotiao.github.io//2012/05/vim复制插件</id>
    <content type="html">&lt;p&gt;vim复制的时候不发复制到c-v的复制缓冲区,很麻烦,自己动手,丰衣足食&lt;/p&gt;
 
 &lt;pre&gt;&lt;code&gt;nnoremap y :set operatorfunc=Pbcopyg@
@@ -7028,9 +7028,9 @@ int main(int argc, char *argv[])
  
  <entry>
    <title>Beanstalk 学习</title>
-   <link href="http://baotiao.github.io//2011/11/beanstalk/"/>
+   <link href="http://baotiao.github.io//2011/11/beanstalk-e5-ad-a6-e4-b9-a0/"/>
    <updated>2011-11-12T01:41:18+08:00</updated>
-   <id>http://baotiao.github.io//2011/11/beanstalk</id>
+   <id>http://baotiao.github.io//2011/11/beanstalk-%e5%ad%a6%e4%b9%a0</id>
    <content type="html">&lt;p&gt;看的Beanstalk第一版的代码,因为代码比较短.小组的分享&lt;/p&gt;
 
 &lt;p&gt;&lt;strong&gt;&lt;a href=&quot;http://www.slideshare.net/baotiao/beanstalk&quot;&gt;Beanstalk&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
@@ -7100,9 +7100,9 @@ int main(void) {
  
  <entry>
    <title>Cola.php的默认配置以及url分发</title>
-   <link href="http://baotiao.github.io//2011/08/cola-framework/"/>
+   <link href="http://baotiao.github.io//2011/08/cola-php-e7-9a-84-e9-bb-98-e8-ae-a4-e9-85-8d-e7-bd-ae-e4-bb-a5-e5-8f-8aurl-e5-88-86-e5-8f-91/"/>
    <updated>2011-08-17T15:10:42+08:00</updated>
-   <id>http://baotiao.github.io//2011/08/cola-framework</id>
+   <id>http://baotiao.github.io//2011/08/cola-php%e7%9a%84%e9%bb%98%e8%ae%a4%e9%85%8d%e7%bd%ae%e4%bb%a5%e5%8f%8aurl%e5%88%86%e5%8f%91</id>
    <content type="html">&lt;p&gt;和cola.php 是一个叫付超群写得框架,可能对比较大型的框架理解不清楚,可以先看这个比较小型的.
 0.1版就包含了框架里面最主要的几个文件,那些扩张功能还不包括在里面,非常适合让我们理解如何实现一个mvc框架的过程.
 这里是对 0.1版代码的阅读记录.
@@ -7229,9 +7229,9 @@ awk &#39;BEGIN { while (( getline &amp;lt; &quot;/var/sankuai/wwwlogs/www.meitua
  
  <entry>
    <title>iconv 脚本 转换字符编码脚本</title>
-   <link href="http://baotiao.github.io//2011/08/iconv/"/>
+   <link href="http://baotiao.github.io//2011/08/iconv-e8-84-9a-e6-9c-ac-e8-bd-ac-e6-8d-a2-e5-ad-97-e7-ac-a6-e7-bc-96-e7-a0-81-e8-84-9a-e6-9c-ac/"/>
    <updated>2011-08-10T10:34:58+08:00</updated>
-   <id>http://baotiao.github.io//2011/08/iconv</id>
+   <id>http://baotiao.github.io//2011/08/iconv-%e8%84%9a%e6%9c%ac-%e8%bd%ac%e6%8d%a2%e5%ad%97%e7%ac%a6%e7%bc%96%e7%a0%81%e8%84%9a%e6%9c%ac</id>
    <content type="html">&lt;p&gt;这个脚本碰到有些别字的中文的时候会报错,直接去文件里面该就可以了.iconv: 北京.csv:31:12: cannot convert&lt;/p&gt;
 
 &lt;p&gt;iconv: 总部.csv:315:12: cannot convert&lt;/p&gt;
@@ -7254,9 +7254,9 @@ done
  
  <entry>
    <title>vmware centos 安装</title>
-   <link href="http://baotiao.github.io//2011/08/vmware-centos/"/>
+   <link href="http://baotiao.github.io//2011/08/vmware-centos-e5-ae-89-e8-a3-85/"/>
    <updated>2011-08-07T22:29:07+08:00</updated>
-   <id>http://baotiao.github.io//2011/08/vmware-centos</id>
+   <id>http://baotiao.github.io//2011/08/vmware-centos-%e5%ae%89%e8%a3%85</id>
    <content type="html">&lt;p&gt;分享一下今天在vmware 下 centos 的安装过程遇到的问题.
 centos 在vmware 里面安装的时候 不要选择简单安装.然后就会进入到centos标准安装界面.
 swap 就是linux下的虚拟内存分区,它的作用是在物理内存使用完之后,将磁盘空间(也就是SWAP分区)虚拟成内存来使用.
@@ -7270,18 +7270,18 @@ swap 就是linux下的虚拟内存分区,它的作用是在物理内存使用完
  
  <entry>
    <title>mysql join 学习</title>
-   <link href="http://baotiao.github.io//2011/07/mysql-join/"/>
+   <link href="http://baotiao.github.io//2011/07/mysql-join-e5-ad-a6-e4-b9-a0/"/>
    <updated>2011-07-30T02:13:57+08:00</updated>
-   <id>http://baotiao.github.io//2011/07/mysql-join</id>
+   <id>http://baotiao.github.io//2011/07/mysql-join-%e5%ad%a6%e4%b9%a0</id>
    <content type="html">&lt;p&gt;join 的学习: 在SQL标准中规划的（Join）联结大致分为下面四种： 1． 内联结：将两个表中存在联结关系的字段符合联结关系的那些记录形成记录集的联结。 2． 外联结：分为外左联结和外右联结。 左联结A、B表的意思就是将表A中的全部记录和表B中联结的字段与表A的联结字段符合联结条件的那些记录形成的记录集的联结，这里注意的是最后出来的记录集会包括表A的全部记录。 右联结A、B表的结果和左联结B、A的结果是一样的，也就是说： Select A.name B.name From A Left Join B On A.id=B.id 和Select A.name B.name From B Right Join A on B.id=A.id执行后的结果是一样的。 还有其他的联结就不用管了. 这里 就是 内联结是只将符合条件的列出来,而外联接是将全部的都列出来,分左右外联接啦. 这里我有个比较简便的记忆方法，内外联结的区别是内联结将去除所有不符合条件的记录，而外联结则保留其中部分。外左联结与外右联结的区别在于如果用A左联结B则A中所有记录都会保 留在结果中，此时B中只有符合联结条件的记录，而右联结相反，这样也就不会混淆了比如表t1 有 2数据 1,2 表 t2 有一个数据 1. 那么 select t1.s1,t2.s1 from t1 inner join t2 on t1.s1=t2.s1; ------ ------ | s1 | s1 | ------ ------ | 1 | 1 | ------ ------ 这个时候 t1里面的 2 这个数据由于在t2表里面找不到 就会被除去. left join &lt;a href=&quot;http://britishcasino.org.uk/&quot;&gt;casino online&lt;/a&gt; 的时候 select t1.s1,t2.s1 from t1 left join t2 on t1.s1=t2.s1; ------ ------ | s1 | s1 | ------ ------ | 1 | 1 | | 2 | NULL | 这个时候是 t1为左表都保存下来. ------ ------ 同样 right join 的时候 select t1.s1,t2.s1 from t1 right join t2 on t1.s1=t2.s1; ------ ------ | s1 | s1 | ------ ------ | 1 | 1 |&lt;/p&gt;
 </content>
  </entry>
  
  <entry>
    <title>OpenParty 第一次参加这种交流会</title>
-   <link href="http://baotiao.github.io//2011/07/openparty/"/>
+   <link href="http://baotiao.github.io//2011/07/openparty-e7-ac-ac-e4-b8-80-e6-ac-a1-e5-8f-82-e5-8a-a0-e8-bf-99-e7-a7-8d-e4-ba-a4-e6-b5-81-e4-bc-9a/"/>
    <updated>2011-07-23T21:54:28+08:00</updated>
-   <id>http://baotiao.github.io//2011/07/openparty</id>
+   <id>http://baotiao.github.io//2011/07/openparty-%e7%ac%ac%e4%b8%80%e6%ac%a1%e5%8f%82%e5%8a%a0%e8%bf%99%e7%a7%8d%e4%ba%a4%e6%b5%81%e4%bc%9a</id>
    <content type="html">&lt;p&gt;来得好像挺多牛B人的.看见挺多个穿TopCoder的.
 听了刘未鹏的暗时间
 总结下吧,提醒自己以后要做到.
@@ -7300,9 +7300,9 @@ swap 就是linux下的虚拟内存分区,它的作用是在物理内存使用完
  
  <entry>
    <title>aws 免密码登陆</title>
-   <link href="http://baotiao.github.io//2011/07/solve-aws/"/>
+   <link href="http://baotiao.github.io//2011/07/aws-e5-85-8d-e5-af-86-e7-a0-81-e7-99-bb-e9-99-86/"/>
    <updated>2011-07-17T19:46:13+08:00</updated>
-   <id>http://baotiao.github.io//2011/07/solve-aws</id>
+   <id>http://baotiao.github.io//2011/07/aws-%e5%85%8d%e5%af%86%e7%a0%81%e7%99%bb%e9%99%86</id>
    <content type="html">&lt;p&gt;aws一直要用密钥登录非常的麻烦.
 可以在aws里面添加一个新的用户
 具体过程:
@@ -7324,9 +7324,9 @@ Give the user ssh access
  
  <entry>
    <title>暂时搞定住处</title>
-   <link href="http://baotiao.github.io//2011/07/life-in-beijing/"/>
+   <link href="http://baotiao.github.io//2011/07/e6-9a-82-e6-97-b6-e6-90-9e-e5-ae-9a-e4-bd-8f-e5-a4-84/"/>
    <updated>2011-07-16T00:00:37+08:00</updated>
-   <id>http://baotiao.github.io//2011/07/life-in-beijing</id>
+   <id>http://baotiao.github.io//2011/07/%e6%9a%82%e6%97%b6%e6%90%9e%e5%ae%9a%e4%bd%8f%e5%a4%84</id>
    <content type="html">&lt;p&gt;上周把租房子的事情给搞定了,总之废了各种尽.
 这一周工作唯一接触的新东西还是那个ldap.
 把ldap 好好搞搞,争取在公司里面成为这个领域的专家才可以.
@@ -7339,9 +7339,9 @@ Give the user ssh access
  
  <entry>
    <title>现在在青岛</title>
-   <link href="http://baotiao.github.io//2011/07/qingdao/"/>
+   <link href="http://baotiao.github.io//2011/07/e7-8e-b0-e5-9c-a8-e5-9c-a8-e9-9d-92-e5-b2-9b/"/>
    <updated>2011-07-03T01:24:14+08:00</updated>
-   <id>http://baotiao.github.io//2011/07/qingdao</id>
+   <id>http://baotiao.github.io//2011/07/%e7%8e%b0%e5%9c%a8%e5%9c%a8%e9%9d%92%e5%b2%9b</id>
    <content type="html">&lt;p&gt;应该算是毕业旅行。来了10个人
 陈宗志，官宏宇，赵安安，赵辰星，李华东，陈晓师，李闯，赵鹏阳，王超。
 吴鹏。
@@ -7375,9 +7375,9 @@ Give the user ssh access
  
  <entry>
    <title>和俱乐部的散伙饭</title>
-   <link href="http://baotiao.github.io//2011/06/goodbye-club/"/>
+   <link href="http://baotiao.github.io//2011/06/e5-92-8c-e4-bf-b1-e4-b9-90-e9-83-a8-e7-9a-84-e6-95-a3-e4-bc-99-e9-a5-ad/"/>
    <updated>2011-06-27T20:25:15+08:00</updated>
-   <id>http://baotiao.github.io//2011/06/goodbye-club</id>
+   <id>http://baotiao.github.io//2011/06/%e5%92%8c%e4%bf%b1%e4%b9%90%e9%83%a8%e7%9a%84%e6%95%a3%e4%bc%99%e9%a5%ad</id>
    <content type="html">&lt;p&gt;和 俱乐部吃饭了散伙饭。。
 俱乐部 &lt;a href=&quot;http://premiumonlinecasino.de/&quot;&gt;online slot maschinen&lt;/a&gt; 的白姐 给教了很多很多。。&lt;/p&gt;
 </content>
@@ -7385,9 +7385,9 @@ Give the user ssh access
  
  <entry>
    <title>算第一个散伙饭吧,</title>
-   <link href="http://baotiao.github.io//2011/06/goobye-dinner/"/>
+   <link href="http://baotiao.github.io//2011/06/e7-ae-97-e7-ac-ac-e4-b8-80-e4-b8-aa-e6-95-a3-e4-bc-99-e9-a5-ad-e5-90-a7/"/>
    <updated>2011-06-24T00:25:24+08:00</updated>
-   <id>http://baotiao.github.io//2011/06/goobye-dinner</id>
+   <id>http://baotiao.github.io//2011/06/%e7%ae%97%e7%ac%ac%e4%b8%80%e4%b8%aa%e6%95%a3%e4%bc%99%e9%a5%ad%e5%90%a7</id>
    <content type="html">&lt;p&gt;2011.6.24  安哥请大家吃饭,哇咔咔.本来可以去唱歌的,后来没去.
 后来玩杀人还是比较爽的,把安安单挑死了,哇咔咔..
 今天还顺便把成绩的事情给解决了,终于可以拿到毕业证了,为了这毕业证哥累死累活了啊.哎...
