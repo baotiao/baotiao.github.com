@@ -19,4 +19,4 @@ else
     echo "we just need line or local";
     exit 2;
 fi
-jekyll server
+jekyll server --watch

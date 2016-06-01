@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Mesos libprocess Synchronized Implement &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="做有积累的事情">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="tech">
+    <link rel="canonical" href="http://baotiao.github.io//tech/2015/05/14/Mesos-Synchronized/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?201606020248" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Mesos libprocess Synchronized Implement">
+    <meta property="og:description" content="Mesos Synchronized Implement">
+    <meta property="og:url" content="http://baotiao.github.io//tech/2015/05/14/Mesos-Synchronized/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+    <meta name="twitter:title" content="Mesos libprocess Synchronized Implement" />
+    <meta name="twitter:description" content="做有积累的事情" />
+    <meta name="twitter:url" content="http://baotiao.github.io//tech/2015/05/14/Mesos-Synchronized/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://baotiao.github.io/" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>Mesos libprocess Synchronized Implement</h1>
+  <span class="post-meta">May 14 2015</span><br>
+  
+  <span class="post-meta small">
+  
+    1 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <p>最近由于项目的需要, 在看Mesos 的代码</p>
+
+<p>觉得libprocess 里面实现的Synchronized 实现的挺有意思就摘取出来了</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>#include &lt;pthread.h&gt;
+#include &lt;iostream&gt;
+
+class Synchronizable
+{
+public:
+    Synchronizable()
+        : initialized(false) {}
+
+    explicit Synchronizable(int _type)
+        : type(_type), initialized(false)
+    {
+        initialize();
+    }
+
+    Synchronizable(const Synchronizable &amp;that)
+    {
+        type = that.type;
+        initialize();
+    }
+
+    Synchronizable &amp; operator = (const Synchronizable &amp;that)
+    {
+        type = that.type;
+        initialize();
+        return *this;
+    }
+
+    void acquire()
+    {
+        if (!initialized) {
+        }
+        pthread_mutex_lock(&amp;mutex);
+    }
+
+    void release()
+    {
+        if (!initialized) {
+        }
+        pthread_mutex_unlock(&amp;mutex);
+    }
+
+private:
+    void initialize()
+    {
+        if (!initialized) {
+            pthread_mutexattr_t attr;
+            pthread_mutexattr_init(&amp;attr);
+            pthread_mutexattr_settype(&amp;attr, type);
+            pthread_mutex_init(&amp;mutex, &amp;attr);
+            pthread_mutexattr_destroy(&amp;attr);
+            initialized = true;
+        } else {
+        }
+    }
+
+    int type;
+    bool initialized;
+    pthread_mutex_t mutex;
+};
+
+
+class Synchronized
+{
+public:
+    explicit Synchronized(Synchronizable *_synchronizable)
+        : synchronizable(_synchronizable)
+    {
+        synchronizable-&gt;acquire();
+    }
+
+    ~Synchronized()
+    {
+        synchronizable-&gt;release();
+    }
+
+    operator bool () { return true; }
+
+private:
+    Synchronizable *synchronizable;
+};
+
+
+#define synchronized(s)                                                 \
+    if (Synchronized __synchronized ## s = Synchronized(&amp;__synchronizable_ ## s))
+
+#define synchronizable(s)                       \
+    Synchronizable __synchronizable_ ## s
+
+#define synchronizer(s)                         \
+    (__synchronizable_ ## s)
+
+
+#define SYNCHRONIZED_INITIALIZER                \
+    Synchronizable(PTHREAD_MUTEX_NORMAL)
+
+#define SYNCHRONIZED_INITIALIZER_DEBUG          \
+    Synchronizable(PTHREAD_MUTEX_ERRORCHECK)
+
+#define SYNCHRONIZED_INITIALIZER_RECURSIVE      \
+    Synchronizable(PTHREAD_MUTEX_RECURSIVE)
+
+
+/*
+ * 这里是libprocess 里面锁的实现, 能够保证的力度是一个函数的力度.
+ * 只要在这一个函数里面声明了不一样的synchronizable(prefixes), 那么就可以保证在
+ * 执行 synchronized (prefixes) 的时候是只有一个线程能够执行到的
+ * 可以 gcc -E % 可以看出这里宏到底做了什么
+ *
+ * string generate(const string&amp; prefix)
+ * {
+ *     static map&lt;string, int&gt;* prefixes = new map&lt;string, int&gt;();
+ *     static Synchronizable __synchronizable_prefixes = Synchronizable(0);
+ * 
+ *     int id;
+ *     这里Synchronized(&amp;__synchronizable_prefixes) 构造函数里面就对这个变量 
+ *     pthread_mutex_lock(&amp;mutex);
+ *     那么如果有多个线程执行到这里, 其实只有一个线程能够执行的.
+ *     那么这里为什么要赋值呢?
+ *     因为这里这个变量没有copy assign 构造函数, 那么默认的就是全拷贝.
+ *     那么这里这个变量的__synchronizedprefixes 的作用域就是 if()之间的内容
+ *     而Synchronized 这个类型默认的析构函数就是释放这个锁,
+ *     因此可以做到进入这个if 内容以后, 就把这个锁给释放了
+ *     
+ *     if (Synchronized __synchronizedprefixes = Synchronized(&amp;__synchronizable_prefixes)) {
+ *         int&amp; _id = (*prefixes)[prefix];
+ *         _id += 1;
+ *         id = _id;
+ *     }
+ *     printf("%d\n", id);
+ *     return prefix + "(" + ")";
+ * }
+ *
+ * 之前有文章介绍leveldb 锁的实现也很好看. 这里与leveldb 对比一下主要区别在于
+ * leveldb 需要在类的内部定义mutex的变量. 不能想用的时候就用
+ * mesos 这里可以想保证锁的时候就可以保证, 但是因为这个声明的变量是 static,
+ * 存在于全局的.data段里面, 因此生命周期是整个进程的生命周期
+ */
+
+using namespace std;
+#include &lt;map&gt;
+#include &lt;string&gt;
+string generate(const string&amp; prefix)
+{
+    static map&lt;string, int&gt;* prefixes = new map&lt;string, int&gt;();
+    static synchronizable(prefixes) = SYNCHRONIZED_INITIALIZER;
+
+    int id;
+    synchronized (prefixes) {
+        int&amp; _id = (*prefixes)[prefix];
+        _id += 1;
+        id = _id;
+    }
+    printf("%d\n", id);
+    return prefix + "(" + ")";
+}
+
+
+int main()
+{
+    printf("%s\n", generate("heihei").c_str());
+    return 0;
+}
+
+</code></pre>
+</div>
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/tech/2015/05/14/Mesos-Synchronized';
+    var disqus_title      = 'Mesos libprocess Synchronized Implement';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

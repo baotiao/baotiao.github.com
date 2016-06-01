@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>levelDB Compaction 相关 &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="做有积累的事情">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="tech">
+    <link rel="canonical" href="http://baotiao.github.io//tech/2013/10/15/leveldb-compaction/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?201606020248" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="levelDB Compaction 相关">
+    <meta property="og:description" content="level source code">
+    <meta property="og:url" content="http://baotiao.github.io//tech/2013/10/15/leveldb-compaction/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+    <meta name="twitter:title" content="levelDB Compaction 相关" />
+    <meta name="twitter:description" content="做有积累的事情" />
+    <meta name="twitter:url" content="http://baotiao.github.io//tech/2013/10/15/leveldb-compaction/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://baotiao.github.io/" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>levelDB Compaction 相关</h1>
+  <span class="post-meta">Oct 15 2013</span><br>
+  
+  <span class="post-meta small">
+  
+    2 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <h1 id="leveldb">levelDB</h1>
+
+<h2 id="level-db-compaction">level DB 如何选择要Compaction的级别</h2>
+
+<p>这个计算级别的函数在version_set::Finalize() 里面</p>
+
+<p>在Finalize里面, 有一个算score的过程</p>
+
+<p>看了一下这个 算Finalive的过程, 根据官方配置</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>level 0: 差不多 4 个 sst 文件的时候分数 = 1
+level 1: 差不多 5 个 sst 文件的时候分数 = 1
+level 2: 差不多 50 个 sst 文件的时候分数 = 1
+level 3: 差不多 500 个 sst 文件的时候分数 = 1
+……
+</code></pre>
+</div>
+
+<p>Finalize 只会在 LogAndApply 和 VersionSet::Recover() 的时候被调用, 也就是生成一个新的Version 的时候被调用.</p>
+
+<p>结论: 所以可以这么说 每次生成一个新的Version 的时候 我们都已经初始化好了这个分数, 判断这一个version 是否需要 compaction 以及那个级别需要compaction</p>
+
+<h2 id="level-db-compaction-1">level DB 会触发Compaction的操作</h2>
+
+<p>触发这个MaybeScheduleCompaction() 的地方应该就是有可能触发后台这个Compaction的地方了, 目前会调用到这个MaybeScheduleCompaction() 的地方有</p>
+
+<ul>
+  <li>在进行了一次Compaction 以后, 也就是在DBImpl::Background()函数里面</li>
+</ul>
+
+<p>为什么要做Compaction 因为可能会产生太多的新文件在新的一个级别, 所以会检查一下是否需要再进行一次Compaction</p>
+
+<ul>
+  <li>在进行了一次 DBImpl::Get 操作了以后, 如果这个数据是在sst的文件里面找到的. 
+get的时候找到的这个key存在多个level 0 的文件里面那么就会触发compaction</li>
+</ul>
+
+<p>为什么要做Compaction 因为如果一个key在多个文件里面找到,那么说明这个key在多个level 0的文件里面重复了, 所以检查一下是否需要进行compaction
+    if (have_stat_update &amp;&amp; current-&gt;UpdateStats(stats)) { // 这里如果有更新, 那么会判断是否启动后台的Compaction() 进程</p>
+
+<ul>
+  <li>在 DBImpl::Write 的 MakeRoomForWrite 函数里面, 当immutable 生成一个level 0 文件的时候, 会检查一下是否需要Compaction, 这样会防止level 0 文件过多.</li>
+</ul>
+
+<p>为什么要做Compaction 这时候做Compaction, 主要为了防止不断的从immutable 生成到level 0 文件, 一直触发immutable到level0 过程, 而没有时间进行其他级别的合并 并且在MakeRoomFroWrite 的时候, 我们会检查一下 如果level0 的文件数 &gt; config::kL0_SlowdownWritesTrigger 这个数据的大小的话. 那么我们 就会sleep 一段时间, 也是为了让出时间给其他级别进行Compaction</p>
+
+<ul>
+  <li>在DB::Open() 这里函数里面, 如果Recover 成功以后, 并且进行了
+s = impl-&gt;versions_&gt;LogAndApply(&amp;edit, &amp;impl&gt;mutex_);</li>
+</ul>
+
+<p>为什么要做Compaction 这里会将可以上次DB关闭以后没有来得及写入的数据重新回放, 所以这里可能会生成新的level 0的文件, 所以这里也会进行 检查 MaybeScheduleCompaction().</p>
+
+<h2 id="maybecompaction-">具体的MaybeCompaction() 过程</h2>
+<p>#### 函数入口</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>void DBImpl::MaybeScheduleCompaction() {
+mutex_.AssertHeld();
+// 如果后台有Compaction 线程, 那么直接退出
+if (bg_compaction_scheduled_) {
+            // Already scheduled
+            // 如果db 要被 shut_down, 直接退出
+        } else if (shutting_down_.Acquire_Load()) {
+            // DB is being deleted; no more background compactions
+            // 如果 imm_ 这个文件还是空的, 并且是manual_compaction是空的, 这里
+            // TODO
+        } else if (imm\_ == NULL &amp;&amp;
+manual_compaction\_ == NULL &amp;&amp;
+\!versions_-&gt;NeedsCompaction()) {
+            // No work to be done
+        } else {
+            // 设置这个后台有compaction 线程已经启动
+            bg_compaction_scheduled_ = true;
+            env_-&gt;Schedule(&amp;DBImpl::BGWork, this); //调用下面的 BGWork函数. 这里虽然是env_, 当时这env_里面会调用这个函数指针, 调用DBImpl::BGWork 这个函数
+        }
+}
+
+* 在PosixEnv::Schedule 这个函数里面
+
+void PosixEnv::Schedule(void (*function)(void*), void\* arg) {
+PthreadCall("lock", pthread_mutex_lock(&amp;mu_));
+
+// Start background thread if necessary
+// 看是否有后台线程已经启动, 如果没有启动就启动这个后台线程, 并执行一个死循环
+// 具体的执行是BGThreadWrapper \-&gt; BGThread 这个函数,
+// 在BGThread 函数就是一个死循环, 不断的从这个queue\_ 里面读出, 这个是FIFO的形式
+// 读出, 先进先出. 没有做一个优先级的概念.
+if (\!started_bgthread_) {
+                started_bgthread_ = true;
+                PthreadCall(
+                        "create thread",
+                        pthread_create(&amp;bgthread_, NULL,  &amp;PosixEnv::BGThreadWrapper, this));
+            }
+
+// If the queue is currently empty, the background thread may currently be
+// waiting.
+// 如果这个queue\_ 里面的数据当前是空的, 则等待cond 锁让它起来
+if (queue_.empty()) {
+                PthreadCall("signal", pthread_cond_signal(&amp;bgsignal_));
+            }
+
+// Add to priority queue
+queue_.push_back(BGItem());
+queue_.back().function = function; // 这里注册的函数是 &amp;DBImpl::BGWork
+queue_.back().arg = arg; // 这里arg 是 db-&gt;this指针
+
+PthreadCall("unlock", pthread_mutex_unlock(&amp;mu_));
+}
+</code></pre>
+</div>
+
+<h4 id="backgroundcall---backgroundcompaction">接下来是具体执行 函数 BackgroundCall() -&gt; BackgroundCompaction().</h4>
+
+<p>在BackgroundCompaction() 函数里面</p>
+
+<p>优先 compaction immutable -&gt; level0 sst</p>
+
+<p>然后 我们都是!is_manual 的, 那么我们就要选择去Compaction() 那个级别的.</p>
+
+<p>在versions_-&gt;PickCompaction().</p>
+
+<p>这里我们有之前在Finalfize() 里面算出来的compaction_score_, 如果这个score &lt; 1 就不进行compaction.</p>
+
+<p>这里可以看到并不是每次检查是否需要Compaction 的时候都会进行. 只有score &gt;= 1 的时候levelDB才会选一个级别进行Compaction()</p>
+
+<p>在选择好Compaction的级别以后. 就调用BackgroundCompaction</p>
+
+<p>如果生成的这个Compaction 是空的, 那么就不进行Compaction
+选择是否能直接将这个文件移动到level + 1, 而不用与level + 1 的文件进行归并的计算
+进行真正的Compaction DoCompactionWork() 函数</p>
+
+<h4 id="docompactionwork">在DoCompactionWork()函数里面</h4>
+
+<ul>
+  <li>对这些指针进行归并, 归并出一个MergeIterator input.</li>
+</ul>
+
+<p>具体的iterator 看leveldb iterator</p>
+
+<ul>
+  <li>遍历获得的需要合并的数据, 如果这个key以前是否出现.</li>
+</ul>
+
+<p>如果已经出现过了就不会再进行处理 因为leveldb 里面对相同的key是进行过排序的. 默认squencenumber 最大的排在最前面, 也就是最新的数据排在最前面.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>如果这个key 的squenctNumber &lt; 当前快照的版本号, 说明这个key 是旧的了.
+如果这个key 的类型是delete, 并且更高级别已经没有这个key的数据了, 那么这个key也会被drop掉
+可以看出, levelDB 这里做了这些操作也都是尽可能的减少key的数量
+</code></pre>
+</div>
+
+<ul>
+  <li>接下来就把这些剩余的key插入到新的version里面</li>
+</ul>
+
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/tech/2013/10/15/leveldb-compaction';
+    var disqus_title      = 'levelDB Compaction 相关';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

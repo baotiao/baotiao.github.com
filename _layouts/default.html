@@ -1,98 +1,37 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-us">
-  <head>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-    <meta name="author" content="{{ site.author }}" />
-	<title>{{ page.title }} | {{ site.author }}</title>
-    <link rel="shortcut icon" href="/favicon.ico">
-    <link href="{{ site.url }}/feed/" rel="alternate" title="{{ site.author }}" type="application/atom+xml" />
-    <link rel="stylesheet" href="/media/css/style.css">
-    <link rel="stylesheet" href="/media/js/code/desert.css">|
-  </head>
+<html>
+{% include head.html %}
+<body class="site{% if site.animated %} animated fade-in-down{% endif %}">
+  {% if site.google_tag_manager %}
+  <noscript><iframe src="//www.googletagmanager.com/ns.html?id={{ site.google_tag_manager }}"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  '//www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','{{ site.google_tag_manager }}');</script>
+  {% endif %}
+	{% if site.facebook_comments %}
+		<div id="fb-root"></div>
+		<script>(function(d, s, id) {
+		  var js, fjs = d.getElementsByTagName(s)[0];
+		  if (d.getElementById(id)) return;
+		  js = d.createElement(s); js.id = id;
+		  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5&appId={{ site.facebook_appid }}";
+		  fjs.parentNode.insertBefore(js, fjs);
+		}(document, 'script', 'facebook-jssdk'));</script>
+	{% endif %}
 
-	<div id="top"></div>
-  <body>
-    <div id="container">
-      <div id="main" role="main">
-        <header>
-        <h1>{{ page.title }}</h1>
-        </header>
+  <div class="site-wrap">
+    {% include header.html %}
 
-        <nav>
-        <span><a title="home page" class="" href="{{ site.url }}/">home</a></span>
-        <span><a title="categories" class="" href="{{ site.url }}/categories/">categories</a></span>
-        <span><a title="links" class="" href="{{ site.url }}/links/">links</a></span>
-        <span><a title="paper" class="" href="{{ site.url }}/paper/">paper</a></span>
-        <span><a title="vitae" class="" href="{{ site.url }}/vitae/">vitae</a></span>
-        </nav>
-
-        <article class="content">
-
-
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
         {{ content }}
+      </div>
+    </div>
+  </div>
 
-        </article>
-
-	<div id="message"><a href="#top">Scroll to top</a></div>
-	</div>
-</div>
-
-<script type="text/javascript" src="/media/js/jquery-1.7.1.min.js"></script>
-<script type="text/javascript" src="/media/js/code/prettify.js"></script>
-
- <script type="text/javascript">
-      $(function(){
-        $("pre").addClass("prettyprint");
-        prettyPrint();
-        $('.entry a').each(function(){
-          if($(this).attr("href").indexOf("chenzongzhi") == -1){
-            $(this).attr("target", "_blank");
-          }
-        })
-      });
-</script>
-
-
-<script type="text/javascript">
-  var _gaq = _gaq || [];
-  _gaq.push(['_setAccount', 'UA-35023741-1']);
-  _gaq.push(['_trackPageview']);
-  (function() {
-    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-  })();
-</script>
-
-
-
-<script type="text/javascript">
-$(function () {
-
-    /* set variables locally for increased performance */
-    var scroll_timer;
-    var displayed = false;
-    var $message = $('#message a');
-    var $window = $(window);
-    var top = $(document.body).children(0).position().top;
-
-    /* react to scroll event on window */
-    $window.scroll(function () {
-        window.clearTimeout(scroll_timer);
-        scroll_timer = window.setTimeout(function () {
-            if($window.scrollTop() <= top + 800)
-            {
-                displayed = false;
-                $message.fadeOut(1000);
-            }
-            else if(displayed == false)
-            {
-                displayed = true;
-                $message.stop(true, true).show().click(function () { $message.fadeOut(1000); });
-            }
-        }, 100);
-    });
-});
-</script>
-  </body>
+  {% include footer.html %}
+</body>
 </html>

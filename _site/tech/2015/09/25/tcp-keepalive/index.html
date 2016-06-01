@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>About TCP keepalive &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="做有积累的事情">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="tech">
+    <link rel="canonical" href="http://baotiao.github.io//tech/2015/09/25/tcp-keepalive/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?201606020248" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="About TCP keepalive">
+    <meta property="og:description" content="About TCP keepalive">
+    <meta property="og:url" content="http://baotiao.github.io//tech/2015/09/25/tcp-keepalive/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+    <meta name="twitter:title" content="About TCP keepalive" />
+    <meta name="twitter:description" content="做有积累的事情" />
+    <meta name="twitter:url" content="http://baotiao.github.io//tech/2015/09/25/tcp-keepalive/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://baotiao.github.io/" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>About TCP keepalive</h1>
+  <span class="post-meta">Sep 25 2015</span><br>
+  
+  <span class="post-meta small">
+  
+    1 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <p>这两天正好看到了TCP keepalive的一些疑惑, 具体就查看了一下</p>
+
+<p>首先, 在建立tcp 连接以后, 就算你不使用这个连接, 这个连接是会一直保留着, 那么一般来说操作系统的句柄数是有限的, 所以我们有必要关闭那些虽然连着, 但是已经没有人使用的连接.</p>
+
+<p>一般会有两种检查</p>
+
+<ol>
+  <li>有应用层面做这个检查, 比如当这个连接有操作的时候, 更新最后一次操作的时间. 那么如果在规定时间内没有操作, 就将这个连接关闭掉. Bada的服务端关闭连接操作就是这么做的, Redis 的timeout 选项也是这样实现的.</li>
+  <li>使用tcp keepalive 选项来检查</li>
+</ol>
+
+<p>后续我们会看到, 这两个选项是有区别的</p>
+
+<p>tcp 的 keepalive 选项比较适合用来检测一个连接是否断开, 但是这个keepalive是会消耗流量的.</p>
+
+<p>其实理论上tcp 某一个端关闭连接, 另外的一端是会收到一个空包, 但是为什么还是需要这个tcp keepalive 这个选项呢? tcp keepalive 和 直接关闭tcp 连接的关系?</p>
+
+<h4 id="section">场景1</h4>
+<p>首先当这个进程正常退出, 或者被kill 掉的时候, 这个时候关闭的这个进程所在的socket 会由操作系统来发出一个FIN 包给对端的socket的
+因此只有由于直接挂机 或者 网络断开的情况下 这个包才是无法发送出去的. 所以也就是在这种情况下 tcp keepalive 会发挥作用.</p>
+
+<p>这里如果A 已经挂掉了, 而A重新起来以后, B会认为这个连接还在, 因此会继续往这个连接发送信息, 那么A就会拒绝这个连接, 因为在A看来不存在过这个连接的.就回复B一个RST packet, 导致B最终去关闭这个连接</p>
+
+<h4 id="section-1">场景2</h4>
+<p>另一个场景就是经常在proxy 里面经常用. 因为Proxy 经常需要保留固定个数的连接, 因为硬件肯定有限制的, 常见的做法就是将这些连接放在一个队列里面, 那么当连接不够用的时候, 常见的做法就是将这个队列里面的最老的连接删除掉. 所以如果你的连接使用keepalive 就可以保持自己的连接在队列里面较开始的位置</p>
+
+<p>不过我觉得这个作用比较牵强, 如果所有连接都用keepalive,那基本等于没用了</p>
+
+<h3 id="section-2">总结</h3>
+
+<p>所以tcp keepalive 常见的用途
+1. 检查peers 是否存活
+2. Preventing disconnection due to network inactivity</p>
+
+<p>而第一种应用层来检查连接存活经常用来检查客户端连接的存活, 因为客户端经常会保持发送连接</p>
+
+<h3 id="section-3">后续</h3>
+<p>可以修改 tcp keepalive 的三个参数</p>
+
+<p>tcp_keepalive_time 开始发送keepalive包的时间, 这里的时间是距离最后一次这个连接发包的时间 这个默认参数是 7200</p>
+
+<p>the interval between the last data packet sent (simple ACKs are not considered data) and the first keepalive probe; after the connection is marked to need keepalive, this counter is not used any further</p>
+
+<p>tcp_keepalive_intvl 开始发送keepalive以后, 间隔多长时间可以发送下一个keepalive 包</p>
+
+<p>the interval between subsequential keepalive probes, regardless of what the connection has exchanged in the meantime</p>
+
+<p>tcp_keepalive_probes 总共发送keepalive 包的个数</p>
+
+<p>the number of unacknowledged probes to send before considering the connection dead and notifying the application layer</p>
+
+<p>可以通过 /proc 接口查看</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>  # cat /proc/sys/net/ipv4/tcp_keepalive_time
+  7200
+
+  # cat /proc/sys/net/ipv4/tcp_keepalive_intvl
+  75
+
+  # cat /proc/sys/net/ipv4/tcp_keepalive_probes
+  9
+</code></pre>
+</div>
+
+<p>setsockopt 对应的几个选项</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>TCP_KEEPCNT: overrides tcp_keepalive_probes
+
+TCP_KEEPIDLE: overrides tcp_keepalive_time
+
+TCP_KEEPINTVL: overrides tcp_keepalive_intvl
+</code></pre>
+</div>
+
+<p>写了一个程序验证了一下, 服务端添加keepalive 的支持以后, 并在建立连接以后, 用iptable把往客户端发送连接的端口关闭, 在经过TCP_KEEPINTVL的发送消息次数以后, 服务端会自动的关闭这个连接</p>
+
+<p>EPOLLERR 8 EPOLLHUP 16 EPOLLIN 1 EPOLLOUT 2 EPOLLPRI 4</p>
+
+<p>经过测试
+客户端正常关闭的时候, 服务端收到的时间是
+tfe-&gt;mask_ 1
+也就是 EPOLLIN
+也就是说正常的关闭逻辑, 只是返回一个EPOLLIN 1, 表示有数据到达, 然后这个时候read这个socket 的数据发现是空, 就知道是关闭的事件</p>
+
+<p>如果是因为keepalive 收到事件, 那么返回的结果是这样
+tfe-&gt;mask_ 25
+也就是 EPOLLIN | EPOLLERR | EPOLLHUP
+也就是说epoll 返回的事件是 有读, 错误, 并且挂断
+这个时候其实程序也能读取这个fd 发现是空, 就知道是关闭的事件, 不过这里我认为这个事件应该是本地操作系统通知给这个fd的.
+就是说当这个keepalive 发现对端失败的时候会notifying the application layer</p>
+
+<p>参考资料: http://tldp.org/HOWTO/TCP-Keepalive-HOWTO/usingkeepalive.html</p>
+
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/tech/2015/09/25/tcp-keepalive';
+    var disqus_title      = 'About TCP keepalive';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>
