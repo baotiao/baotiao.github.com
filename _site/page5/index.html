@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201606021021" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201606021518" type="text/css">
 
     <!-- Fonts -->
     
@@ -108,26 +108,6 @@
 
     
 
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
 
     
 
@@ -139,26 +119,6 @@
 
     
         <a href="/paper/">Paper</a>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
     
 
     
@@ -197,11 +157,11 @@
     <div class="posts">
       
         <div class="post py3">
-          <p class="post-meta">Mar 10 2015</p>
-          <a href="/tech/2015/03/10/Bada-design-replicaset/" class="post-link"><h3 class="h1 post-title">Bada系列- 副本策略</h3></a>
+          <p class="post-meta">Oct 18 2012</p>
+          <a href="/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/2012/10/18/linux-e5-86-85-e6-a0-b8-e7-9a-84-e8-ae-be-e8-ae-a1-e4-b8-8e-e5-ae-9e-e7-8e-b0-e5-9d-97io-e5-b1-82/" class="post-link"><h3 class="h1 post-title">Linux内核的设计与实现:块I/O层</h3></a>
           <p class="post-summary">
             
-              <h2 id="bada---">Bada系列 - 副本策略</h2>
+              <h1 id="section">块设备</h1>
 
 
             
@@ -209,11 +169,11 @@
         </div>
       
         <div class="post py3">
-          <p class="post-meta">Jan 27 2015</p>
-          <a href="/tech/2015/01/27/storage-define/" class="post-link"><h3 class="h1 post-title">Storage type</h3></a>
+          <p class="post-meta">Sep 12 2012</p>
+          <a href="/c++/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/2012/09/12/c++-constuct/" class="post-link"><h3 class="h1 post-title">c++对象模型 构造函数语义学</h3></a>
           <p class="post-summary">
             
-              <h2 id="section">常见的存储类型</h2>
+              <h1 id="c-classconstructor">1. C++ 不会为所有的class构造默认的constructor</h1>
 
 
             
@@ -221,14 +181,13 @@
         </div>
       
         <div class="post py3">
-          <p class="post-meta">Jan 14 2015</p>
-          <a href="/tech/2015/01/14/aerospike-note/" class="post-link"><h3 class="h1 post-title">Aerospike note</h3></a>
+          <p class="post-meta">Aug 25 2012</p>
+          <a href="/c++/2012/08/25/c-e5-af-b9-e8-b1-a1-e6-a8-a1-e5-9e-8b/" class="post-link"><h3 class="h1 post-title">c++ 对象模型</h3></a>
           <p class="post-summary">
             
-              <h2 id="aerospike-">Aerospike 笔记</h2>
-<blockquote>
-  <p>最近看了一下Aerospike的代码, 也做了一些测试, 记了点笔记, 有点乱, 后期再修整</p>
-</blockquote>
+              <ol>
+  <li>C++的对象模型里面,Nonstatic data members 配置于每一个class object之内, static data members 则被存放在所有的class object之外. static 和 non static function members 也被放在所有的所有的class object 之外. Virtual function 则以两个步骤支持</li>
+</ol>
 
 
             
@@ -236,11 +195,84 @@
         </div>
       
         <div class="post py3">
-          <p class="post-meta">Oct 25 2014</p>
-          <a href="/tech/2014/10/25/introduce-mario/" class="post-link"><h3 class="h1 post-title">Mario(a pipe line library)</h3></a>
+          <p class="post-meta">Jul 29 2012</p>
+          <a href="/c++/tech/2012/07/29/c-inline/" class="post-link"><h3 class="h1 post-title">c++ inline</h3></a>
           <p class="post-summary">
             
-              <p>Introduce the mario pipe library.</p>
+              <p>一个函数被定义成inline 函数. 那么就跟macro 宏一样, 在编译器编译的时候,如果编译器发现你的函数是inline类型的,就把你编译成inline code.</p>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Jun 19 2012</p>
+          <a href="/c++/2012/06/19/c-e6-b3-9b-e5-9e-8b-e5-8d-95-e4-be-8b-e6-a8-a1-e5-bc-8f/" class="post-link"><h3 class="h1 post-title">c++泛型单例模式</h3></a>
+          <p class="post-summary">
+            
+              <p>单例模式是在设计模式里面很常见的一种,用来确保一个类只有一个实例. 首先是原生态版本的实现.</p>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">May 3 2012</p>
+          <a href="/vim/2012/05/03/vim%E5%A4%8D%E5%88%B6%E6%8F%92%E4%BB%B6/" class="post-link"><h3 class="h1 post-title">vim复制插件</h3></a>
+          <p class="post-summary">
+            
+              <p>vim复制的时候不发复制到c-v的复制缓冲区,很麻烦,自己动手,丰衣足食</p>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">May 3 2012</p>
+          <a href="/tool/2012/05/03/vim-grep/" class="post-link"><h3 class="h1 post-title">vim grep plugin</h3></a>
+          <p class="post-summary">
+            
+              
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Mar 26 2012</p>
+          <a href="/algorithm/c/2012/03/26/ternary-search-trees/" class="post-link"><h3 class="h1 post-title">Ternary Search Trees 三分树</h3></a>
+          <p class="post-summary">
+            
+              <p>经常碰到要存一堆的string, 这个时候可以用hash tables, 虽然hash tables 查找很快,但是hash tables不能表现出字符串之间的联系.可以用binary search tree, 但是查询速度不是很理想. 可以用trie, 不过trie会浪费很多空间(当然你也可以用二个数组实现也比较省空间). 所以这里Ternary Search trees 有trie的查询速度快的优点,以及binary search tree省空间的优点.</p>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Mar 7 2012</p>
+          <a href="/tech/2012/03/07/memcached-initialization/" class="post-link"><h3 class="h1 post-title">Memcache initialization</h3></a>
+          <p class="post-summary">
+            
+              <div class="highlighter-rouge"><pre class="highlight"><code>1.signal(SIGINT, sig_handler);
+</code></pre>
+</div>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Mar 5 2012</p>
+          <a href="/tech/2012/03/05/memcached-meituan/" class="post-link"><h3 class="h1 post-title">Memcache stats mt 线上使用情况</h3></a>
+          <p class="post-summary">
+            
+              <p>美团网memcached的使用情况,线上有3个memcached服务器,默认的内存空间是256M.</p>
 
 
             

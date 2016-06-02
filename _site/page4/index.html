@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201606021021" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201606021518" type="text/css">
 
     <!-- Fonts -->
     
@@ -108,26 +108,6 @@
 
     
 
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
 
     
 
@@ -139,26 +119,6 @@
 
     
         <a href="/paper/">Paper</a>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
     
 
     
@@ -197,11 +157,64 @@
     <div class="posts">
       
         <div class="post py3">
-          <p class="post-meta">Jul 29 2015</p>
-          <a href="/tech/2015/07/29/bada-introduce/" class="post-link"><h3 class="h1 post-title">360 Nosql Bada introduce</h3></a>
+          <p class="post-meta">Nov 12 2013</p>
+          <a href="/tech/2013/11/12/vector-locks/" class="post-link"><h3 class="h1 post-title">vector clocks</h3></a>
           <p class="post-summary">
             
-              <div class="highlighter-rouge"><pre class="highlight"><code>此文根据【QCON高可用架构群】分享内容，由群内【编辑组】志愿整理，转发请注明来自“高可用架构（ArchNotes）”微信公众号。  
+              <p>vector clocks 是Amazon 的Dynamo 论文提出的一个处理冲突的解决方案</p>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Nov 11 2013</p>
+          <a href="/tech/2013/11/11/leveldb-eleveldb/" class="post-link"><h3 class="h1 post-title">Basho levelDB 改进</h3></a>
+          <p class="post-summary">
+            
+              <h1 id="eleveldb--leveldb-">eleveldb 对 leveldb 的改进</h1>
+<p>## 整体改进目标
+1. 服务方面: Riak 需要在压力比较大的互联网环境使用. 所以增加了硬件的CRC校验, 增强了Bloom filter 的命中率, 还有默认的数据的完整性的检查
+2. 多数据库支持: Riak 会同时打开 8-64个数据库. Google的leveldb也支持这些, 不过他的compaction 线程不支持这些.
+具体的做法是当这个 compaction thread 有太多的事情要做的时候, 就停止让用户写入这些数据.
+Basho 的leveldb 的改进包括多个线程同时锁住, 让优先级更高的的线程进行compaction 操作</p>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Oct 15 2013</p>
+          <a href="/tech/2013/10/15/leveldb-compaction/" class="post-link"><h3 class="h1 post-title">levelDB Compaction 相关</h3></a>
+          <p class="post-summary">
+            
+              <h1 id="leveldb">levelDB</h1>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Sep 5 2013</p>
+          <a href="/tech/2013/09/05/leveldb-Get/" class="post-link"><h3 class="h1 post-title">levelDB Get过程</h3></a>
+          <p class="post-summary">
+            
+              <div class="highlighter-rouge"><pre class="highlight"><code>Status DBImpl::Get(const ReadOptions&amp; options,
+        const Slice&amp; key,
+        std::string* value) {
+    Status s;
+    MutexLock l(&amp;mutex_); //这里初始化levelDB的锁, 默认把锁加上
+    SequenceNumber snapshot; //这里就是定义一个最新的一个操作号, 有一个全局
+    唯一的SequenceNumber
+    if (options.snapshot != NULL) { //如果要求取的是某一个版本的数据
+        snapshot = reinterpret_cast&lt;const SnapshotImpl*&gt;(options.snapshot)-&gt;number_;
+    } else {
+        snapshot = versions_-&gt;LastSequence(); //否则就是最新的数据, 也就是当
+        前versions_里面最大的SequenceNumber的数据
+    }
 </code></pre>
 </div>
 
@@ -211,11 +224,28 @@
         </div>
       
         <div class="post py3">
-          <p class="post-meta">Jun 9 2015</p>
-          <a href="/tech/2015/06/09/mesos-paper/" class="post-link"><h3 class="h1 post-title">Summarize of mesos paper</h3></a>
+          <p class="post-meta">Sep 3 2013</p>
+          <a href="/tech/2013/09/03/leverdb-thought/" class="post-link"><h3 class="h1 post-title">levelDB thought</h3></a>
           <p class="post-summary">
             
-              <p>以下是看mesos paper 总结的一些东西.</p>
+              <ol>
+  <li>在ENV 里面可以把levelDB的结果从写入到本地 改成写入到 hdfs 来实现数据的备份, 复制等操作 具体的做法就是调用hdfs的写入这些库来实现.  这样实现levelDB的分布实话非常方便</li>
+  <li>levelDB的VersionSet 是管理者 version. 然后 每一个version 有一个列表, 这个列表是这个version 的对应的所有的SST文件.  所以你要查找某一个Version的数据的时候.  先会在这个VersionSet里面查找一遍包含这个当前快照的一个版本, 然后再从这个version 的这个list里面去具体的文件查找具体的内容</li>
+  <li>在一台机器上面getInstance()出来1000 levelDB的实例的话, 只会有一个compaction线程, 然后一个机器1000 个levelDB 实例和1个机器1个levelDB的实例的话 带来的好处是在机器挂掉得时候recovery的非常的快.  不过这样compaction起来就很费劲</li>
+  <li>在将本地文件写入到hdfs的节点中, 因为hdfs的写入性能比较慢.  所以在本地应该是writrBranch. 然后20ms向hdfs写一次. 这样比较适合.</li>
+  <li>levelDB 如何实现原子的getAndSet.  因为levelDB不是再内存层面实现这个对具体某一个key操作. 所以这个levelDB 的getAndSet操作不是通过汇编层面实现的.</li>
+</ol>
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Aug 22 2013</p>
+          <a href="/tech/2013/08/22/leveldb-iterator/" class="post-link"><h3 class="h1 post-title">levelDB中用到的迭代器模型</h3></a>
+          <p class="post-summary">
+            
+              <h3 id="leveldb">迭代器的设计模式是一种很常用的设计模式. leveldb的实现里面就用到了.</h3>
 
 
             
@@ -223,12 +253,11 @@
         </div>
       
         <div class="post py3">
-          <p class="post-meta">May 22 2015</p>
-          <a href="/tech/2015/05/22/libprocess-source/" class="post-link"><h3 class="h1 post-title">Libprocess source intorduce</h3></a>
+          <p class="post-meta">Aug 22 2013</p>
+          <a href="/tech/2013/08/22/leveldb-c++/" class="post-link"><h3 class="h1 post-title">learn c++ from levelDB</h3></a>
           <p class="post-summary">
             
-              <p>最近由于项目的需要, 在看Mesos 的代码,
-把Mesos底下的进程管理库libprocess大概过了一遍</p>
+              <p>###LevelDB是一个学习c++很好的一个代码. 里面有很多写代码的好习惯值得我们学习.</p>
 
 
             
@@ -236,11 +265,41 @@
         </div>
       
         <div class="post py3">
-          <p class="post-meta">May 14 2015</p>
-          <a href="/tech/2015/05/14/Mesos-Synchronized/" class="post-link"><h3 class="h1 post-title">Mesos libprocess Synchronized Implement</h3></a>
+          <p class="post-meta">Jul 18 2013</p>
+          <a href="/life/2013/07/18/add-ssd/" class="post-link"><h3 class="h1 post-title">Mac 换上SSD硬盘</h3></a>
           <p class="post-summary">
             
-              <p>最近由于项目的需要, 在看Mesos 的代码</p>
+              <p>给Mac换上的SSD硬盘步骤</p>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Jul 1 2013</p>
+          <a href="/tech/2013/07/01/test-markdown/" class="post-link"><h3 class="h1 post-title">test markdown</h3></a>
+          <p class="post-summary">
+            
+              <p>first time use in markdown</p>
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Nov 16 2012</p>
+          <a href="/linux/2012/11/16/linux-kernel-process/" class="post-link"><h3 class="h1 post-title">Linux内核设计与实现 进程地址空间 实际中使用的内存</h3></a>
+          <p class="post-summary">
+            
+              <div class="highlighter-rouge"><pre class="highlight"><code>int main(int argc, char *argv[])
+{
+    while (1) {
+    };
+    return 0;
+}
+</code></pre>
+</div>
 
 
             
