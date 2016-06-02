@@ -2,8 +2,6 @@
 layout: post
 title: "swappiness 是否需要设置成0" 
 description: "swappiness 是否需要设置成0 "
-category: kernel, memory
-tags: [kernel, memory]
 ---
 
 在我们的线上机器里面, 为了避免内存对性能的影响, 经常会将 swappiness 设置成0.  这个 swappiness 具体含义是什么? 这里就能够完全避免 swap 么? 这样做好么?
