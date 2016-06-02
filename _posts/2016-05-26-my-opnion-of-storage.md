@@ -1,9 +1,6 @@
 ---
 layout: post
 title: "我对存储的一些看法"
-description: "我对存储的一些看法"
-category: storage, opnion
-tags: [storage, opnion]
 ---
 
 其实计算机主要分成两个部分 计算 + 存储, 存储应该是计算的基石

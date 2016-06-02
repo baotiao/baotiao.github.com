@@ -1,12 +1,7 @@
 ---
 layout: post
 title: "File System Summarize"
-description: "File System Summarize"
-category: tech
-tags: [os, filesystem]
 ---
-
-
 
 最近在看关于file system 的一些东西, 总觉得这个领域发展的比较成熟, 应该可以从这个领域学到东西应用到其他地方. 看了一些论文发现没有综述性质的文章, 只能自己进行分类了, 后续继续更新...
 

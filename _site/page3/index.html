@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201606022150" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201606030108" type="text/css">
 
     <!-- Fonts -->
     
@@ -43,6 +43,8 @@
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
     
     <meta name="twitter:title" content="baotiao" />
     <meta name="twitter:description" content="做有积累的事情" />
@@ -158,7 +160,7 @@
       
         <div class="post py3">
           <p class="post-meta">Oct 22 2014</p>
-          <a href="/tech/2014/10/22/caspp-lab2/" class="post-link"><h3 class="h1 post-title">CSAPP bomb lab</h3></a>
+          <a href="/2014/10/22/caspp-lab2/" class="post-link"><h3 class="h1 post-title">CSAPP bomb lab</h3></a>
           <p class="post-summary">
             
               <p>做的是coursera上面这个 <a href="https://class.coursera.org/hwswinterface-002/lecture">The Hardware/Software Interface</a> 这个课程的课后作业, 也就是CSAPP这本书上很有名的bonm实验. 感觉非常有意思, 对汇编和GDB的熟悉认真做完都能有很大的提高</p>
@@ -194,7 +196,7 @@
       
         <div class="post py3">
           <p class="post-meta">May 15 2014</p>
-          <a href="/tech/2014/05/15/leveldb-env/" class="post-link"><h3 class="h1 post-title">Leveldb env 对文件系统的封装</h3></a>
+          <a href="/tech/2014/05/15/leveldb-env/" class="post-link"><h3 class="h1 post-title">Leveldb Env</h3></a>
           <p class="post-summary">
             
               <p>LevelDB的Env主要封装了操作系统的文件接口, 后台线程的调度, 以及锁等实现
@@ -247,20 +249,8 @@
           <a href="/tech/2014/02/12/leveldb-write/" class="post-link"><h3 class="h1 post-title">Leveldb write </h3></a>
           <p class="post-summary">
             
-              <div class="highlighter-rouge"><pre class="highlight"><code>年前分享了LevelDB的时候遗留了一个问题
-就是在LevelDB Write操作的时候, 如何做到线程安全的, 以及在代码里面为什么要同时通知这么多个的线程
-    while (true) {
-        Writer* ready = writers_.front();
-        writers_.pop_front();
-        if (ready != &amp;w) {
-            ready-&gt;status = status;
-            ready-&gt;done = true;
-            ready-&gt;cv.Signal();
-        }
-        if (ready == last_writer) break;
-    }
-</code></pre>
-</div>
+              <p>年前分享了LevelDB的时候遗留了一个问题
+就是在LevelDB Write操作的时候, 如何做到线程安全的, 以及在代码里面为什么要同时通知这么多个的线程</p>
 
 
             
@@ -269,10 +259,10 @@
       
         <div class="post py3">
           <p class="post-meta">Jan 2 2014</p>
-          <a href="/tech/2014/01/02/cap-theorem/" class="post-link"><h3 class="h1 post-title">CAP theorem</h3></a>
+          <a href="/2014/01/02/cap-theorem/" class="post-link"><h3 class="h1 post-title">CAP theorem</h3></a>
           <p class="post-summary">
             
-              <p>###CAP theorem (摘自维基百科)</p>
+              <h3 id="cap-theorem-">CAP theorem (摘自维基百科)</h3>
 
 
             

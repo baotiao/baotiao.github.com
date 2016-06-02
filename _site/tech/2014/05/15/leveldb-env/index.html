@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>Leveldb env 对文件系统的封装 &#8211; baotiao</title>
+    <title>Leveldb Env &#8211; baotiao</title>
     <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
     <link rel="dns-prefetch" href="//cdn.mathjax.org">
     <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201606022150" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201606030108" type="text/css">
 
     <!-- Fonts -->
     
@@ -36,7 +36,7 @@
     <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
     <meta property="og:locale" content="en_US">
     <meta property="og:type" content="article">
-    <meta property="og:title" content="Leveldb env 对文件系统的封装">
+    <meta property="og:title" content="Leveldb Env">
     <meta property="og:description" content="Leveldb env 对文件系统的封装">
     <meta property="og:url" content="http://baotiao.github.io//tech/2014/05/15/leveldb-env/">
     <meta property="og:site_name" content="baotiao">
@@ -44,7 +44,9 @@
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary" />
     
-    <meta name="twitter:title" content="Leveldb env 对文件系统的封装" />
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="Leveldb Env" />
     <meta name="twitter:description" content="做有积累的事情" />
     <meta name="twitter:url" content="http://baotiao.github.io//tech/2014/05/15/leveldb-env/" />
 
@@ -154,7 +156,7 @@
 
 
 <div class="post-header mb2">
-  <h1>Leveldb env 对文件系统的封装</h1>
+  <h1>Leveldb Env</h1>
   <span class="post-meta">May 15 2014</span><br>
   
   <span class="post-meta small">
@@ -180,57 +182,56 @@
 <p>RandomAccessFile 有两种实现, 一种是Mmap, 一种是pread</p>
 
 <ol>
-  <li>
-    <p>Pread 的实现方式很简单, 之所以用Pread 就是为了防止多线程读写, lseek和read之间不是原子操作产生的问题</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> virtual Status Read(uint64_t offset, size_t n, Slice* result,
-         char* scratch) const {
-     Status s;
-     ssize_t r = pread(fd_, scratch, n, static_cast&lt;off_t&gt;(offset));
-     *result = Slice(scratch, (r &lt; 0) ? 0 : r);
-     if (r &lt; 0) {
-         // An error: return a non-ok status
-         s = IOError(filename_, errno);
-     }
-     return s;
- }
-</code></pre>
-    </div>
-  </li>
-  <li>
-    <p>Mmap 的实现方式是将新建的文件Mmap到虚拟内存空间, 然后在内存里面读取, 从代码里面可以看出默认的RandomAccessFile用的是Mmap的方式, 具体的原因肯定是Mmap的性能优于Pread 的方式</p>
-
-    <div class="highlighter-rouge"><pre class="highlight"><code> virtual Status NewRandomAccessFile(const std::string&amp; fname,
-         RandomAccessFile** result) {
-     *result = NULL;
-     Status s;
-     int fd = open(fname.c_str(), O_RDONLY);
-     if (fd &lt; 0) {
-         s = IOError(fname, errno);
-     } else if (mmap_limit_.Acquire()) { // 这里是判断是否还能够继续Mmap, 规定默认的Mmap文件的个数是1000个
-         uint64_t size;
-         s = GetFileSize(fname, &amp;size);
-         if (s.ok()) {
-             void* base = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
-             if (base != MAP_FAILED) {
-                 *result = new PosixMmapReadableFile(fname, base, size, &amp;mmap_limit_);
-             } else {
-                 s = IOError(fname, errno);
-             }
-         }
-         close(fd);
-         if (!s.ok()) {
-             mmap_limit_.Release();
-         }
-     } else {
-         *result = new PosixRandomAccessFile(fname, fd);
-     }
-     return s;
- }
-</code></pre>
-    </div>
-  </li>
+  <li>Pread 的实现方式很简单, 之所以用Pread 就是为了防止多线程读写, lseek和read之间不是原子操作产生的问题</li>
 </ol>
+
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="k">virtual</span> <span class="n">Status</span> <span class="n">Read</span><span class="p">(</span><span class="kt">uint64_t</span> <span class="n">offset</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">n</span><span class="p">,</span> <span class="n">Slice</span><span class="o">*</span> <span class="n">result</span><span class="p">,</span>
+        <span class="kt">char</span><span class="o">*</span> <span class="n">scratch</span><span class="p">)</span> <span class="k">const</span> <span class="p">{</span>
+    <span class="n">Status</span> <span class="n">s</span><span class="p">;</span>
+    <span class="kt">ssize_t</span> <span class="n">r</span> <span class="o">=</span> <span class="n">pread</span><span class="p">(</span><span class="n">fd_</span><span class="p">,</span> <span class="n">scratch</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">off_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">offset</span><span class="p">));</span>
+    <span class="o">*</span><span class="n">result</span> <span class="o">=</span> <span class="n">Slice</span><span class="p">(</span><span class="n">scratch</span><span class="p">,</span> <span class="p">(</span><span class="n">r</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">?</span> <span class="mi">0</span> <span class="o">:</span> <span class="n">r</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">r</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c1">// An error: return a non-ok status
+</span>        <span class="n">s</span> <span class="o">=</span> <span class="n">IOError</span><span class="p">(</span><span class="n">filename_</span><span class="p">,</span> <span class="n">errno</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">s</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<ol>
+  <li>Mmap 的实现方式是将新建的文件Mmap到虚拟内存空间, 然后在内存里面读取, 从代码里面可以看出默认的RandomAccessFile用的是Mmap的方式, 具体的原因肯定是Mmap的性能优于Pread 的方式</li>
+</ol>
+
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="k">virtual</span> <span class="n">Status</span> <span class="nf">NewRandomAccessFile</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span> <span class="n">fname</span><span class="p">,</span>
+        <span class="n">RandomAccessFile</span><span class="o">**</span> <span class="n">result</span><span class="p">)</span> <span class="p">{</span>
+    <span class="o">*</span><span class="n">result</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="n">Status</span> <span class="n">s</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">fd</span> <span class="o">=</span> <span class="n">open</span><span class="p">(</span><span class="n">fname</span><span class="p">.</span><span class="n">c_str</span><span class="p">(),</span> <span class="n">O_RDONLY</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">fd</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">IOError</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">errno</span><span class="p">);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">mmap_limit_</span><span class="p">.</span><span class="n">Acquire</span><span class="p">())</span> <span class="p">{</span> <span class="c1">// 这里是判断是否还能够继续Mmap, 规定默认的Mmap文件的个数是1000个
+</span>        <span class="kt">uint64_t</span> <span class="n">size</span><span class="p">;</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">GetFileSize</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">size</span><span class="p">);</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">s</span><span class="p">.</span><span class="n">ok</span><span class="p">())</span> <span class="p">{</span>
+            <span class="kt">void</span><span class="o">*</span> <span class="n">base</span> <span class="o">=</span> <span class="n">mmap</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">PROT_READ</span><span class="p">,</span> <span class="n">MAP_SHARED</span><span class="p">,</span> <span class="n">fd</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">base</span> <span class="o">!=</span> <span class="n">MAP_FAILED</span><span class="p">)</span> <span class="p">{</span>
+                <span class="o">*</span><span class="n">result</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PosixMmapReadableFile</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">base</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">mmap_limit_</span><span class="p">);</span>
+            <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+                <span class="n">s</span> <span class="o">=</span> <span class="n">IOError</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">errno</span><span class="p">);</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+        <span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+        <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">s</span><span class="p">.</span><span class="n">ok</span><span class="p">())</span> <span class="p">{</span>
+            <span class="n">mmap_limit_</span><span class="p">.</span><span class="n">Release</span><span class="p">();</span>
+        <span class="p">}</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="o">*</span><span class="n">result</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PosixRandomAccessFile</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">fd</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">s</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+</div>
 
 <p>在Mmap的实现方式里面, 有一个MmapLimiter, 这个MmapLimiter主要用处就是防止你Mmap的文件过多, 造成虚拟内存空间被跑满, 或者是由于虚拟内存空间使用过多, 造成内核的性能问题. 所以这里最多允许Mmap 1000个文件. 其中在MmapLimiter里面需要用到Mutex, AtomicPointer主要为了保证修改这个Mmap的限制文件个数是原子操作</p>
 
@@ -257,32 +258,31 @@
 
 <p>主要的Append()函数实现方式:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>    virtual Status Append(const Slice&amp; data) {
-        const char* src = data.data();
-        size_t left = data.size();
-        while (left &gt; 0) {
-            assert(base_ &lt;= dst_);
-            assert(dst_ &lt;= limit_);
-            size_t avail = limit_ - dst_;
-            if (avail == 0) { // 这里判断当前Mmap的空间是否还有可用的空间, 也就是当前writefile是否被写满了
-                if (!UnmapCurrentRegion() || // 被写满以后先Unmap将当前的Mmap去掉
-                        !MapNewRegion()) { // 重新Mmap新的地址空间, 这里Mmap的初始地址从file_offset_开始, 也就是从
-                                          // writefile文件新增的地址开始Mmap
-                    return IOError(filename_, errno);
-                }
-            }
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="k">virtual</span> <span class="n">Status</span> <span class="nf">Append</span><span class="p">(</span><span class="k">const</span> <span class="n">Slice</span><span class="o">&amp;</span> <span class="n">data</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">const</span> <span class="kt">char</span><span class="o">*</span> <span class="n">src</span> <span class="o">=</span> <span class="n">data</span><span class="p">.</span><span class="n">data</span><span class="p">();</span>
+    <span class="kt">size_t</span> <span class="n">left</span> <span class="o">=</span> <span class="n">data</span><span class="p">.</span><span class="n">size</span><span class="p">();</span>
+    <span class="k">while</span> <span class="p">(</span><span class="n">left</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">assert</span><span class="p">(</span><span class="n">base_</span> <span class="o">&lt;=</span> <span class="n">dst_</span><span class="p">);</span>
+        <span class="n">assert</span><span class="p">(</span><span class="n">dst_</span> <span class="o">&lt;=</span> <span class="n">limit_</span><span class="p">);</span>
+        <span class="kt">size_t</span> <span class="n">avail</span> <span class="o">=</span> <span class="n">limit_</span> <span class="o">-</span> <span class="n">dst_</span><span class="p">;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">avail</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// 这里判断当前Mmap的空间是否还有可用的空间, 也就是当前writefile是否被写满了
+</span>            <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">UnmapCurrentRegion</span><span class="p">()</span> <span class="o">||</span> <span class="c1">// 被写满以后先Unmap将当前的Mmap去掉
+</span>                    <span class="o">!</span><span class="n">MapNewRegion</span><span class="p">())</span> <span class="p">{</span> <span class="c1">// 重新Mmap新的地址空间, 这里Mmap的初始地址从file_offset_开始, 也就是从
+</span>                                      <span class="c1">// writefile文件新增的地址开始Mmap
+</span>                <span class="k">return</span> <span class="n">IOError</span><span class="p">(</span><span class="n">filename_</span><span class="p">,</span> <span class="n">errno</span><span class="p">);</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
 
-            size_t n = (left &lt;= avail) ? left : avail;
-            memcpy(dst_, src, n);
-            dst_ += n;
-            src += n;
-            left -= n;
-        }
-        return Status::OK();
-    }
+        <span class="kt">size_t</span> <span class="n">n</span> <span class="o">=</span> <span class="p">(</span><span class="n">left</span> <span class="o">&lt;=</span> <span class="n">avail</span><span class="p">)</span> <span class="o">?</span> <span class="n">left</span> <span class="o">:</span> <span class="n">avail</span><span class="p">;</span>
+        <span class="n">memcpy</span><span class="p">(</span><span class="n">dst_</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="n">n</span><span class="p">);</span>
+        <span class="n">dst_</span> <span class="o">+=</span> <span class="n">n</span><span class="p">;</span>
+        <span class="n">src</span> <span class="o">+=</span> <span class="n">n</span><span class="p">;</span>
+        <span class="n">left</span> <span class="o">-=</span> <span class="n">n</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">Status</span><span class="o">::</span><span class="n">OK</span><span class="p">();</span>
+<span class="p">}</span>
 </code></pre>
 </div>
-
 
 </article>
 
@@ -295,7 +295,7 @@
   <script type="text/javascript">
     var disqus_shortname  = 'baotiao';
     var disqus_identifier = '/tech/2014/05/15/leveldb-env';
-    var disqus_title      = 'Leveldb env 对文件系统的封装';
+    var disqus_title      = 'Leveldb Env';
 
     (function() {
       var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;

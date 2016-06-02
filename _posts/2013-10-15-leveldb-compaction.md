@@ -1,12 +1,7 @@
 ---
 layout: post
 title: "levelDB Compaction 相关"
-description: "level source code"
-category: tech
-tags: [levelDB]
 ---
-
-# levelDB
 
 ## level DB 如何选择要Compaction的级别
 
@@ -52,59 +47,61 @@ s = impl->versions_>LogAndApply(&edit, &impl>mutex_);
 ## 具体的MaybeCompaction() 过程
 #### 函数入口
 
-    void DBImpl::MaybeScheduleCompaction() {
-    mutex_.AssertHeld();
-    // 如果后台有Compaction 线程, 那么直接退出
-    if (bg_compaction_scheduled_) {
-                // Already scheduled
-                // 如果db 要被 shut_down, 直接退出
-            } else if (shutting_down_.Acquire_Load()) {
-                // DB is being deleted; no more background compactions
-                // 如果 imm_ 这个文件还是空的, 并且是manual_compaction是空的, 这里
-                // TODO
-            } else if (imm\_ == NULL &&
-    manual_compaction\_ == NULL &&
-    \!versions_->NeedsCompaction()) {
-                // No work to be done
-            } else {
-                // 设置这个后台有compaction 线程已经启动
-                bg_compaction_scheduled_ = true;
-                env_->Schedule(&DBImpl::BGWork, this); //调用下面的 BGWork函数. 这里虽然是env_, 当时这env_里面会调用这个函数指针, 调用DBImpl::BGWork 这个函数
-            }
-    }
+```c++
+void DBImpl::MaybeScheduleCompaction() {
+  mutex_.AssertHeld();
+  // 如果后台有Compaction 线程, 那么直接退出
+  if (bg_compaction_scheduled_) {
+    // Already scheduled
+    // 如果db 要被 shut_down, 直接退出
+  } else if (shutting_down_.Acquire_Load()) {
+    // DB is being deleted; no more background compactions
+    // 如果 imm_ 这个文件还是空的, 并且是manual_compaction是空的, 这里
+    // TODO
+  } else if (imm\_ == NULL &&
+      manual_compaction\_ == NULL &&
+      \!versions_->NeedsCompaction()) {
+    // No work to be done
+  } else {
+    // 设置这个后台有compaction 线程已经启动
+    bg_compaction_scheduled_ = true;
+    env_->Schedule(&DBImpl::BGWork, this); //调用下面的 BGWork函数. 这里虽然是env_, 当时这env_里面会调用这个函数指针, 调用DBImpl::BGWork 这个函数
+  }
+}
 
-    * 在PosixEnv::Schedule 这个函数里面
+* 在PosixEnv::Schedule 这个函数里面
 
-    void PosixEnv::Schedule(void (*function)(void*), void\* arg) {
-    PthreadCall("lock", pthread_mutex_lock(&mu_));
+void PosixEnv::Schedule(void (*function)(void*), void\* arg) {
+  PthreadCall("lock", pthread_mutex_lock(&mu_));
 
-    // Start background thread if necessary
-    // 看是否有后台线程已经启动, 如果没有启动就启动这个后台线程, 并执行一个死循环
-    // 具体的执行是BGThreadWrapper \-> BGThread 这个函数,
-    // 在BGThread 函数就是一个死循环, 不断的从这个queue\_ 里面读出, 这个是FIFO的形式
-    // 读出, 先进先出. 没有做一个优先级的概念.
-    if (\!started_bgthread_) {
-                    started_bgthread_ = true;
-                    PthreadCall(
-                            "create thread",
-                            pthread_create(&bgthread_, NULL,  &PosixEnv::BGThreadWrapper, this));
-                }
+  // Start background thread if necessary
+  // 看是否有后台线程已经启动, 如果没有启动就启动这个后台线程, 并执行一个死循环
+  // 具体的执行是BGThreadWrapper \-> BGThread 这个函数,
+  // 在BGThread 函数就是一个死循环, 不断的从这个queue\_ 里面读出, 这个是FIFO的形式
+  // 读出, 先进先出. 没有做一个优先级的概念.
+  if (\!started_bgthread_) {
+    started_bgthread_ = true;
+    PthreadCall(
+        "create thread",
+        pthread_create(&bgthread_, NULL,  &PosixEnv::BGThreadWrapper, this));
+  }
 
-    // If the queue is currently empty, the background thread may currently be
-    // waiting.
-    // 如果这个queue\_ 里面的数据当前是空的, 则等待cond 锁让它起来
-    if (queue_.empty()) {
-                    PthreadCall("signal", pthread_cond_signal(&bgsignal_));
-                }
+  // If the queue is currently empty, the background thread may currently be
+  // waiting.
+  // 如果这个queue\_ 里面的数据当前是空的, 则等待cond 锁让它起来
+  if (queue_.empty()) {
+    PthreadCall("signal", pthread_cond_signal(&bgsignal_));
+  }
 
-    // Add to priority queue
-    queue_.push_back(BGItem());
-    queue_.back().function = function; // 这里注册的函数是 &DBImpl::BGWork
-    queue_.back().arg = arg; // 这里arg 是 db->this指针
+  // Add to priority queue
+  queue_.push_back(BGItem());
+  queue_.back().function = function; // 这里注册的函数是 &DBImpl::BGWork
+  queue_.back().arg = arg; // 这里arg 是 db->this指针
 
-    PthreadCall("unlock", pthread_mutex_unlock(&mu_));
-    }
+  PthreadCall("unlock", pthread_mutex_unlock(&mu_));
+}
 
+```
 
 #### 接下来是具体执行 函数 BackgroundCall() -> BackgroundCompaction().
 

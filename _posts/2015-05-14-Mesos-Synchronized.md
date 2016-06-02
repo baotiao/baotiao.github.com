@@ -1,9 +1,6 @@
 ---
 layout: post
 title: "Mesos libprocess Synchronized Implement"
-description: "Mesos Synchronized Implement"
-category: tech
-tags: [mesos, c++]
 ---
 
 最近由于项目的需要, 在看Mesos 的代码
@@ -11,7 +8,7 @@ tags: [mesos, c++]
 觉得libprocess 里面实现的Synchronized 实现的挺有意思就摘取出来了
 
 
-``` 
+```cpp
 #include <pthread.h>
 #include <iostream>
 

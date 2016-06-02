@@ -1,19 +1,17 @@
 ---
-author: admin
-comments: true
 date: 2012-11-16 02:28:59+00:00
 layout: post
-title: Linux内核设计与实现 进程地址空间 实际中使用的内存
-categories:
-- linux
+title: Linux内核设计与实现-进程内存使用 
 ---
 
-    int main(int argc, char *argv[])
-    {
-        while (1) {
-        };
-        return 0;
-    }
+```c++
+int main(int argc, char *argv[])
+{
+  while (1) {
+  };
+  return 0;
+}
+```
 
 用pmap 进程号 -d 来查看进程
 

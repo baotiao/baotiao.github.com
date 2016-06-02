@@ -1,9 +1,6 @@
 ---
 layout: post
 title: "谈谈paxos, multi-paxos, raft"
-description: "谈谈paxos, multi-paxos, raft"
-category: distribute, consensus
-tags: [distribute, consensus]
 ---
 
 本文假设你已经看过了paxos make simpe, paxos make live, 关于raft 你看过对应的paper, multi-paxos 其实我觉得介绍的最好的还是Diego Ongaro 为了对比raft 和multi-paxos 的学习的难易程度写的[视频][1]

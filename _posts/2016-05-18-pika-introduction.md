@@ -1,9 +1,7 @@
 ---
 layout: post
 title: "pika introduction"
-description: "pika introduction"
-category: storage, redis
-tags: [pika, storage]
+summary: "intruduce 360 pika"
 ---
 
 

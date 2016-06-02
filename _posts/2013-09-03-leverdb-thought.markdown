@@ -2,8 +2,6 @@
 layout: post
 title: "levelDB thought"
 description: "leveldb"
-category: tech
-tags: [leveldb]
 ---
 
 1. 在ENV 里面可以把levelDB的结果从写入到本地 改成写入到 hdfs 来实现数据的备份, 复制等操作 具体的做法就是调用hdfs的写入这些库来实现.  这样实现levelDB的分布实话非常方便

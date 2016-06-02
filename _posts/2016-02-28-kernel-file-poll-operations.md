@@ -1,12 +1,11 @@
 ---
 layout: post
-title: "kernel file poll operations"
-description: "kernel file poll operations"
-category: kernel, tech
-tags: [kernel]
+title: kernel file poll operations
+categories: kernel tech
 ---
 
-#### 在file_operations 里面, poll 这个操作到底是什么意思
+在file_operations 里面, poll 这个操作到底是什么意思
+
 
 在ulk 里面poll 操作的解释是
 
@@ -21,8 +20,8 @@ Checks whether there is activity on a file and goes to sleep until something hap
 
 比如这个是pipe 上面的 poll 操作 pipe_poll()
 
-```
 
+```c
 /* No kernel lock held - fine */
 static unsigned int
 pipe_poll(struct file *filp, poll_table *wait)
@@ -61,7 +60,7 @@ pipe_poll(struct file *filp, poll_table *wait)
 
 对应的tcp 里面是否有时间到达的poll 函数是 tcp_poll()
 
-```
+```c
 unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 {
   unsigned int mask;
@@ -122,6 +121,7 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
   return mask;
 }
 ```
+
 
 这里可以看到, tcp 的tcp_poll() 里面也是同样调用socket_poll_wait, 然后socket_poll_wait 调用poll_wait来注册当有时间发生的时候的回调函数.
 

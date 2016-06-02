@@ -1,9 +1,7 @@
 ---
 layout: post
-title: "Leveldb env 对文件系统的封装"
 description: "Leveldb env 对文件系统的封装"
 category: tech
-tags: [distribute, leveldb]
 ---
 LevelDB的Env主要封装了操作系统的文件接口, 后台线程的调度, 以及锁等实现
 主要封装了如下三个文件类型  
@@ -19,48 +17,52 @@ RandomAccessFile 有两种实现, 一种是Mmap, 一种是pread
 
 1. Pread 的实现方式很简单, 之所以用Pread 就是为了防止多线程读写, lseek和read之间不是原子操作产生的问题
 
-        virtual Status Read(uint64_t offset, size_t n, Slice* result,
-                char* scratch) const {
-            Status s;
-            ssize_t r = pread(fd_, scratch, n, static_cast<off_t>(offset));
-            *result = Slice(scratch, (r < 0) ? 0 : r);
-            if (r < 0) {
-                // An error: return a non-ok status
-                s = IOError(filename_, errno);
-            }
-            return s;
-        }
+```c++
+virtual Status Read(uint64_t offset, size_t n, Slice* result,
+        char* scratch) const {
+    Status s;
+    ssize_t r = pread(fd_, scratch, n, static_cast<off_t>(offset));
+    *result = Slice(scratch, (r < 0) ? 0 : r);
+    if (r < 0) {
+        // An error: return a non-ok status
+        s = IOError(filename_, errno);
+    }
+    return s;
+}
+```
 
 
 2. Mmap 的实现方式是将新建的文件Mmap到虚拟内存空间, 然后在内存里面读取, 从代码里面可以看出默认的RandomAccessFile用的是Mmap的方式, 具体的原因肯定是Mmap的性能优于Pread 的方式
 
-        virtual Status NewRandomAccessFile(const std::string& fname,
-                RandomAccessFile** result) {
-            *result = NULL;
-            Status s;
-            int fd = open(fname.c_str(), O_RDONLY);
-            if (fd < 0) {
-                s = IOError(fname, errno);
-            } else if (mmap_limit_.Acquire()) { // 这里是判断是否还能够继续Mmap, 规定默认的Mmap文件的个数是1000个
-                uint64_t size;
-                s = GetFileSize(fname, &size);
-                if (s.ok()) {
-                    void* base = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
-                    if (base != MAP_FAILED) {
-                        *result = new PosixMmapReadableFile(fname, base, size, &mmap_limit_);
-                    } else {
-                        s = IOError(fname, errno);
-                    }
-                }
-                close(fd);
-                if (!s.ok()) {
-                    mmap_limit_.Release();
-                }
+```c++
+virtual Status NewRandomAccessFile(const std::string& fname,
+        RandomAccessFile** result) {
+    *result = NULL;
+    Status s;
+    int fd = open(fname.c_str(), O_RDONLY);
+    if (fd < 0) {
+        s = IOError(fname, errno);
+    } else if (mmap_limit_.Acquire()) { // 这里是判断是否还能够继续Mmap, 规定默认的Mmap文件的个数是1000个
+        uint64_t size;
+        s = GetFileSize(fname, &size);
+        if (s.ok()) {
+            void* base = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
+            if (base != MAP_FAILED) {
+                *result = new PosixMmapReadableFile(fname, base, size, &mmap_limit_);
             } else {
-                *result = new PosixRandomAccessFile(fname, fd);
+                s = IOError(fname, errno);
             }
-            return s;
         }
+        close(fd);
+        if (!s.ok()) {
+            mmap_limit_.Release();
+        }
+    } else {
+        *result = new PosixRandomAccessFile(fname, fd);
+    }
+    return s;
+}
+```
  
 在Mmap的实现方式里面, 有一个MmapLimiter, 这个MmapLimiter主要用处就是防止你Mmap的文件过多, 造成虚拟内存空间被跑满, 或者是由于虚拟内存空间使用过多, 造成内核的性能问题. 所以这里最多允许Mmap 1000个文件. 其中在MmapLimiter里面需要用到Mutex, AtomicPointer主要为了保证修改这个Mmap的限制文件个数是原子操作
 
@@ -82,27 +84,28 @@ WritableFile 的主要封装是顺序写文件, PosixMmapFile就是用Mmap的封
 
 主要的Append()函数实现方式:
 
-        virtual Status Append(const Slice& data) {
-            const char* src = data.data();
-            size_t left = data.size();
-            while (left > 0) {
-                assert(base_ <= dst_);
-                assert(dst_ <= limit_);
-                size_t avail = limit_ - dst_;
-                if (avail == 0) { // 这里判断当前Mmap的空间是否还有可用的空间, 也就是当前writefile是否被写满了
-                    if (!UnmapCurrentRegion() || // 被写满以后先Unmap将当前的Mmap去掉
-                            !MapNewRegion()) { // 重新Mmap新的地址空间, 这里Mmap的初始地址从file_offset_开始, 也就是从
-                                              // writefile文件新增的地址开始Mmap
-                        return IOError(filename_, errno);
-                    }
-                }
-
-                size_t n = (left <= avail) ? left : avail;
-                memcpy(dst_, src, n);
-                dst_ += n;
-                src += n;
-                left -= n;
+```c++
+virtual Status Append(const Slice& data) {
+    const char* src = data.data();
+    size_t left = data.size();
+    while (left > 0) {
+        assert(base_ <= dst_);
+        assert(dst_ <= limit_);
+        size_t avail = limit_ - dst_;
+        if (avail == 0) { // 这里判断当前Mmap的空间是否还有可用的空间, 也就是当前writefile是否被写满了
+            if (!UnmapCurrentRegion() || // 被写满以后先Unmap将当前的Mmap去掉
+                    !MapNewRegion()) { // 重新Mmap新的地址空间, 这里Mmap的初始地址从file_offset_开始, 也就是从
+                                      // writefile文件新增的地址开始Mmap
+                return IOError(filename_, errno);
             }
-            return Status::OK();
         }
 
+        size_t n = (left <= avail) ? left : avail;
+        memcpy(dst_, src, n);
+        dst_ += n;
+        src += n;
+        left -= n;
+    }
+    return Status::OK();
+}
+```

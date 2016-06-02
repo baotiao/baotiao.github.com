@@ -1,15 +1,7 @@
 ---
-author: admin
-comments: true
 date: 2011-07-23 13:54:28+00:00
 layout: post
-slug: openparty-%e7%ac%ac%e4%b8%80%e6%ac%a1%e5%8f%82%e5%8a%a0%e8%bf%99%e7%a7%8d%e4%ba%a4%e6%b5%81%e4%bc%9a
 title: OpenParty 第一次参加这种交流会
-wordpress_id: 28
-categories:
-- life
-tags:
-- OpenParty
 ---
 
 来得好像挺多牛B人的.看见挺多个穿TopCoder的.
@@ -24,4 +16,4 @@ tags:
 4.就是逼自己做自己没尝试过的事情.在没有自信之前,先用你的勇敢.
 后来就是阿稳分享了他对R语言的学习.
 1.一个语言决定一个人的思维
-2.一个语言用来做他最适合的事情就好了,你可以用R语言设计一整套系统,但是这不是他的强项. [online casino bonuses](http://www.profitphp.com/)
+2.一个语言用来做他最适合的事情就好了,你可以用R语言设计一整套系统,但是这不是他的强项.

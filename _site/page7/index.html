@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201606022150" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201606030108" type="text/css">
 
     <!-- Fonts -->
     
@@ -43,6 +43,8 @@
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
     
     <meta name="twitter:title" content="baotiao" />
     <meta name="twitter:description" content="做有积累的事情" />
@@ -228,36 +230,11 @@ swap 就是linux下的虚拟内存分区,它的作用是在物理内存使用完
       
         <div class="post py3">
           <p class="post-meta">Jul 30 2011</p>
-          <a href="/mysql/2011/07/30/mysql-join-e5-ad-a6-e4-b9-a0/" class="post-link"><h3 class="h1 post-title">mysql join 学习</h3></a>
+          <a href="/2011/07/30/mysql-join/" class="post-link"><h3 class="h1 post-title">mysql join 学习</h3></a>
           <p class="post-summary">
             
-              <table>
-  <tbody>
-    <tr>
-      <td>join 的学习: 在SQL标准中规划的（Join）联结大致分为下面四种： 1． 内联结：将两个表中存在联结关系的字段符合联结关系的那些记录形成记录集的联结。 2． 外联结：分为外左联结和外右联结。 左联结A、B表的意思就是将表A中的全部记录和表B中联结的字段与表A的联结字段符合联结条件的那些记录形成的记录集的联结，这里注意的是最后出来的记录集会包括表A的全部记录。 右联结A、B表的结果和左联结B、A的结果是一样的，也就是说： Select A.name B.name From A Left Join B On A.id=B.id 和Select A.name B.name From B Right Join A on B.id=A.id执行后的结果是一样的。 还有其他的联结就不用管了. 这里 就是 内联结是只将符合条件的列出来,而外联接是将全部的都列出来,分左右外联接啦. 这里我有个比较简便的记忆方法，内外联结的区别是内联结将去除所有不符合条件的记录，而外联结则保留其中部分。外左联结与外右联结的区别在于如果用A左联结B则A中所有记录都会保 留在结果中，此时B中只有符合联结条件的记录，而右联结相反，这样也就不会混淆了比如表t1 有 2数据 1,2 表 t2 有一个数据 1. 那么 select t1.s1,t2.s1 from t1 inner join t2 on t1.s1=t2.s1; —— ——</td>
-      <td>s1</td>
-      <td>s1</td>
-      <td>—— ——</td>
-      <td>1</td>
-      <td>1</td>
-      <td>—— —— 这个时候 t1里面的 2 这个数据由于在t2表里面找不到 就会被除去. left join <a href="http://britishcasino.org.uk/">casino online</a> 的时候 select t1.s1,t2.s1 from t1 left join t2 on t1.s1=t2.s1; —— ——</td>
-      <td>s1</td>
-      <td>s1</td>
-      <td>—— ——</td>
-      <td>1</td>
-      <td>1</td>
-      <td> </td>
-      <td>2</td>
-      <td>NULL</td>
-      <td>这个时候是 t1为左表都保存下来. —— —— 同样 right join 的时候 select t1.s1,t2.s1 from t1 right join t2 on t1.s1=t2.s1; —— ——</td>
-      <td>s1</td>
-      <td>s1</td>
-      <td>—— ——</td>
-      <td>1</td>
-      <td>1</td>
-    </tr>
-  </tbody>
-</table>
+              <p>join 的学习:</p>
+
 
             
           </p>
@@ -265,7 +242,7 @@ swap 就是linux下的虚拟内存分区,它的作用是在物理内存使用完
       
         <div class="post py3">
           <p class="post-meta">Jul 23 2011</p>
-          <a href="/life/2011/07/23/openparty-e7-ac-ac-e4-b8-80-e6-ac-a1-e5-8f-82-e5-8a-a0-e8-bf-99-e7-a7-8d-e4-ba-a4-e6-b5-81-e4-bc-9a/" class="post-link"><h3 class="h1 post-title">OpenParty 第一次参加这种交流会</h3></a>
+          <a href="/2011/07/23/openparty/" class="post-link"><h3 class="h1 post-title">OpenParty 第一次参加这种交流会</h3></a>
           <p class="post-summary">
             
               <p>来得好像挺多牛B人的.看见挺多个穿TopCoder的.
@@ -280,7 +257,7 @@ swap 就是linux下的虚拟内存分区,它的作用是在物理内存使用完
 4.就是逼自己做自己没尝试过的事情.在没有自信之前,先用你的勇敢.
 后来就是阿稳分享了他对R语言的学习.
 1.一个语言决定一个人的思维
-2.一个语言用来做他最适合的事情就好了,你可以用R语言设计一整套系统,但是这不是他的强项. <a href="http://www.profitphp.com/">online casino bonuses</a></p>
+2.一个语言用来做他最适合的事情就好了,你可以用R语言设计一整套系统,但是这不是他的强项.</p>
 
             
           </p>
@@ -288,25 +265,11 @@ swap 就是linux下的虚拟内存分区,它的作用是在物理内存使用完
       
         <div class="post py3">
           <p class="post-meta">Jul 17 2011</p>
-          <a href="/tip/2011/07/17/aws-e5-85-8d-e5-af-86-e7-a0-81-e7-99-bb-e9-99-86/" class="post-link"><h3 class="h1 post-title">aws 免密码登陆</h3></a>
+          <a href="/2011/07/17/solve-aws/" class="post-link"><h3 class="h1 post-title">aws 免密码登陆</h3></a>
           <p class="post-summary">
             
-              <p>aws一直要用密钥登录非常的麻烦.
-可以在aws里面添加一个新的用户
-具体过程:
-Setup the new user
-:~$ sudo useradd -d /home/username -m -s /bin/bash username
-:~$ sudo passwd username
-Enter new UNIX password: NEWPASSWORD
-Retype new UNIX password: NEWPASSWORD
-passwd: password updated successfully
-You also need to add to the sudo file
-:~$ sudo visudo
-Go to the line ALL = (ALL) <a href="http://britonlinecasino.org.uk/">casino great britain</a> ALL and add the new user following example of admin (the leading % not needed)
-Give the user ssh access
-:~$ sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.original
-:~$ sudo chmod a-w /etc/ssh/sshd_config Change PasswordAuthentication to yes
-:~$ sudo /etc/init.d/ssh restart</p>
+              <p>aws一直要用密钥登录非常的麻烦.</p>
+
 
             
           </p>
@@ -314,14 +277,14 @@ Give the user ssh access
       
         <div class="post py3">
           <p class="post-meta">Jul 16 2011</p>
-          <a href="/life/2011/07/16/e6-9a-82-e6-97-b6-e6-90-9e-e5-ae-9a-e4-bd-8f-e5-a4-84/" class="post-link"><h3 class="h1 post-title">暂时搞定住处</h3></a>
+          <a href="/2011/07/16/life-in-beijing/" class="post-link"><h3 class="h1 post-title">暂时搞定住处</h3></a>
           <p class="post-summary">
             
               <p>上周把租房子的事情给搞定了,总之废了各种尽.
 这一周工作唯一接触的新东西还是那个ldap.
 把ldap 好好搞搞,争取在公司里面成为这个领域的专家才可以.
 其他的东西,以后再搞搞吧.
-一直想搞一个vimwiki 不过都没去搞. 感觉用google <a href="http://polskojackpot.com/">casino online polska</a> 的 notebook
+一直想搞一个vimwiki 不过都没去搞. 感觉用google 的 notebook
 就可以不过 用着还是不爽. 找个时间整整这玩意儿….
 还有就是把awk系统的复习起来,既然已经学了就应该好好总结起来.</p>
 
@@ -331,7 +294,7 @@ Give the user ssh access
       
         <div class="post py3">
           <p class="post-meta">Jul 3 2011</p>
-          <a href="/life/2011/07/03/e7-8e-b0-e5-9c-a8-e5-9c-a8-e9-9d-92-e5-b2-9b/" class="post-link"><h3 class="h1 post-title">现在在青岛</h3></a>
+          <a href="/2011/07/03/qingdao/" class="post-link"><h3 class="h1 post-title">现在在青岛</h3></a>
           <p class="post-summary">
             
               <p>应该算是毕业旅行。来了10个人
@@ -346,10 +309,10 @@ Give the user ssh access
       
         <div class="post py3">
           <p class="post-meta">Jun 28 2011</p>
-          <a href="/life/2011/06/28/ending-examination/" class="post-link"><h3 class="h1 post-title">今天答辩结束</h3></a>
+          <a href="/2011/06/28/ending-examination/" class="post-link"><h3 class="h1 post-title">今天答辩结束</h3></a>
           <p class="post-summary">
             
-              <p>答辩还是挺水的.忽悠着,忽悠着,就过了.唉. <a href="http://hollandonlinecasinos.nl/">casino nederland</a></p>
+              <p>答辩还是挺水的.忽悠着,忽悠着,就过了.唉.</p>
 
             
           </p>
@@ -357,11 +320,11 @@ Give the user ssh access
       
         <div class="post py3">
           <p class="post-meta">Jun 27 2011</p>
-          <a href="/life/2011/06/27/e5-92-8c-e4-bf-b1-e4-b9-90-e9-83-a8-e7-9a-84-e6-95-a3-e4-bc-99-e9-a5-ad/" class="post-link"><h3 class="h1 post-title">和俱乐部的散伙饭</h3></a>
+          <a href="/2011/06/27/goodbye-club/" class="post-link"><h3 class="h1 post-title">和俱乐部的散伙饭</h3></a>
           <p class="post-summary">
             
               <p>和 俱乐部吃饭了散伙饭。。
-俱乐部 <a href="http://premiumonlinecasino.de/">online slot maschinen</a> 的白姐 给教了很多很多。。</p>
+俱乐部的白姐 给教了很多很多。。</p>
 
             
           </p>

@@ -1,19 +1,16 @@
 ---
 layout: post
 title: "Basho levelDB 改进"
-description: "Basho levelDB 改进"
-category: tech
-tags: [levelDB]
+summary: "Basho levelDB 改进"
 ---
 
-# eleveldb 对 leveldb 的改进
-## 整体改进目标
+### 整体改进目标
 1. 服务方面: Riak 需要在压力比较大的互联网环境使用. 所以增加了硬件的CRC校验, 增强了Bloom filter 的命中率, 还有默认的数据的完整性的检查
 2. 多数据库支持: Riak 会同时打开 8-64个数据库. Google的leveldb也支持这些, 不过他的compaction 线程不支持这些.
 具体的做法是当这个 compaction thread 有太多的事情要做的时候, 就停止让用户写入这些数据.
 Basho 的leveldb 的改进包括多个线程同时锁住, 让优先级更高的的线程进行compaction 操作
 
-## Basho 与 官方对比
+### Basho 与 官方对比
 * 官方: 只限制sst文件的大小
 
 Basho: 限制sst文件的大小同时限制sst文件key的个数<75000

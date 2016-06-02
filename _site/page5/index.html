@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201606022150" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201606030108" type="text/css">
 
     <!-- Fonts -->
     
@@ -43,6 +43,8 @@
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
     
     <meta name="twitter:title" content="baotiao" />
     <meta name="twitter:description" content="做有积累的事情" />
@@ -158,10 +160,10 @@
       
         <div class="post py3">
           <p class="post-meta">Oct 18 2012</p>
-          <a href="/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/2012/10/18/linux-e5-86-85-e6-a0-b8-e7-9a-84-e8-ae-be-e8-ae-a1-e4-b8-8e-e5-ae-9e-e7-8e-b0-e5-9d-97io-e5-b1-82/" class="post-link"><h3 class="h1 post-title">Linux内核的设计与实现:块I/O层</h3></a>
+          <a href="/2012/10/18/linux-kernel-io/" class="post-link"><h3 class="h1 post-title">Linux内核的设计与实现:块I/O层</h3></a>
           <p class="post-summary">
             
-              <h1 id="section">块设备</h1>
+              <h3 id="section">块设备</h3>
 
 
             
@@ -182,7 +184,7 @@
       
         <div class="post py3">
           <p class="post-meta">Aug 25 2012</p>
-          <a href="/c++/2012/08/25/c-e5-af-b9-e8-b1-a1-e6-a8-a1-e5-9e-8b/" class="post-link"><h3 class="h1 post-title">c++ 对象模型</h3></a>
+          <a href="/2012/08/25/c++-class/" class="post-link"><h3 class="h1 post-title">c++ 对象模型</h3></a>
           <p class="post-summary">
             
               <ol>
@@ -207,8 +209,8 @@
         </div>
       
         <div class="post py3">
-          <p class="post-meta">Jun 19 2012</p>
-          <a href="/c++/2012/06/19/c-e6-b3-9b-e5-9e-8b-e5-8d-95-e4-be-8b-e6-a8-a1-e5-bc-8f/" class="post-link"><h3 class="h1 post-title">c++泛型单例模式</h3></a>
+          <p class="post-meta">Jun 18 2012</p>
+          <a href="/2012/06/18/c++-single-model/" class="post-link"><h3 class="h1 post-title">c++泛型单例模式</h3></a>
           <p class="post-summary">
             
               <p>单例模式是在设计模式里面很常见的一种,用来确保一个类只有一个实例. 首先是原生态版本的实现.</p>
@@ -232,10 +234,13 @@
       
         <div class="post py3">
           <p class="post-meta">May 3 2012</p>
-          <a href="/tool/2012/05/03/vim-grep/" class="post-link"><h3 class="h1 post-title">vim grep plugin</h3></a>
+          <a href="/2012/05/03/vim-grep/" class="post-link"><h3 class="h1 post-title">vim grep plugin</h3></a>
           <p class="post-summary">
             
-              
+              <p>```vim
+nnoremap <leader>g :set operatorfunc=<sid>GrepOperator<cr>g@
+vnoremap <leader>g :<c-u>call <sid>GrepOperator(visualmode())<cr></cr></sid></c-u></leader></cr></sid></leader></p>
+
 
             
           </p>
@@ -243,7 +248,7 @@
       
         <div class="post py3">
           <p class="post-meta">Mar 26 2012</p>
-          <a href="/algorithm/c/2012/03/26/ternary-search-trees/" class="post-link"><h3 class="h1 post-title">Ternary Search Trees 三分树</h3></a>
+          <a href="/2012/03/26/ternary-search-trees/" class="post-link"><h3 class="h1 post-title">Ternary Search Trees 三分树</h3></a>
           <p class="post-summary">
             
               <p>经常碰到要存一堆的string, 这个时候可以用hash tables, 虽然hash tables 查找很快,但是hash tables不能表现出字符串之间的联系.可以用binary search tree, 但是查询速度不是很理想. 可以用trie, 不过trie会浪费很多空间(当然你也可以用二个数组实现也比较省空间). 所以这里Ternary Search trees 有trie的查询速度快的优点,以及binary search tree省空间的优点.</p>

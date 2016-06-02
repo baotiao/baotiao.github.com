@@ -1,12 +1,6 @@
 ---
 layout: post
 title: Ternary Search Trees 三分树
-categories: 
-- algorithm 
-- c
-tags: 
-- string
-- tree
 ---
 
 经常碰到要存一堆的string, 这个时候可以用hash tables, 虽然hash tables 查找很快,但是hash tables不能表现出字符串之间的联系.可以用binary search tree, 但是查询速度不是很理想. 可以用trie, 不过trie会浪费很多空间(当然你也可以用二个数组实现也比较省空间). 所以这里Ternary Search trees 有trie的查询速度快的优点,以及binary search tree省空间的优点.
@@ -17,8 +11,6 @@ tags:
 
 
 ![](data:image/png;base64,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)
-
-
 
 这个是用二分查找树实现,n是单词个数,len是长度,复杂度是O(logn * n),空间是n*len
 
@@ -62,73 +54,81 @@ Ternary search tree 有三个只节点,在查找的时候,比较当前字符,如
 这里用c语言来实现
 节点定义:
 
-    typedef struct tnode *Tptr;
-    typedef struct tnode {
-        char s;
-        Tptr lokid, eqkid, hikid;
-    } Tnode;
+```c
+typedef struct tnode *Tptr;
+typedef struct tnode {
+  char s;
+  Tptr lokid, eqkid, hikid;
+} Tnode;
+```
 
 先介绍查找的方法:
 
-    int search(char *s) // s是想要查找的字符串
-    {
-        Tptr p;
-        p = t; //t 是已经构造好的Ternary search tree 的root 节点.
-        while (p) {
-            if (*s < p->s) { // 如果*s 比 p->s 小, 那么节点跳到p->lokid
-                p = p->lokid;
-            } else if (*s > p->s) {
-                p = p->hikid;
-            } else {
-                if (*(s) == '\0') { //当*s 是'\0'时候,则查找成功
-                    return 1;
-                } //如果*s == p->s,走向中间节点,并且s++
-                s++;
-                p = p->eqkid;
-            }
+```c
+int search(char *s) // s是想要查找的字符串
+{
+    Tptr p;
+    p = t; //t 是已经构造好的Ternary search tree 的root 节点.
+    while (p) {
+        if (*s < p->s) { // 如果*s 比 p->s 小, 那么节点跳到p->lokid
+            p = p->lokid;
+        } else if (*s > p->s) {
+            p = p->hikid;
+        } else {
+            if (*(s) == '\0') { //当*s 是'\0'时候,则查找成功
+                return 1;
+            } //如果*s == p->s,走向中间节点,并且s++
+            s++;
+            p = p->eqkid;
         }
-        return 0;
     }
+    return 0;
+}
+```
 
 插入某一个字符串:
 
-    Tptr insert(Tptr p, char *s)
-    {
-        if (p == NULL) {
-            p = (Tptr)malloc(sizeof(Tnode));
-            p->s = *s;
-            p->lokid = p->eqkid = p->hikid = NULL;
-        }
-        if (*s < p->s) {
-            p->lokid = insert(p->lokid, s);
-        } else if (*s > p->s) {
-            p->hikid = insert(p->hikid, s);
-        } else {
-            if (*s != '\0') {
-                p->eqkid = insert(p->eqkid, ++s);
-            } else {
-                p->eqkid = (Tptr) insertstr; //insertstr 是要插入的字符串,方便遍历所有字符串等操作
-            }
-        }
-        return p;
+```c
+Tptr insert(Tptr p, char *s)
+{
+  if (p == NULL) {
+    p = (Tptr)malloc(sizeof(Tnode));
+    p->s = *s;
+    p->lokid = p->eqkid = p->hikid = NULL;
+  }
+  if (*s < p->s) {
+    p->lokid = insert(p->lokid, s);
+  } else if (*s > p->s) {
+    p->hikid = insert(p->hikid, s);
+  } else {
+    if (*s != '\0') {
+      p->eqkid = insert(p->eqkid, ++s);
+    } else {
+      p->eqkid = (Tptr) insertstr; //insertstr 是要插入的字符串,方便遍历所有字符串等操作
     }
+  }
+  return p;
+}
+```
 
 同binary search tree 一样,插入的顺序也是讲究的,binary search tree 在最坏情况下顺序插入字符串会退化成一个链表.不过Ternary search Tree 最坏情况会比 binary search tree 好很多.
 
 肯定得有一个遍历某一个树的操作
 
-    //这里以字典序输出所有的字符串
-    void traverse(Tptr p) //这里遍历某一个节点以下的所有节点,如果是非根节点,则是有同一个前缀的字符串
-    { 
-        if (!p) return; 
-        traverse(p->lokid); 
-        if (p->s != '\0') { 
-            traverse(p->eqkid); 
-        } else { 
-            printf("%s\n", (char *)p->eqkid); 
-        } 
-        traverse(p->hikid); 
-    }  
+```c
+//这里以字典序输出所有的字符串
+void traverse(Tptr p) //这里遍历某一个节点以下的所有节点,如果是非根节点,则是有同一个前缀的字符串
+{ 
+  if (!p) return; 
+  traverse(p->lokid); 
+  if (p->s != '\0') { 
+    traverse(p->eqkid); 
+  } else { 
+    printf("%s\n", (char *)p->eqkid); 
+  } 
+  traverse(p->hikid); 
+}  
+```
 
 #应用 
 
@@ -137,67 +137,73 @@ Ternary search tree 有三个只节点,在查找的时候,比较当前字符,如
 模糊查询
 psearch("root", ".a.a.a") 应该能匹配出baxaca, cadakd 等字符串
 
-    void psearch1(Tptr p, char *s)
-    {
-        if (p == NULL) {
-            return ;
-        }
-        if (*s == '.' || *s < p->s) { //如果*s 是'.' 或者 *s < p->s 就查找左子树
-            psearch1(p->lokid, s); 
-        }
-        if (*s == '.' || *s > p->s) { //同上
-            psearch1(p->hikid, s); 
-        }
-        if (*s == '.' || *s == p->s) { // *s = '.' 或者 *s == p->s 则去查找下一个字符
-            if (*s && p->s && p->eqkid != NULL) { 
-                psearch1(p->eqkid, s + 1);
-            }
-        }
-        if (*s == '\0' && p->s == '\0') {
-            printf("%s\n", (char *) p->eqkid);
-        }
+```c
+void psearch1(Tptr p, char *s)
+{
+  if (p == NULL) {
+    return ;
+  }
+  if (*s == '.' || *s < p->s) { //如果*s 是'.' 或者 *s < p->s 就查找左子树
+    psearch1(p->lokid, s); 
+  }
+  if (*s == '.' || *s > p->s) { //同上
+    psearch1(p->hikid, s); 
+  }
+  if (*s == '.' || *s == p->s) { // *s = '.' 或者 *s == p->s 则去查找下一个字符
+    if (*s && p->s && p->eqkid != NULL) { 
+      psearch1(p->eqkid, s + 1);
     }
+  }
+  if (*s == '\0' && p->s == '\0') {
+    printf("%s\n", (char *) p->eqkid);
+  }
+}
+```
 
 解决在哈密顿距离内的匹配问题,比如hobby和dobbd,hocbe的哈密顿距离都是2
 
-    void nearsearch(Tptr p, char *s, int d) //s 是要查找的字符串, d是哈密顿距离
-    {
-        if (p == NULL || d < 0)
-            return ;
-        if (d > 0 || *s < p->s) {
-                nearsearch(p->lokid, s, d);
-        }
-        if (d > 0 || *s > p->s) {
-                nearsearch(p->hikid, s, d);
-        }
-        if (p->s == '\0') {
-            if ((int)strlen(s) <= d) {
-                printf("%s\n", (char *) p->eqkid);
-            }
-        } else {
-            nearsearch(p->eqkid, *s ? s + 1 : s, (*s == p->s) ? d : d - 1);
-        }   
+```c
+void nearsearch(Tptr p, char *s, int d) //s 是要查找的字符串, d是哈密顿距离
+{
+  if (p == NULL || d < 0)
+    return ;
+  if (d > 0 || *s < p->s) {
+    nearsearch(p->lokid, s, d);
+  }
+  if (d > 0 || *s > p->s) {
+    nearsearch(p->hikid, s, d);
+  }
+  if (p->s == '\0') {
+    if ((int)strlen(s) <= d) {
+      printf("%s\n", (char *) p->eqkid);
     }
+  } else {
+    nearsearch(p->eqkid, *s ? s + 1 : s, (*s == p->s) ? d : d - 1);
+  }   
+}
+```
 
 搜索引擎输入bin, 然后相应的找出所有以bin开头的前缀匹配这样类似的结果.比如bing,binha,binb 就是找出所有前缀匹配的结果.
 
-    void presearch(Tptr p, char *s) //s 是想要找的前缀
-    {
-        if (p == NULL)
-            return;
-        if (*s < p->s) {
-            presearch(p->lokid, s);
-        } else if (*s > p->s) {
-            presearch(p->hikid, s);
-        } else {
-            if (*(s + 1) == '\0') {
-                traverse(p->eqkid); // 遍历这个节点,也就是找出包含这个节点的所有字符
-                return ;
-            } else {
-                presearch(p->eqkid, s + 1);
-            }
-        }
+```
+void presearch(Tptr p, char *s) //s 是想要找的前缀
+{
+  if (p == NULL)
+    return;
+  if (*s < p->s) {
+    presearch(p->lokid, s);
+  } else if (*s > p->s) {
+    presearch(p->hikid, s);
+  } else {
+    if (*(s + 1) == '\0') {
+      traverse(p->eqkid); // 遍历这个节点,也就是找出包含这个节点的所有字符
+      return ;
+    } else {
+      presearch(p->eqkid, s + 1);
     }
+  }
+}
+```
 
 # 总结
 

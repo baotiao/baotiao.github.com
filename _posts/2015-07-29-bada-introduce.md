@@ -1,9 +1,6 @@
 ---
 layout: post
 title: "360 Nosql Bada introduce"
-description: "360 Nosql Bada introduce"
-category: tech
-tags: [360, distribute, storage]
 ---
 
     此文根据【QCON高可用架构群】分享内容，由群内【编辑组】志愿整理，转发请注明来自“高可用架构（ArchNotes）”微信公众号。  

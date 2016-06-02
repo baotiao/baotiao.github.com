@@ -1,13 +1,10 @@
 ---
 layout: post
 title: "CAP theorem"
-description: "CAP theorem"
-category: tech
-tags: [throrem]
 ---
 
 
-###CAP theorem (摘自维基百科)
+### CAP theorem (摘自维基百科)
 
 * Consistency (all nodes see the same data at the same time)
 * Availability (a guarantee that every request receives a response about whether it was successful or failed)

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>c++泛型单例模式 &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="做有积累的事情">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://baotiao.github.io//2012/06/18/c++-single-model/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?201606030108" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="c++泛型单例模式">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://baotiao.github.io//2012/06/18/c++-single-model/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="c++泛型单例模式" />
+    <meta name="twitter:description" content="做有积累的事情" />
+    <meta name="twitter:url" content="http://baotiao.github.io//2012/06/18/c++-single-model/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://baotiao.github.io/" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>c++泛型单例模式</h1>
+  <span class="post-meta">Jun 18 2012</span><br>
+  
+  <span class="post-meta small">
+  
+    1 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <p>单例模式是在设计模式里面很常见的一种,用来确保一个类只有一个实例. 首先是原生态版本的实现.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="cp">#include &lt;iostream&gt;
+#ifndef SING_H
+</span><span class="k">class</span> <span class="nc">sing</span> <span class="p">{</span>
+  <span class="k">private</span><span class="o">:</span>
+    <span class="k">static</span> <span class="n">sing</span> <span class="o">*</span><span class="n">m_sing</span><span class="p">;</span>
+  <span class="k">public</span><span class="o">:</span>
+    <span class="kt">int</span> <span class="n">num</span><span class="p">;</span>
+    <span class="k">static</span> <span class="kt">void</span> <span class="n">open</span><span class="p">();</span>
+    <span class="k">static</span> <span class="kt">void</span> <span class="n">close</span><span class="p">();</span>
+    <span class="k">static</span> <span class="n">sing</span> <span class="o">*</span><span class="n">getInstance</span><span class="p">();</span>
+    <span class="kt">void</span> <span class="n">func</span><span class="p">();</span>
+  <span class="k">protected</span><span class="o">:</span>
+    <span class="o">~</span><span class="n">sing</span><span class="p">();</span>
+    <span class="n">sing</span><span class="p">();</span>
+<span class="p">};</span>
+
+<span class="cp">#define SING_H
+#endif
+</span>
+
+<span class="cp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include "sing.h"
+#include "assert.h"
+</span><span class="k">using</span> <span class="k">namespace</span> <span class="n">std</span><span class="p">;</span>
+
+<span class="n">sing</span> <span class="o">*</span><span class="n">sing</span><span class="o">::</span><span class="n">m_sing</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+<span class="n">sing</span><span class="o">::</span><span class="n">sing</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">"sing construct</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="n">sing</span><span class="o">::~</span><span class="n">sing</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">"sing destruct</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="n">sing</span> <span class="o">*</span><span class="n">sing</span><span class="o">::</span><span class="n">getInstance</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">m_sing</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">"m_sing is NULL</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+    <span class="n">m_sing</span> <span class="o">=</span> <span class="k">new</span> <span class="n">sing</span><span class="p">();</span>
+    <span class="n">assert</span><span class="p">(</span><span class="n">m_sing</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="n">m_sing</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="n">sing</span><span class="o">::</span><span class="n">close</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">m_sing</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">delete</span> <span class="n">m_sing</span><span class="p">;</span>
+    <span class="n">m_sing</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="n">sing</span><span class="o">::</span><span class="n">func</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">"sing::func</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="cp">#include &lt;iostream&gt;
+#include "sing.h"
+</span>
+<span class="kt">int</span> <span class="n">main</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="n">sing</span> <span class="o">*</span><span class="n">s</span> <span class="o">=</span> <span class="n">sing</span><span class="o">::</span><span class="n">getInstance</span><span class="p">();</span>
+  <span class="n">s</span><span class="o">-&gt;</span><span class="n">num</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>
+
+  <span class="n">sing</span> <span class="o">*</span><span class="n">s1</span> <span class="o">=</span> <span class="n">sing</span><span class="o">::</span><span class="n">getInstance</span><span class="p">();</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">"%d</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">s1</span><span class="o">-&gt;</span><span class="n">num</span><span class="p">);</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>c++ 的单态实现, 这里getInstance()获得那个单态的指针对象.</p>
+
+<p>以下是c++ 的泛型的单态的实现</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="cp">#ifndef TSING_H
+#define TSING_H
+</span><span class="k">template</span> 
+<span class="k">class</span> <span class="nc">sing</span> <span class="p">{</span>
+  <span class="k">private</span><span class="o">:</span>
+    <span class="k">static</span> <span class="n">T</span> <span class="o">*</span><span class="n">m_sing</span><span class="p">;</span>
+
+  <span class="k">public</span><span class="o">:</span>
+    <span class="k">static</span> <span class="kt">void</span> <span class="n">close</span><span class="p">();</span>
+    <span class="k">static</span> <span class="n">T</span><span class="o">*</span> <span class="n">getInstance</span><span class="p">();</span>
+    <span class="n">sing</span><span class="p">();</span>
+    <span class="o">~</span><span class="n">sing</span><span class="p">();</span>
+<span class="p">};</span>
+
+<span class="k">template</span>  <span class="n">T</span> <span class="o">*</span><span class="n">sing</span><span class="o">::</span><span class="n">m_sing</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+
+<span class="k">template</span>  <span class="n">sing</span><span class="o">::</span><span class="n">sing</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">"sing construct</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">template</span>  <span class="n">sing</span><span class="o">::~</span><span class="n">sing</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">"sing destructor</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+  <span class="n">close</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="k">template</span>  <span class="n">T</span><span class="o">*</span> <span class="n">sing</span><span class="o">::</span><span class="n">getInstance</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">m_sing</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">"m_sing is NULL</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+    <span class="n">m_sing</span> <span class="o">=</span> <span class="k">new</span> <span class="n">T</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="n">m_sing</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">template</span>  <span class="kt">void</span> <span class="n">sing</span><span class="o">::</span><span class="n">close</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">m_sing</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">delete</span> <span class="n">m_sing</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+<span class="cp">#endif
+#include &lt;iostream&gt;
+#include "tsing.h"
+</span>
+<span class="k">struct</span> <span class="n">node</span> <span class="p">{</span>
+  <span class="kt">int</span> <span class="n">num</span><span class="p">;</span>
+  <span class="n">bool</span> <span class="n">flag</span><span class="p">;</span>
+  <span class="kt">int</span> <span class="n">type</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="n">node</span> <span class="o">*</span><span class="n">s</span> <span class="o">=</span> <span class="n">sing</span><span class="o">::</span><span class="n">getInstance</span><span class="p">();</span>
+  <span class="n">s</span><span class="o">-&gt;</span><span class="n">num</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>
+  <span class="n">s</span><span class="o">-&gt;</span><span class="n">flag</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="n">s</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">=</span> <span class="mi">100</span><span class="p">;</span>
+
+  <span class="c1">//s-&gt;num = 10;
+</span>
+  <span class="n">node</span> <span class="o">*</span><span class="n">s1</span> <span class="o">=</span> <span class="n">sing</span><span class="o">::</span><span class="n">getInstance</span><span class="p">();</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">"%d %d %d</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">s1</span><span class="o">-&gt;</span><span class="n">num</span><span class="p">,</span> <span class="n">s1</span><span class="o">-&gt;</span><span class="n">flag</span><span class="p">,</span> <span class="n">s1</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">);</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+<p>在我理解以来,在没有用泛型以前这里的静态指针sing,既是容器也是sing类型对象,也就是说之前这个单态只能设计来给sing这个类来使用,泛型的sing类,这里把sing只是这个容器的名字,T想要单态的类型,任意的类型对象. 而前面这种没有实现泛型是将sing即是这个类的容器也是这个类的对象.</p>
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/2012/06/18/c++-single-model';
+    var disqus_title      = 'c++泛型单例模式';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

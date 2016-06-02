@@ -240,50 +240,48 @@ file_prio = 200 - sc-&amp;gt;swappiness;
         <title>xfs kmalloc failure problem</title>
         <description>&lt;p&gt;记录一次线上实体机的xfs kmem_alloc 操作一直失败排查&lt;/p&gt;
 
-&lt;p&gt;Hi all:&lt;/p&gt;
-
 &lt;h3 id=&quot;section&quot;&gt;问题现象&lt;/h3&gt;
 
 &lt;p&gt;线上有些实体机dmesg出现xfs 报错&lt;/p&gt;
 
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Apr 29 21:54:31 w-openstack86 kernel: XFS: possible memory allocation deadlock in kmem_alloc (mode:0x250)
-Apr 29 21:54:33 w-openstack86 kernel: XFS: possible memory allocation deadlock in kmem_alloc (mode:0x250)
-Apr 29 21:54:34 w-openstack86 kernel: INFO: task qemu-system-x86:6902 blocked for more than 120 seconds.
-Apr 29 21:54:34 w-openstack86 kernel: &quot;echo 0 &amp;gt; /proc/sys/kernel/hung_task_timeout_secs&quot; disables this message.
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Apr 29 21:54:31 w-openstack86 kernel: XFS: possible memory allocation deadlock &lt;span class=&quot;k&quot;&gt;in &lt;/span&gt;kmem_alloc &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;mode:0x250&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+Apr 29 21:54:33 w-openstack86 kernel: XFS: possible memory allocation deadlock &lt;span class=&quot;k&quot;&gt;in &lt;/span&gt;kmem_alloc &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;mode:0x250&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+Apr 29 21:54:34 w-openstack86 kernel: INFO: task qemu-system-x86:6902 blocked &lt;span class=&quot;k&quot;&gt;for &lt;/span&gt;more than 120 seconds.
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;s2&quot;&gt;&quot;echo 0 &amp;gt; /proc/sys/kernel/hung_task_timeout_secs&quot;&lt;/span&gt; disables this message.
 Apr 29 21:54:34 w-openstack86 kernel: qemu-system-x86 D ffff88105065e800     0  6902      1 0x00000080
 Apr 29 21:54:34 w-openstack86 kernel: ffff880155c63778 0000000000000086 ffff88099719d080 ffff880155c63fd8
 Apr 29 21:54:34 w-openstack86 kernel: ffff880155c63fd8 ffff880155c63fd8 ffff88099719d080 ffff88099719d080
 Apr 29 21:54:34 w-openstack86 kernel: ffff88081018de10 ffffffffffffffff ffff88081018de18 ffff88105065e800
 Apr 29 21:54:34 w-openstack86 kernel: Call Trace:
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff8163a879&amp;gt;] schedule+0x29/0x70
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff8163c235&amp;gt;] rwsem_down_read_failed+0xf5/0x170
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffffa0256a30&amp;gt;] ? xfs_ilock_data_map_shared+0x30/0x40 [xfs]
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff81301764&amp;gt;] call_rwsem_down_read_failed+0x14/0x30
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff81639a90&amp;gt;] ? down_read+0x20/0x30
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffffa02569bc&amp;gt;] xfs_ilock+0xdc/0x120 [xfs]
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffffa0256a30&amp;gt;] xfs_ilock_data_map_shared+0x30/0x40 [xfs]
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffffa023f4f4&amp;gt;] __xfs_get_blocks+0x94/0x4b0 [xfs]
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff810654f2&amp;gt;] ? get_user_pages_fast+0x122/0x1a0
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffffa023f944&amp;gt;] xfs_get_blocks_direct+0x14/0x20 [xfs]
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff8121d704&amp;gt;] do_blockdev_direct_IO+0x13f4/0x2620
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffffa023f930&amp;gt;] ? xfs_get_blocks+0x20/0x20 [xfs]
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff8121e985&amp;gt;] __blockdev_direct_IO+0x55/0x60
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffffa023f930&amp;gt;] ? xfs_get_blocks+0x20/0x20 [xfs]
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffffa023f210&amp;gt;] ? xfs_finish_ioend_sync+0x30/0x30 [xfs]
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffffa023e5ca&amp;gt;] xfs_vm_direct_IO+0xda/0x180 [xfs]
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffffa023f930&amp;gt;] ? xfs_get_blocks+0x20/0x20 [xfs]
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffffa023f210&amp;gt;] ? xfs_finish_ioend_sync+0x30/0x30 [xfs]
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff8116afed&amp;gt;] generic_file_direct_write+0xcd/0x190
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffffa027f1fc&amp;gt;] xfs_file_dio_aio_write+0x1f3/0x232 [xfs]
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffffa024bd2d&amp;gt;] xfs_file_aio_write+0x13d/0x150 [xfs]
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff811ddde9&amp;gt;] do_sync_readv_writev+0x79/0xd0
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff811df3be&amp;gt;] do_readv_writev+0xce/0x260
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffffa024bbf0&amp;gt;] ? xfs_file_buffered_aio_write+0x260/0x260 [xfs]
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff811ddca0&amp;gt;] ? do_sync_read+0xd0/0xd0
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff810e506e&amp;gt;] ? do_futex+0xfe/0x5b0
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff811df5e5&amp;gt;] vfs_writev+0x35/0x60
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff811df9e2&amp;gt;] SyS_pwritev+0xc2/0xf0
-Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff816458c9&amp;gt;] system_call_fastpath+0x16/0x1b
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff8163a879&amp;gt;] schedule+0x29/0x70
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff8163c235&amp;gt;] rwsem_down_read_failed+0xf5/0x170
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffffa0256a30&amp;gt;] ? xfs_ilock_data_map_shared+0x30/0x40 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xfs]
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff81301764&amp;gt;] call_rwsem_down_read_failed+0x14/0x30
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff81639a90&amp;gt;] ? down_read+0x20/0x30
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffffa02569bc&amp;gt;] xfs_ilock+0xdc/0x120 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xfs]
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffffa0256a30&amp;gt;] xfs_ilock_data_map_shared+0x30/0x40 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xfs]
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffffa023f4f4&amp;gt;] __xfs_get_blocks+0x94/0x4b0 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xfs]
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff810654f2&amp;gt;] ? get_user_pages_fast+0x122/0x1a0
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffffa023f944&amp;gt;] xfs_get_blocks_direct+0x14/0x20 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xfs]
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff8121d704&amp;gt;] do_blockdev_direct_IO+0x13f4/0x2620
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffffa023f930&amp;gt;] ? xfs_get_blocks+0x20/0x20 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xfs]
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff8121e985&amp;gt;] __blockdev_direct_IO+0x55/0x60
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffffa023f930&amp;gt;] ? xfs_get_blocks+0x20/0x20 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xfs]
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffffa023f210&amp;gt;] ? xfs_finish_ioend_sync+0x30/0x30 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xfs]
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffffa023e5ca&amp;gt;] xfs_vm_direct_IO+0xda/0x180 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xfs]
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffffa023f930&amp;gt;] ? xfs_get_blocks+0x20/0x20 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xfs]
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffffa023f210&amp;gt;] ? xfs_finish_ioend_sync+0x30/0x30 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xfs]
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff8116afed&amp;gt;] generic_file_direct_write+0xcd/0x190
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffffa027f1fc&amp;gt;] xfs_file_dio_aio_write+0x1f3/0x232 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xfs]
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffffa024bd2d&amp;gt;] xfs_file_aio_write+0x13d/0x150 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xfs]
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff811ddde9&amp;gt;] do_sync_readv_writev+0x79/0xd0
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff811df3be&amp;gt;] do_readv_writev+0xce/0x260
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffffa024bbf0&amp;gt;] ? xfs_file_buffered_aio_write+0x260/0x260 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xfs]
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff811ddca0&amp;gt;] ? do_sync_read+0xd0/0xd0
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff810e506e&amp;gt;] ? do_futex+0xfe/0x5b0
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff811df5e5&amp;gt;] vfs_writev+0x35/0x60
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff811df9e2&amp;gt;] SyS_pwritev+0xc2/0xf0
+Apr 29 21:54:34 w-openstack86 kernel: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&amp;lt;ffffffff816458c9&amp;gt;] system_call_fastpath+0x16/0x1b
 &lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 
@@ -299,24 +297,24 @@ Apr 29 21:54:34 w-openstack86 kernel: [&amp;lt;ffffffff816458c9&amp;gt;] system_
 
 &lt;p&gt;看了一下代码, 出现这个报错在xfs module里面, 这个错误是在kmalloc 失败以后就会报出来, 并且会重试100次, 如果100 次以后还是失败, 就直接return error. 那么为什么kmalloc 会失败呢?&lt;/p&gt;
 
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;void *
-kmem_alloc(size_t size, xfs_km_flags_t flags)
-{
-  int retries = 0;
-  gfp_t lflags = kmem_flags_convert(flags);
-  void  *ptr;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;nf&quot;&gt;kmem_alloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;xfs_km_flags_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;flags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;retries&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;gfp_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lflags&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;kmem_flags_convert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;flags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt;  &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ptr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
 
-  do {
-    ptr = kmalloc(size, lflags);
-    if (ptr || (flags &amp;amp; (KM_MAYFAIL|KM_NOSLEEP)))
-      return ptr;
-    if (!(++retries % 100))
-      xfs_err(NULL,
-    &quot;possible memory allocation deadlock in %s (mode:0x%x)&quot;,
-          __func__, lflags);
-    congestion_wait(BLK_RW_ASYNC, HZ/50);
-  } while (1);
-}
+  &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ptr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;kmalloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lflags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ptr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;flags&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KM_MAYFAIL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KM_NOSLEEP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ptr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;retries&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;100&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;xfs_err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;s&quot;&gt;&quot;possible memory allocation deadlock in %s (mode:0x%x)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+          &lt;span class=&quot;n&quot;&gt;__func__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lflags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;congestion_wait&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;BLK_RW_ASYNC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;HZ&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;/&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;50&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 
@@ -324,7 +322,7 @@ kmem_alloc(size_t size, xfs_km_flags_t flags)
 
 &lt;p&gt;从出现问题的机器上面我们可以看到, 机器的状态大概是这个样子&lt;/p&gt;
 
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;[chenzongzhi@w-openstack86 ~]$ free -m
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;chenzongzhi@w-openstack86 ~]&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;free -m
               total        used        free      shared  buff/cache   available
 Mem:          64272       26298        4379         129       33595       37051
 Swap:         32255           0       32255
@@ -334,7 +332,7 @@ Swap:         32255           0       32255
 &lt;p&gt;这里我们同时看一下机器的内存碎片状态&lt;/p&gt;
 
 &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;这里并不是现场的机器, 只是另一台线上内存用的差不多的机器 
-[chenzongzhi@w-openstack81 ~]$ cat /proc/buddyinfo
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;chenzongzhi@w-openstack81 ~]&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;cat /proc/buddyinfo
 Node 0, zone      DMA      0      0      0      1      2      1      1      0      1      1      3
 Node 0, zone    DMA32   2983   2230   1037    290    121     63     47     61     16      0      0
 Node 0, zone   Normal  13707   1126    285    268    291    160     64     21     11      0      0
@@ -344,7 +342,7 @@ Node 1, zone   Normal  10678   5041   1167    705    316    158     61     22   
 
 &lt;p&gt;我们可以看到这里比较大块的连续的page 是基本没有的. 因为在xfs 的申请内存操作里面我们看到有这种连续的大块的内存申请的操作的请求,  比如:&lt;/p&gt;
 
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;6000:   map = kmem_alloc(subnex * sizeof(*map), KM_MAYFAIL | KM_NOFS);
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;6000:   map &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; kmem_alloc&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;subnex &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; sizeof&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;map&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;, KM_MAYFAIL | KM_NOFS&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;;
 &lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 
@@ -356,7 +354,9 @@ Node 1, zone   Normal  10678   5041   1167    705    316    158     61     22   
 
 &lt;p&gt;GFP_NOFS&lt;/p&gt;
 
-&lt;p&gt;These flags function like GFP_KERNEL, but they add restrictions on what the kernel can do to satisfy the request. A GFP_NOFS allocation is not allowed to perform any filesystem calls, while GFP_NOIO disallows the initiation of any I/O at all. They are used primarily in the filesystem and virtual memory code where an allocation may be allowed to sleep, but recursive filesystem calls would be a bad idea.&lt;/p&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;These flags function like GFP_KERNEL, but they add restrictions on what the kernel can do to satisfy the request. A GFP_NOFS allocation is not allowed to perform any filesystem calls, while GFP_NOIO disallows the initiation of any I/O at all. They are used primarily in the filesystem and virtual memory code where an allocation may be allowed to sleep, but recursive filesystem calls would be a bad idea.&lt;/p&gt;
+&lt;/blockquote&gt;
 
 &lt;p&gt;也就是说如果带上这个GFP_NOFS的flag, 那么本次 &lt;code class=&quot;highlighter-rouge&quot;&gt;__alloc_pages()&lt;/code&gt; 是不允许有任何的filesystem calls的操作的, 那么如果物理内存不够了, 也就是不能触发这个page_reclaim 的操作. 具体的实现是在page reclaim 的 do_try_to_free_pages 里面shrink_page_list 的时候会判断这次的scan_control 里面有没有这个 __GFP_FS flag, 如果是没有GFP_FS flag, 就不会就行这个page_reclaim&lt;/p&gt;
 
@@ -367,9 +367,9 @@ Node 1, zone   Normal  10678   5041   1167    705    316    158     61     22   
 &lt;p&gt;因为drop_caches 这个操作属于外部操作, 不属于文件系统本身的操作, 因此没有GFP_NOFS这个flag, 因此可以很轻松的就把page cache 里面的内容清空, 让Kernel 有足够多的连续的大内存. 线上自然就不报错了&lt;/p&gt;
 
 </description>
-        <pubDate>Thu, 26 May 2016 00:00:00 +0800</pubDate>
-        <link>http://baotiao.github.io//kernel,%20memory,%20xfs/2016/05/26/xfs-kmalloc-failure/</link>
-        <guid isPermaLink="true">http://baotiao.github.io//kernel,%20memory,%20xfs/2016/05/26/xfs-kmalloc-failure/</guid>
+        <pubDate>Fri, 27 May 2016 00:00:00 +0800</pubDate>
+        <link>http://baotiao.github.io//2016/05/27/xfs-kmalloc-failure/</link>
+        <guid isPermaLink="true">http://baotiao.github.io//2016/05/27/xfs-kmalloc-failure/</guid>
       </item>
     
       <item>
@@ -426,8 +426,8 @@ Node 1, zone   Normal  10678   5041   1167    705    316    158     61     22   
 
 </description>
         <pubDate>Thu, 26 May 2016 00:00:00 +0800</pubDate>
-        <link>http://baotiao.github.io//storage,%20opnion/2016/05/26/my-opnion-of-storage/</link>
-        <guid isPermaLink="true">http://baotiao.github.io//storage,%20opnion/2016/05/26/my-opnion-of-storage/</guid>
+        <link>http://baotiao.github.io//2016/05/26/my-opnion-of-storage/</link>
+        <guid isPermaLink="true">http://baotiao.github.io//2016/05/26/my-opnion-of-storage/</guid>
       </item>
     
       <item>
@@ -920,8 +920,8 @@ redis 写入5G 大小的数据&lt;/p&gt;
 
 </description>
         <pubDate>Wed, 18 May 2016 00:00:00 +0800</pubDate>
-        <link>http://baotiao.github.io//storage,%20redis/2016/05/18/pika-introduction/</link>
-        <guid isPermaLink="true">http://baotiao.github.io//storage,%20redis/2016/05/18/pika-introduction/</guid>
+        <link>http://baotiao.github.io//2016/05/18/pika-introduction/</link>
+        <guid isPermaLink="true">http://baotiao.github.io//2016/05/18/pika-introduction/</guid>
       </item>
     
       <item>
@@ -1003,8 +1003,8 @@ redis 写入5G 大小的数据&lt;/p&gt;
 
 </description>
         <pubDate>Thu, 05 May 2016 00:00:00 +0800</pubDate>
-        <link>http://baotiao.github.io//distribute,%20consensus/2016/05/05/paxos-raft/</link>
-        <guid isPermaLink="true">http://baotiao.github.io//distribute,%20consensus/2016/05/05/paxos-raft/</guid>
+        <link>http://baotiao.github.io//2016/05/05/paxos-raft/</link>
+        <guid isPermaLink="true">http://baotiao.github.io//2016/05/05/paxos-raft/</guid>
       </item>
     
       <item>
@@ -2359,7 +2359,7 @@ int main(int argc, char **argv){
     
       <item>
         <title>kernel file poll operations</title>
-        <description>&lt;h4 id=&quot;fileoperations--poll-&quot;&gt;在file_operations 里面, poll 这个操作到底是什么意思&lt;/h4&gt;
+        <description>&lt;p&gt;在file_operations 里面, poll 这个操作到底是什么意思&lt;/p&gt;
 
 &lt;p&gt;在ulk 里面poll 操作的解释是&lt;/p&gt;
 
@@ -2376,105 +2376,104 @@ int main(int argc, char **argv){
 
 &lt;p&gt;比如这个是pipe 上面的 poll 操作 pipe_poll()&lt;/p&gt;
 
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;
-/* No kernel lock held - fine */
-static unsigned int
-pipe_poll(struct file *filp, poll_table *wait)
-{
-  unsigned int mask;
-  struct inode *inode = filp-&amp;gt;f_path.dentry-&amp;gt;d_inode;
-  struct pipe_inode_info *pipe = inode-&amp;gt;i_pipe;
-  int nrbufs;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;cm&quot;&gt;/* No kernel lock held - fine */&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;
+&lt;span class=&quot;nf&quot;&gt;pipe_poll&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;poll_table&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wait&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;filp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dentry&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;d_inode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pipe_inode_info&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pipe&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i_pipe&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nrbufs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
 
-  poll_wait(filp, &amp;amp;pipe-&amp;gt;wait, wait);
+  &lt;span class=&quot;n&quot;&gt;poll_wait&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pipe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wait&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;wait&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
 
-  /* Reading only -- no need for acquiring the semaphore.  */
-  nrbufs = pipe-&amp;gt;nrbufs;
-  mask = 0;
-  if (filp-&amp;gt;f_mode &amp;amp; FMODE_READ) {
-    // 这里nrbufs &amp;gt; 0, 说明这个pipe里面是有内容的, 因此这个fd 有可读事件
-    mask = (nrbufs &amp;gt; 0) ? POLLIN | POLLRDNORM : 0;
-    if (!pipe-&amp;gt;writers &amp;amp;&amp;amp; filp-&amp;gt;f_version != pipe-&amp;gt;w_counter)
-      mask |= POLLHUP;
-  }
+  &lt;span class=&quot;cm&quot;&gt;/* Reading only -- no need for acquiring the semaphore.  */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;nrbufs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pipe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nrbufs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_mode&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FMODE_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// 这里nrbufs &amp;gt; 0, 说明这个pipe里面是有内容的, 因此这个fd 有可读事件
+&lt;/span&gt;    &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nrbufs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;?&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLIN&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLRDNORM&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pipe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;writers&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;filp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_version&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pipe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;w_counter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLHUP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
 
-  if (filp-&amp;gt;f_mode &amp;amp; FMODE_WRITE) {
-    // 只要nrbufs &amp;lt; PIPE_BUFFERS, 说明这个pipe 还没被写满, 那么这个fd 就是可写的
-    mask |= (nrbufs &amp;lt; PIPE_BUFFERS) ? POLLOUT | POLLWRNORM : 0;
-    /*
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_mode&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FMODE_WRITE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// 只要nrbufs &amp;lt; PIPE_BUFFERS, 说明这个pipe 还没被写满, 那么这个fd 就是可写的
+&lt;/span&gt;    &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nrbufs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PIPE_BUFFERS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;?&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLOUT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLWRNORM&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;cm&quot;&gt;/*
      * Most Unices do not set POLLERR for FIFOs but on Linux they
      * behave exactly like pipes for poll().
-     */
-    if (!pipe-&amp;gt;readers)
-      mask |= POLLERR;
-  }
+     */&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pipe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;readers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLERR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
 
-  return mask;
-}
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 
 &lt;p&gt;对应的tcp 里面是否有时间到达的poll 函数是 tcp_poll()&lt;/p&gt;
 
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
-{
-  unsigned int mask;
-  struct sock *sk = sock-&amp;gt;sk;
-  struct tcp_sock *tp = tcp_sk(sk);
-  sock_poll_wait(file, sk-&amp;gt;sk_sleep, wait);
-  if (sk-&amp;gt;sk_state == TCP_LISTEN)
-    return inet_csk_listen_poll(sk);
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;tcp_poll&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;socket&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;poll_table&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wait&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sock&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sock&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tcp_sock&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tcp_sk&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;sock_poll_wait&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk_sleep&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;wait&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk_state&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TCP_LISTEN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inet_csk_listen_poll&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
 
-  /* Socket is not locked. We are protected from async events
+  &lt;span class=&quot;cm&quot;&gt;/* Socket is not locked. We are protected from async events
    * by poll logic and correct handling of state changes
    * made by other threads is impossible in any case.
-   */
+   */&lt;/span&gt;
 
-  mask = 0;
-  if (sk-&amp;gt;sk_err)
-    mask = POLLERR;
+  &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk_err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLERR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
 
-...
-  if (sk-&amp;gt;sk_shutdown == SHUTDOWN_MASK || sk-&amp;gt;sk_state == TCP_CLOSE)
-    mask |= POLLHUP;
-  if (sk-&amp;gt;sk_shutdown &amp;amp; RCV_SHUTDOWN)
-    mask |= POLLIN | POLLRDNORM | POLLRDHUP;
+&lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk_shutdown&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SHUTDOWN_MASK&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk_state&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TCP_CLOSE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLHUP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk_shutdown&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RCV_SHUTDOWN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLIN&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLRDNORM&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLRDHUP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
 
-  /* Connected? */
-  if ((1 &amp;lt;&amp;lt; sk-&amp;gt;sk_state) &amp;amp; ~(TCPF_SYN_SENT | TCPF_SYN_RECV)) {
-    int target = sock_rcvlowat(sk, 0, INT_MAX);
+  &lt;span class=&quot;cm&quot;&gt;/* Connected? */&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk_state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;~&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TCPF_SYN_SENT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TCPF_SYN_RECV&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;target&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sock_rcvlowat&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;INT_MAX&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
 
-    if (tp-&amp;gt;urg_seq == tp-&amp;gt;copied_seq &amp;amp;&amp;amp;
-        !sock_flag(sk, SOCK_URGINLINE) &amp;amp;&amp;amp;
-        tp-&amp;gt;urg_data)
-      target--;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;urg_seq&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;copied_seq&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sock_flag&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SOCK_URGINLINE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;tp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;urg_data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;target&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;--&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
 
-    /* Potential race condition. If read of tp below will
+    &lt;span class=&quot;cm&quot;&gt;/* Potential race condition. If read of tp below will
      * escape above sk-&amp;gt;sk_state, we can be illegally awaken
-     * in SYN_* states. */
-    if (tp-&amp;gt;rcv_nxt - tp-&amp;gt;copied_seq &amp;gt;= target)
-      mask |= POLLIN | POLLRDNORM;
+     * in SYN_* states. */&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rcv_nxt&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;copied_seq&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;target&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLIN&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLRDNORM&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
 
-    if (!(sk-&amp;gt;sk_shutdown &amp;amp; SEND_SHUTDOWN)) {
-      if (sk_stream_wspace(sk) &amp;gt;= sk_stream_min_wspace(sk)) {
-        mask |= POLLOUT | POLLWRNORM;
-      } else {  /* send SIGIO later */
-        set_bit(SOCK_ASYNC_NOSPACE,
-          &amp;amp;sk-&amp;gt;sk_socket-&amp;gt;flags);
-        set_bit(SOCK_NOSPACE, &amp;amp;sk-&amp;gt;sk_socket-&amp;gt;flags);
-    /* Potential race condition. If read of tp below will
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk_shutdown&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SEND_SHUTDOWN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk_stream_wspace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sk_stream_min_wspace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLOUT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLWRNORM&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* send SIGIO later */&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;set_bit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SOCK_ASYNC_NOSPACE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+          &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk_socket&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;flags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;set_bit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SOCK_NOSPACE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sk_socket&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;flags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;cm&quot;&gt;/* Potential race condition. If read of tp below will
      * escape above sk-&amp;gt;sk_state, we can be illegally awaken
-     * in SYN_* states. */
-    if (tp-&amp;gt;rcv_nxt - tp-&amp;gt;copied_seq &amp;gt;= target)
-      mask |= POLLIN | POLLRDNORM;
+     * in SYN_* states. */&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rcv_nxt&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;copied_seq&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;target&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLIN&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLRDNORM&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
 
-    }
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
 
-    if (tp-&amp;gt;urg_data &amp;amp; TCP_URG_VALID)
-      mask |= POLLPRI;
-  }
-  return mask;
-}
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;urg_data&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TCP_URG_VALID&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POLLPRI&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mask&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
 
@@ -2483,8 +2482,8 @@ pipe_poll(struct file *filp, poll_table *wait)
 &lt;p&gt;然后这里tcp 这个是否有时间到达需要进行的判断就比pipe 要复杂的多, 比如这里需要判断socket 的是否shut_down, 需要判断tp-&amp;gt;rcv_nxt 等等, 最后才能获得这个fd 上面的事件的内容&lt;/p&gt;
 </description>
         <pubDate>Sun, 28 Feb 2016 00:00:00 +0800</pubDate>
-        <link>http://baotiao.github.io//kernel,%20tech/2016/02/28/kernel-file-poll-operations/</link>
-        <guid isPermaLink="true">http://baotiao.github.io//kernel,%20tech/2016/02/28/kernel-file-poll-operations/</guid>
+        <link>http://baotiao.github.io//kernel/tech/2016/02/28/kernel-file-poll-operations/</link>
+        <guid isPermaLink="true">http://baotiao.github.io//kernel/tech/2016/02/28/kernel-file-poll-operations/</guid>
       </item>
     
       <item>
@@ -2530,8 +2529,8 @@ Since index records do not reflect deleted photos, a Store machine may retrieve 
 &lt;/ul&gt;
 </description>
         <pubDate>Fri, 25 Dec 2015 00:00:00 +0800</pubDate>
-        <link>http://baotiao.github.io//tech/2015/12/25/facebook-haystack/</link>
-        <guid isPermaLink="true">http://baotiao.github.io//tech/2015/12/25/facebook-haystack/</guid>
+        <link>http://baotiao.github.io//2015/12/25/facebook-haystack/</link>
+        <guid isPermaLink="true">http://baotiao.github.io//2015/12/25/facebook-haystack/</guid>
       </item>
     
   </channel>

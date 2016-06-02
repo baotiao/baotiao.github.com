@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201606022150" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201606030108" type="text/css">
 
     <!-- Fonts -->
     
@@ -43,6 +43,8 @@
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
     
     <meta name="twitter:title" content="baotiao" />
     <meta name="twitter:description" content="做有积累的事情" />
@@ -170,27 +172,20 @@
       
         <div class="post py3">
           <p class="post-meta">Nov 11 2013</p>
-          <a href="/tech/2013/11/11/leveldb-eleveldb/" class="post-link"><h3 class="h1 post-title">Basho levelDB 改进</h3></a>
+          <a href="/2013/11/11/leveldb-eleveldb/" class="post-link"><h3 class="h1 post-title">Basho levelDB 改进</h3></a>
           <p class="post-summary">
             
-              <h1 id="eleveldb--leveldb-">eleveldb 对 leveldb 的改进</h1>
-<p>## 整体改进目标
-1. 服务方面: Riak 需要在压力比较大的互联网环境使用. 所以增加了硬件的CRC校验, 增强了Bloom filter 的命中率, 还有默认的数据的完整性的检查
-2. 多数据库支持: Riak 会同时打开 8-64个数据库. Google的leveldb也支持这些, 不过他的compaction 线程不支持这些.
-具体的做法是当这个 compaction thread 有太多的事情要做的时候, 就停止让用户写入这些数据.
-Basho 的leveldb 的改进包括多个线程同时锁住, 让优先级更高的的线程进行compaction 操作</p>
-
-
+              Basho levelDB 改进
             
           </p>
         </div>
       
         <div class="post py3">
           <p class="post-meta">Oct 15 2013</p>
-          <a href="/tech/2013/10/15/leveldb-compaction/" class="post-link"><h3 class="h1 post-title">levelDB Compaction 相关</h3></a>
+          <a href="/2013/10/15/leveldb-compaction/" class="post-link"><h3 class="h1 post-title">levelDB Compaction 相关</h3></a>
           <p class="post-summary">
             
-              <h1 id="leveldb">levelDB</h1>
+              <h2 id="level-db-compaction">level DB 如何选择要Compaction的级别</h2>
 
 
             
@@ -199,33 +194,17 @@ Basho 的leveldb 的改进包括多个线程同时锁住, 让优先级更高的�
       
         <div class="post py3">
           <p class="post-meta">Sep 5 2013</p>
-          <a href="/tech/2013/09/05/leveldb-Get/" class="post-link"><h3 class="h1 post-title">levelDB Get过程</h3></a>
+          <a href="/2013/09/05/leveldb-Get/" class="post-link"><h3 class="h1 post-title">levelDB Get过程</h3></a>
           <p class="post-summary">
             
-              <div class="highlighter-rouge"><pre class="highlight"><code>Status DBImpl::Get(const ReadOptions&amp; options,
-        const Slice&amp; key,
-        std::string* value) {
-    Status s;
-    MutexLock l(&amp;mutex_); //这里初始化levelDB的锁, 默认把锁加上
-    SequenceNumber snapshot; //这里就是定义一个最新的一个操作号, 有一个全局
-    唯一的SequenceNumber
-    if (options.snapshot != NULL) { //如果要求取的是某一个版本的数据
-        snapshot = reinterpret_cast&lt;const SnapshotImpl*&gt;(options.snapshot)-&gt;number_;
-    } else {
-        snapshot = versions_-&gt;LastSequence(); //否则就是最新的数据, 也就是当
-        前versions_里面最大的SequenceNumber的数据
-    }
-</code></pre>
-</div>
-
-
+              leveldb 代码 get 过程
             
           </p>
         </div>
       
         <div class="post py3">
           <p class="post-meta">Sep 3 2013</p>
-          <a href="/tech/2013/09/03/leverdb-thought/" class="post-link"><h3 class="h1 post-title">levelDB thought</h3></a>
+          <a href="/2013/09/03/leverdb-thought/" class="post-link"><h3 class="h1 post-title">levelDB thought</h3></a>
           <p class="post-summary">
             
               <ol>
@@ -242,7 +221,7 @@ Basho 的leveldb 的改进包括多个线程同时锁住, 让优先级更高的�
       
         <div class="post py3">
           <p class="post-meta">Aug 22 2013</p>
-          <a href="/tech/2013/08/22/leveldb-iterator/" class="post-link"><h3 class="h1 post-title">levelDB中用到的迭代器模型</h3></a>
+          <a href="/2013/08/22/leveldb-iterator/" class="post-link"><h3 class="h1 post-title">levelDB中用到的迭代器模型</h3></a>
           <p class="post-summary">
             
               <h3 id="leveldb">迭代器的设计模式是一种很常用的设计模式. leveldb的实现里面就用到了.</h3>
@@ -254,10 +233,10 @@ Basho 的leveldb 的改进包括多个线程同时锁住, 让优先级更高的�
       
         <div class="post py3">
           <p class="post-meta">Aug 22 2013</p>
-          <a href="/tech/2013/08/22/leveldb-c++/" class="post-link"><h3 class="h1 post-title">learn c++ from levelDB</h3></a>
+          <a href="/2013/08/22/leveldb-c++/" class="post-link"><h3 class="h1 post-title">learn c++ from levelDB</h3></a>
           <p class="post-summary">
             
-              <p>###LevelDB是一个学习c++很好的一个代码. 里面有很多写代码的好习惯值得我们学习.</p>
+              <h3 id="leveldbc-">LevelDB是一个学习c++很好的一个代码. 里面有很多写代码的好习惯值得我们学习.</h3>
 
 
             
@@ -289,15 +268,15 @@ Basho 的leveldb 的改进包括多个线程同时锁住, 让优先级更高的�
       
         <div class="post py3">
           <p class="post-meta">Nov 16 2012</p>
-          <a href="/linux/2012/11/16/linux-kernel-process/" class="post-link"><h3 class="h1 post-title">Linux内核设计与实现 进程地址空间 实际中使用的内存</h3></a>
+          <a href="/2012/11/16/linux-kernel-process/" class="post-link"><h3 class="h1 post-title">Linux内核设计与实现-进程内存使用</h3></a>
           <p class="post-summary">
             
-              <div class="highlighter-rouge"><pre class="highlight"><code>int main(int argc, char *argv[])
-{
-    while (1) {
-    };
-    return 0;
-}
+              <div class="highlighter-rouge"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+  <span class="k">while</span> <span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+  <span class="p">};</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
 </code></pre>
 </div>
 

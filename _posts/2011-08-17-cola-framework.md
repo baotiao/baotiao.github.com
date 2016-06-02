@@ -1,22 +1,14 @@
 ---
-author: admin
-comments: true
 date: 2011-08-17 07:10:42+00:00
 layout: post
-slug: cola-php%e7%9a%84%e9%bb%98%e8%ae%a4%e9%85%8d%e7%bd%ae%e4%bb%a5%e5%8f%8aurl%e5%88%86%e5%8f%91
 title: Cola.php的默认配置以及url分发
-wordpress_id: 53
-categories:
-- php
-tags:
-- colaphp
-- framework
-- php
 ---
 
-和cola.php 是一个叫付超群写得框架,可能对比较大型的框架理解不清楚,可以先看这个比较小型的.
+cola.php 是一个叫付超群写得框架,可能对比较大型的框架理解不清楚,可以先看这个比较小型的.
 0.1版就包含了框架里面最主要的几个文件,那些扩张功能还不包括在里面,非常适合让我们理解如何实现一个mvc框架的过程.
+
 这里是对 0.1版代码的阅读记录.
+
 1. 在demo下面的index.php 是所有动态请求的入口,也是框架的入口.
 2. 在index.php里面require了Cola.php 和 config.inc.php.
 其中Cola.php是最主要的函数,在Cola.php里面的__construct函数里面定义的根目录,用spl_autoload_register 实现框架加载任意的类.
