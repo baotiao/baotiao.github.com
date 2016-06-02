@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>iconv 脚本 转换字符编码脚本 &#8211; baotiao</title>
+    <title>c++对象模型 构造函数语义学 &#8211; baotiao</title>
     <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
     <link rel="dns-prefetch" href="//cdn.mathjax.org">
     <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
@@ -11,12 +11,12 @@
     <meta name="description" content="做有积累的事情">
     <meta name="robots" content="all">
     <meta name="author" content="baotiao">
-    <meta name="keywords" content="script">
-    <link rel="canonical" href="http://baotiao.github.io//script/2011/08/10/iconv-e8-84-9a-e6-9c-ac-e8-bd-ac-e6-8d-a2-e5-ad-97-e7-ac-a6-e7-bc-96-e7-a0-81-e8-84-9a-e6-9c-ac/">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://baotiao.github.io//2012/09/12/c++-constuct/">
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201606030110" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201606030120" type="text/css">
 
     <!-- Fonts -->
     
@@ -36,9 +36,9 @@
     <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
     <meta property="og:locale" content="en_US">
     <meta property="og:type" content="article">
-    <meta property="og:title" content="iconv 脚本 转换字符编码脚本">
+    <meta property="og:title" content="c++对象模型 构造函数语义学">
     <meta property="og:description" content="做有积累的事情">
-    <meta property="og:url" content="http://baotiao.github.io//script/2011/08/10/iconv-e8-84-9a-e6-9c-ac-e8-bd-ac-e6-8d-a2-e5-ad-97-e7-ac-a6-e7-bc-96-e7-a0-81-e8-84-9a-e6-9c-ac/">
+    <meta property="og:url" content="http://baotiao.github.io//2012/09/12/c++-constuct/">
     <meta property="og:site_name" content="baotiao">
 
     <!-- Twitter Card -->
@@ -46,9 +46,9 @@
     
         <meta name="twitter:site" content="@baotiao" />
     
-    <meta name="twitter:title" content="iconv 脚本 转换字符编码脚本" />
+    <meta name="twitter:title" content="c++对象模型 构造函数语义学" />
     <meta name="twitter:description" content="做有积累的事情" />
-    <meta name="twitter:url" content="http://baotiao.github.io//script/2011/08/10/iconv-e8-84-9a-e6-9c-ac-e8-bd-ac-e6-8d-a2-e5-ad-97-e7-ac-a6-e7-bc-96-e7-a0-81-e8-84-9a-e6-9c-ac/" />
+    <meta name="twitter:url" content="http://baotiao.github.io//2012/09/12/c++-constuct/" />
 
     <!-- Icons -->
     <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
@@ -156,8 +156,8 @@
 
 
 <div class="post-header mb2">
-  <h1>iconv 脚本 转换字符编码脚本</h1>
-  <span class="post-meta">Aug 10 2011</span><br>
+  <h1>c++对象模型 构造函数语义学</h1>
+  <span class="post-meta">Sep 12 2012</span><br>
   
   <span class="post-meta small">
   
@@ -167,21 +167,47 @@
 </div>
 
 <article class="post-content">
-  <p>这个脚本碰到有些别字的中文的时候会报错,直接去文件里面该就可以了.iconv: 北京.csv:31:12: cannot convert</p>
+  <h3 id="c-classconstructor">1. C++ 不会为所有的class构造默认的constructor</h3>
 
-<p>iconv: 总部.csv:315:12: cannot convert</p>
+<p>(我们经常认为c++会为所有的class默认添加构造函数)</p>
 
-<p>iconv: 福州.csv:3:12: cannot convert
-比如这样  就是  在 北京.csv 31 行 有错 改下就可以了.
-`
-#!/bin/sh
-MYPATH=<code class="highlighter-rouge">pwd</code>;
-files=<code class="highlighter-rouge">ls</code>;
-for filename in $files
-do
-iconv -f UTF-8 -t GBK $filename &gt; gbk.$filename;
-done
-`</p>
+<p>只有满足4个条件之一会添加构造函数</p>
+
+<ol>
+  <li>包含带有默认构造函数的对象成员的类</li>
+  <li>继承自带有默认构造函数的基类的类</li>
+  <li>带有虚函数的类</li>
+  <li>带一个虚基类的类</li>
+</ol>
+
+<p>这4中情况会导致编译器必须为未申明构造函数的class, 生成一个默认的constructor. 更多情况下是不会去生成默认的构造函数的.</p>
+
+<h3 id="copy-constructor-">2. copy constructor 构造语义学</h3>
+
+<p>C++并不是为所有的类都够着copy constructor.</p>
+
+<p>默认的情况是如果没有定义copy constructor, 那么一般情况下如果有copy constructor 操作, 默认的是执行bitwise copy semantics. 也就是位逐次拷贝.</p>
+
+<p>当然 bistwise copy 是有条件的,当不满足bitwise copy 的条件的时候,就不能进行bitwise copy. 那么C++就会为该类添加默认的copy constructor. ( 这里我感觉就是深拷贝和浅拷贝的区别,很明显bitwise 是浅拷贝,直接将一个对象的data member 拷贝给同一个类的另一个对象. 而如果这里不能直接内存拷贝,则需要深拷贝.就是需要构造一个copy constructor了)</p>
+
+<p>4种情况不满足bitwise copy. 也就是会调用构造函数</p>
+
+<ol>
+  <li>当一个class 内的一个member object,而这个object 声明了一个copy constructor时</li>
+  <li>当class 继承自一个bass class, 而这个bass class 有 copy constructor</li>
+  <li>当class申明了一个或多个 virtual functions 时</li>
+  <li>当class 派生自一个继承串链,其中一个或多个virtual base classes</li>
+</ol>
+
+<h3 id="copy-assign-constructor-">copy assign constructor 构造语义学</h3>
+
+<p>跟上面的copy constructor 构造语义学一样, 如果能进行浅拷贝就浅拷贝, 不行的时候才会去生成assign operator</p>
+
+<h3 id="section">对象析构语义学.</h3>
+
+<p>只有在基类拥有析构函数,或者object member 拥有析构函数的时候,编译器在为类合成析构函数,否则都被视为不需要.</p>
+
+<p>这几个默认生成的函数都是在需要的时候才会被编译器生成出来, 默认情况下是不会生成这些函数的.所以如果class 当成一个存结构体使用, 效率是和C 的stuct 是一样的</p>
 
 </article>
 
@@ -193,8 +219,8 @@ done
   <div id="disqus_thread"></div>
   <script type="text/javascript">
     var disqus_shortname  = 'baotiao';
-    var disqus_identifier = '/script/2011/08/10/iconv-%e8%84%9a%e6%9c%ac-%e8%bd%ac%e6%8d%a2%e5%ad%97%e7%ac%a6%e7%bc%96%e7%a0%81%e8%84%9a%e6%9c%ac';
-    var disqus_title      = 'iconv 脚本 转换字符编码脚本';
+    var disqus_identifier = '/2012/09/12/c++-constuct';
+    var disqus_title      = 'c++对象模型 构造函数语义学';
 
     (function() {
       var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;

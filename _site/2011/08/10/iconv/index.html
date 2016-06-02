@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>Beanstalk 学习 &#8211; baotiao</title>
+    <title>iconv 脚本 转换字符编码脚本 &#8211; baotiao</title>
     <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
     <link rel="dns-prefetch" href="//cdn.mathjax.org">
     <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
@@ -11,12 +11,12 @@
     <meta name="description" content="做有积累的事情">
     <meta name="robots" content="all">
     <meta name="author" content="baotiao">
-    <meta name="keywords" content="c">
-    <link rel="canonical" href="http://baotiao.github.io//c/2011/11/12/beanstalk-e5-ad-a6-e4-b9-a0/">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://baotiao.github.io//2011/08/10/iconv/">
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201606030110" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201606030120" type="text/css">
 
     <!-- Fonts -->
     
@@ -36,9 +36,9 @@
     <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
     <meta property="og:locale" content="en_US">
     <meta property="og:type" content="article">
-    <meta property="og:title" content="Beanstalk 学习">
+    <meta property="og:title" content="iconv 脚本 转换字符编码脚本">
     <meta property="og:description" content="做有积累的事情">
-    <meta property="og:url" content="http://baotiao.github.io//c/2011/11/12/beanstalk-e5-ad-a6-e4-b9-a0/">
+    <meta property="og:url" content="http://baotiao.github.io//2011/08/10/iconv/">
     <meta property="og:site_name" content="baotiao">
 
     <!-- Twitter Card -->
@@ -46,9 +46,9 @@
     
         <meta name="twitter:site" content="@baotiao" />
     
-    <meta name="twitter:title" content="Beanstalk 学习" />
+    <meta name="twitter:title" content="iconv 脚本 转换字符编码脚本" />
     <meta name="twitter:description" content="做有积累的事情" />
-    <meta name="twitter:url" content="http://baotiao.github.io//c/2011/11/12/beanstalk-e5-ad-a6-e4-b9-a0/" />
+    <meta name="twitter:url" content="http://baotiao.github.io//2011/08/10/iconv/" />
 
     <!-- Icons -->
     <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
@@ -156,8 +156,8 @@
 
 
 <div class="post-header mb2">
-  <h1>Beanstalk 学习</h1>
-  <span class="post-meta">Nov 12 2011</span><br>
+  <h1>iconv 脚本 转换字符编码脚本</h1>
+  <span class="post-meta">Aug 10 2011</span><br>
   
   <span class="post-meta small">
   
@@ -167,13 +167,24 @@
 </div>
 
 <article class="post-content">
-  <p>看的Beanstalk第一版的代码,因为代码比较短.小组的分享</p>
+  <p>这个脚本碰到有些别字的中文的时候会报错,直接去文件里面该就可以了.iconv: 北京.csv:31:12: cannot convert</p>
 
-<p><strong><a href="http://www.slideshare.net/baotiao/beanstalk">Beanstalk</a></strong></p>
+<p>iconv: 总部.csv:315:12: cannot convert</p>
 
-<p>View more <a href="http://www.slideshare.net/">presentations</a> from <a href="http://www.slideshare.net/baotiao">宗志 陈</a></p>
+<p>iconv: 福州.csv:3:12: cannot convert
+比如这样  就是  在 北京.csv 31 行 有错 改下就可以了.</p>
 
-<p><a href="http://francepharmacieenligne.com/products/kamagra.htm">kamagra</a> <a href="http://erektilepillenonline.com/products/viagra.htm">viagra</a></p>
+<div class="highlighter-rouge"><pre class="highlight"><code>
+<span class="c">#!/bin/sh</span>
+<span class="nv">MYPATH</span><span class="o">=</span><span class="sb">`</span><span class="nb">pwd</span><span class="sb">`</span>;
+<span class="nv">files</span><span class="o">=</span><span class="sb">`</span>ls<span class="sb">`</span>;
+<span class="k">for </span>filename <span class="k">in</span> <span class="nv">$files</span>
+<span class="k">do
+</span>iconv -f UTF-8 -t GBK <span class="nv">$filename</span> &gt; gbk.<span class="nv">$filename</span>;
+<span class="k">done</span>
+
+</code></pre>
+</div>
 
 </article>
 
@@ -185,8 +196,8 @@
   <div id="disqus_thread"></div>
   <script type="text/javascript">
     var disqus_shortname  = 'baotiao';
-    var disqus_identifier = '/c/2011/11/12/beanstalk-%e5%ad%a6%e4%b9%a0';
-    var disqus_title      = 'Beanstalk 学习';
+    var disqus_identifier = '/2011/08/10/iconv';
+    var disqus_title      = 'iconv 脚本 转换字符编码脚本';
 
     (function() {
       var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;

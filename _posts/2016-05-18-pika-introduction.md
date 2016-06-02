@@ -1,7 +1,6 @@
 ---
 layout: post
 title: "pika introduction"
-summary: "intruduce 360 pika"
 ---
 
 
@@ -12,6 +11,7 @@ pika 是360 DBA和基础架构组联合开发的类redis 存储系统, 完全支
 pika 主要解决的是用户使用redis的内存大小超过50G, 80G 等等这样的情况, 会遇到比如启动恢复时间长,  一主多从代价大, 硬件成本贵, 缓冲区容易写满等等问题. pika 就下针对这些场景的一个解决方案
 
 pika 目前已经开源, github地址:
+
 https://github.com/Qihoo360/pika
 
 
