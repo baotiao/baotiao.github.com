@@ -1,9 +1,8 @@
 ---
 layout: post
-title: "page reclaim wartermark" 
-description: "linux 的 page reclaim 操作在什么时候触发"
-category: kernel, memory
-tags: [kernel, memory]
+title: page reclaim wartermark
+summary: linux 的 page reclaim 操作在什么时候触发
+
 ---
 
 首先我们知道操作系统的物理页主要被两部分使用, 一部分是实际使用的物理内存, 也叫anonymous page, 另一部分是 page cache. 同时我们还有 swap 区, 用来在内存不够的时候将 anonymous page 里面的页面置换到 swap 上. 

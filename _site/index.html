@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201606020248" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201606021021" type="text/css">
 
     <!-- Fonts -->
     
@@ -197,23 +197,21 @@
     <div class="posts">
       
         <div class="post py3">
-          <p class="post-meta">Jun 1 2016</p>
-          <a href="/kernel,%20memory/2016/06/01/swappiness-zero/" class="post-link"><h3 class="h1 post-title">swappiness 是否需要设置成0</h3></a>
+          <p class="post-meta">Jun 2 2016</p>
+          <a href="/2016/06/02/page-reclaim/" class="post-link"><h3 class="h1 post-title">page reclaim wartermark</h3></a>
           <p class="post-summary">
             
-              <p>在我们的线上机器里面, 为了避免内存对性能的影响, 经常会将 swappiness 设置成0.  这个 swappiness 具体含义是什么? 这里就能够完全避免 swap 么? 这样做好么?</p>
-
-
+              linux 的 page reclaim 操作在什么时候触发
             
           </p>
         </div>
       
         <div class="post py3">
           <p class="post-meta">Jun 1 2016</p>
-          <a href="/kernel,%20memory/2016/06/01/page-reclaim/" class="post-link"><h3 class="h1 post-title">page reclaim wartermark</h3></a>
+          <a href="/kernel,%20memory/2016/06/01/swappiness-zero/" class="post-link"><h3 class="h1 post-title">swappiness 是否需要设置成0</h3></a>
           <p class="post-summary">
             
-              <p>首先我们知道操作系统的物理页主要被两部分使用, 一部分是实际使用的物理内存, 也叫anonymous page, 另一部分是 page cache. 同时我们还有 swap 区, 用来在内存不够的时候将 anonymous page 里面的页面置换到 swap 上.</p>
+              <p>在我们的线上机器里面, 为了避免内存对性能的影响, 经常会将 swappiness 设置成0.  这个 swappiness 具体含义是什么? 这里就能够完全避免 swap 么? 这样做好么?</p>
 
 
             

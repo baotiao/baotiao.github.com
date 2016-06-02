@@ -7,6 +7,106 @@
     <atom:link href="http://baotiao.github.io//feed.xml" rel="self" type="application/rss+xml" />
     
       <item>
+        <title>page reclaim wartermark</title>
+        <description>&lt;p&gt;首先我们知道操作系统的物理页主要被两部分使用, 一部分是实际使用的物理内存, 也叫anonymous page, 另一部分是 page cache. 同时我们还有 swap 区, 用来在内存不够的时候将 anonymous page 里面的页面置换到 swap 上.&lt;/p&gt;
+
+&lt;p&gt;那么kernel 什么时候认为内存是不够的, 需要做 page reclaim呢?&lt;/p&gt;
+
+&lt;p&gt;我们通过 cat /proc/zoneinfo 可以看到这样的信息&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Node 1, zone   Normal
+  pages free     19387934
+        min      11289
+        low      14111
+        high     16933
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;p&gt;这里这几个 min, low, high 又是什么意思?&lt;/p&gt;
+
+&lt;p&gt;首先需要了解的一个概念是The Pool of Reserved Page Frames. 意思是每一个 zone 都需要保留一些 page frame. 为什么每一个 zone 都需要保留一些 page frames 呢? 我们知道操作系统在内存不够的时候, 可以直接进行 direct page reclaim, 回收部分的page frame, 那为什么还需要保留一些 page frames 呢?&lt;/p&gt;
+
+&lt;p&gt;因为在 kernel 内部有一些操作是不允许切换的, 比如在处理一个中断的时候或者执行代码的某一临界区域. 在这个时候kernel 的内存申请操作必须是 atomic 的(这个在内存申请的 flag 里面有GFP_ATOMIC). 为了满足这个 atomic 内存申请的需求, 因此我们必须在每个 zone 保留一定数目的 page. 所以低于这个数目的 free pages frame 以后, kernel 就认为自己处于 low_memory 状态了. 我们管这个数叫 min_free_bytes. 那么这个数是怎么算的?&lt;/p&gt;
+
+&lt;p&gt;每一个 zone 的初始化的时候都需要执行&lt;/p&gt;
+
+&lt;p&gt;mm/wmark_alloc:init_per_zone_wmark_min()&lt;/p&gt;
+
+&lt;p&gt;在init_per_zone_wmark_min 里面主要初始化设置了 min_free_kbytes&lt;/p&gt;
+
+&lt;p&gt;The amount of the reserved memory (in kilobytes) is stored in the min_free_kbytes variable. Its initial value is set during kernel initialization and depends on the amount of physical memory that is directly mapped in the kernel’s fourth gigabyte of linear addresses—that is, it depends on the number of page frames included in the ZONE_DMA and ZONE_NORMAL memory zones:&lt;/p&gt;
+
+&lt;p&gt;min_free_kbytes = int_sqrt(16 × directly mapped memory)     (kilobytes)&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;// 这里 lowmem_kbytes 就是映射在操作系统的实际物理内存上面的 physical memory 的 page 数, 其实就是 ZONE_DMA + ZONE_NORMAL 的 page
+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lowmem_kbytes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nr_free_buffer_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wmark_SIZE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;min_free_kbytes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;int_sqrt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lowmem_kbytes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;However, initially min_free_kbytes cannot be lower than 128 and greater than 65,536.&lt;/p&gt;
+
+&lt;p&gt;这个min_free_kbytes 最大64M 最小128k,  所以一般 kernel 里面为 atomic 操作留的 page 数有几十 M. 这个 min_free_kbytes 是对于全部的 zone 而言,  因为希望满足 kernel 的 atomic 类型的内存申请操作肯定是对于全部的物理内存而言的&lt;/p&gt;
+
+&lt;p&gt;有了这个概念以后, 我们就知道每一个 zone 里面的 wmark_min, wmark_low, wmark_high 这些 watermark 数值是什么意思了&lt;/p&gt;
+
+&lt;p&gt;然后接下来设置wmark_min, wmark_low, wmark_high 这几个watermark 主要在setup_per_zone_wmarks() 这个函数里面&lt;/p&gt;
+
+&lt;p&gt;那么具体的计算 wmark_min, wmark_low, wmark_high 过程&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pages_min&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;min_free_kbytes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PAGE_SHIFT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lowmem_pages&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;flags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;/* Calculate total number of !ZONE_HIGHMEM pages */&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;for_each_zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;is_highmem&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;lowmem_pages&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;present_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;for_each_zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;u64&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+  &lt;span class=&quot;n&quot;&gt;spin_lock_irqsave&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;flags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;u64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pages_min&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;present_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;do_div&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lowmem_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;watermark&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;WMARK_MIN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;watermark&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;WMARK_LOW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;  &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;min_wmark_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;watermark&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;WMARK_HIGH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;min_wmark_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;可以看出这里每一个 zone 的 wmark_min 的根据自己的内存大小比例分配对应百分比的 min_free_kbytes. 也就是所有 zone 的 wmark_min 加起来就是这个 min_free_kbytes&lt;/p&gt;
+
+&lt;p&gt;wmark_low = 5/4 * wmark_min&lt;/p&gt;
+
+&lt;p&gt;wmark_high = 3/2 * wmark_min&lt;/p&gt;
+
+&lt;p&gt;每一个zone 还有一个reserve page, 用来限制在 high level zone 满足不了请求的情况下, low level zone 自己需要保留的page数.具体的初始化在&lt;/p&gt;
+
+&lt;p&gt;setup_per_zone_lowmem_reserve()&lt;/p&gt;
+
+&lt;p&gt;那么这里来理解一下设置这些wmark_min, wmark_low, wmark_high 的目的了.&lt;/p&gt;
+
+&lt;p&gt;这里min_free_kbytes 主要是kernel 为了留给&lt;code class=&quot;highlighter-rouge&quot;&gt;__GFP_ATOMIC&lt;/code&gt; 类型的内存申请操作, 因为在操作系统里面有一些内存申请操作是不允许切换的,也就是不能在这个时候把当前这个 cpu 交给别的进程, 比如handling an interrupt or executing code inside an critical region. 那么这时候肯定也是希望kernel 内存申请操作应该是非阻塞的. 因此希望系统至少能够留下 min_free_kbytes 的空间用户&lt;code class=&quot;highlighter-rouge&quot;&gt;__GFP_ATOMIC&lt;/code&gt; 类型的内存申请操作.&lt;/p&gt;
+
+&lt;p&gt;wmark_min 是说当前的这个空闲的 page frame 已经极地了, 当有内存申请操作的时候, 如果是非内核的内存申请操作, 那么就返回失败, 如果申请操作来自kernel, 比如调用的是 __alloc_pages_high_priority() 的时候, 就可以返回内存&lt;/p&gt;
+
+&lt;p&gt;wmark_low 是用来唤醒 kswap 进程, 当我们某一个__alloc_pages 的时候发现 free page fram 小于 wmark_low 的时候, 就会唤醒这个kswapd 进程, 进行 page reclaim&lt;/p&gt;
+
+&lt;p&gt;wmark_high 是当 kswapd 这个进程进行 page reclaim 了以后, 什么时候停止的标志, 只有当 page frame 大于这个 pagh_high 的时候, kswapd 进程才会停止, 继续sleep&lt;/p&gt;
+
+&lt;p&gt;所以其实wmark_min, wmark_low, wmark_high 都是为了kernel 能够允许atomic 类型的申请操作成功服务的&lt;/p&gt;
+
+&lt;p&gt;注: 代码都是基于 linux2.6.32版本&lt;/p&gt;
+</description>
+        <pubDate>Thu, 02 Jun 2016 00:00:00 +0800</pubDate>
+        <link>http://baotiao.github.io//2016/06/02/page-reclaim/</link>
+        <guid isPermaLink="true">http://baotiao.github.io//2016/06/02/page-reclaim/</guid>
+      </item>
+    
+      <item>
         <title>swappiness 是否需要设置成0</title>
         <description>&lt;p&gt;在我们的线上机器里面, 为了避免内存对性能的影响, 经常会将 swappiness 设置成0.  这个 swappiness 具体含义是什么? 这里就能够完全避免 swap 么? 这样做好么?&lt;/p&gt;
 
@@ -134,106 +234,6 @@ file_prio = 200 - sc-&amp;gt;swappiness;
         <pubDate>Wed, 01 Jun 2016 00:00:00 +0800</pubDate>
         <link>http://baotiao.github.io//kernel,%20memory/2016/06/01/swappiness-zero/</link>
         <guid isPermaLink="true">http://baotiao.github.io//kernel,%20memory/2016/06/01/swappiness-zero/</guid>
-      </item>
-    
-      <item>
-        <title>page reclaim wartermark</title>
-        <description>&lt;p&gt;首先我们知道操作系统的物理页主要被两部分使用, 一部分是实际使用的物理内存, 也叫anonymous page, 另一部分是 page cache. 同时我们还有 swap 区, 用来在内存不够的时候将 anonymous page 里面的页面置换到 swap 上.&lt;/p&gt;
-
-&lt;p&gt;那么kernel 什么时候认为内存是不够的, 需要做 page reclaim呢?&lt;/p&gt;
-
-&lt;p&gt;我们通过 cat /proc/zoneinfo 可以看到这样的信息&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Node 1, zone   Normal
-  pages free     19387934
-        min      11289
-        low      14111
-        high     16933
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;p&gt;这里这几个 min, low, high 又是什么意思?&lt;/p&gt;
-
-&lt;p&gt;首先需要了解的一个概念是The Pool of Reserved Page Frames. 意思是每一个 zone 都需要保留一些 page frame. 为什么每一个 zone 都需要保留一些 page frames 呢? 我们知道操作系统在内存不够的时候, 可以直接进行 direct page reclaim, 回收部分的page frame, 那为什么还需要保留一些 page frames 呢?&lt;/p&gt;
-
-&lt;p&gt;因为在 kernel 内部有一些操作是不允许切换的, 比如在处理一个中断的时候或者执行代码的某一临界区域. 在这个时候kernel 的内存申请操作必须是 atomic 的(这个在内存申请的 flag 里面有GFP_ATOMIC). 为了满足这个 atomic 内存申请的需求, 因此我们必须在每个 zone 保留一定数目的 page. 所以低于这个数目的 free pages frame 以后, kernel 就认为自己处于 low_memory 状态了. 我们管这个数叫 min_free_bytes. 那么这个数是怎么算的?&lt;/p&gt;
-
-&lt;p&gt;每一个 zone 的初始化的时候都需要执行&lt;/p&gt;
-
-&lt;p&gt;mm/wmark_alloc:init_per_zone_wmark_min()&lt;/p&gt;
-
-&lt;p&gt;在init_per_zone_wmark_min 里面主要初始化设置了 min_free_kbytes&lt;/p&gt;
-
-&lt;p&gt;The amount of the reserved memory (in kilobytes) is stored in the min_free_kbytes variable. Its initial value is set during kernel initialization and depends on the amount of physical memory that is directly mapped in the kernel’s fourth gigabyte of linear addresses—that is, it depends on the number of page frames included in the ZONE_DMA and ZONE_NORMAL memory zones:&lt;/p&gt;
-
-&lt;p&gt;min_free_kbytes = int_sqrt(16 × directly mapped memory)     (kilobytes)&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;// 这里 lowmem_kbytes 就是映射在操作系统的实际物理内存上面的 physical memory 的 page 数, 其实就是 ZONE_DMA + ZONE_NORMAL 的 page
-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lowmem_kbytes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nr_free_buffer_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wmark_SIZE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;min_free_kbytes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;int_sqrt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lowmem_kbytes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;However, initially min_free_kbytes cannot be lower than 128 and greater than 65,536.&lt;/p&gt;
-
-&lt;p&gt;这个min_free_kbytes 最大64M 最小128k,  所以一般 kernel 里面为 atomic 操作留的 page 数有几十 M. 这个 min_free_kbytes 是对于全部的 zone 而言,  因为希望满足 kernel 的 atomic 类型的内存申请操作肯定是对于全部的物理内存而言的&lt;/p&gt;
-
-&lt;p&gt;有了这个概念以后, 我们就知道每一个 zone 里面的 wmark_min, wmark_low, wmark_high 这些 watermark 数值是什么意思了&lt;/p&gt;
-
-&lt;p&gt;然后接下来设置wmark_min, wmark_low, wmark_high 这几个watermark 主要在setup_per_zone_wmarks() 这个函数里面&lt;/p&gt;
-
-&lt;p&gt;那么具体的计算 wmark_min, wmark_low, wmark_high 过程&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pages_min&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;min_free_kbytes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PAGE_SHIFT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lowmem_pages&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;flags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-&lt;span class=&quot;cm&quot;&gt;/* Calculate total number of !ZONE_HIGHMEM pages */&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;for_each_zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;is_highmem&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;lowmem_pages&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;present_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-&lt;span class=&quot;n&quot;&gt;for_each_zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;u64&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-  &lt;span class=&quot;n&quot;&gt;spin_lock_irqsave&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;flags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;u64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pages_min&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;present_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;do_div&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lowmem_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;watermark&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;WMARK_MIN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;watermark&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;WMARK_LOW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;  &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;min_wmark_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;watermark&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;WMARK_HIGH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;min_wmark_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;可以看出这里每一个 zone 的 wmark_min 的根据自己的内存大小比例分配对应百分比的 min_free_kbytes. 也就是所有 zone 的 wmark_min 加起来就是这个 min_free_kbytes&lt;/p&gt;
-
-&lt;p&gt;wmark_low = 5/4 * wmark_min&lt;/p&gt;
-
-&lt;p&gt;wmark_high = 3/2 * wmark_min&lt;/p&gt;
-
-&lt;p&gt;每一个zone 还有一个reserve page, 用来限制在 high level zone 满足不了请求的情况下, low level zone 自己需要保留的page数.具体的初始化在&lt;/p&gt;
-
-&lt;p&gt;setup_per_zone_lowmem_reserve()&lt;/p&gt;
-
-&lt;p&gt;那么这里来理解一下设置这些wmark_min, wmark_low, wmark_high 的目的了.&lt;/p&gt;
-
-&lt;p&gt;这里min_free_kbytes 主要是kernel 为了留给&lt;code class=&quot;highlighter-rouge&quot;&gt;__GFP_ATOMIC&lt;/code&gt; 类型的内存申请操作, 因为在操作系统里面有一些内存申请操作是不允许切换的,也就是不能在这个时候把当前这个 cpu 交给别的进程, 比如handling an interrupt or executing code inside an critical region. 那么这时候肯定也是希望kernel 内存申请操作应该是非阻塞的. 因此希望系统至少能够留下 min_free_kbytes 的空间用户&lt;code class=&quot;highlighter-rouge&quot;&gt;__GFP_ATOMIC&lt;/code&gt; 类型的内存申请操作.&lt;/p&gt;
-
-&lt;p&gt;wmark_min 是说当前的这个空闲的 page frame 已经极地了, 当有内存申请操作的时候, 如果是非内核的内存申请操作, 那么就返回失败, 如果申请操作来自kernel, 比如调用的是 __alloc_pages_high_priority() 的时候, 就可以返回内存&lt;/p&gt;
-
-&lt;p&gt;wmark_low 是用来唤醒 kswap 进程, 当我们某一个__alloc_pages 的时候发现 free page fram 小于 wmark_low 的时候, 就会唤醒这个kswapd 进程, 进行 page reclaim&lt;/p&gt;
-
-&lt;p&gt;wmark_high 是当 kswapd 这个进程进行 page reclaim 了以后, 什么时候停止的标志, 只有当 page frame 大于这个 pagh_high 的时候, kswapd 进程才会停止, 继续sleep&lt;/p&gt;
-
-&lt;p&gt;所以其实wmark_min, wmark_low, wmark_high 都是为了kernel 能够允许atomic 类型的申请操作成功服务的&lt;/p&gt;
-
-&lt;p&gt;注: 代码都是基于 linux2.6.32版本&lt;/p&gt;
-</description>
-        <pubDate>Wed, 01 Jun 2016 00:00:00 +0800</pubDate>
-        <link>http://baotiao.github.io//kernel,%20memory/2016/06/01/page-reclaim/</link>
-        <guid isPermaLink="true">http://baotiao.github.io//kernel,%20memory/2016/06/01/page-reclaim/</guid>
       </item>
     
       <item>
