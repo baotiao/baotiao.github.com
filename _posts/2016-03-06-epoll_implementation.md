@@ -14,7 +14,7 @@ epoll 在kernel 的具体实现主要在 fs/eventpoll.c include/linux/eventpoll.
 
 eventpoll 是这里面最重要的结构, 在epoll_create 的时候就会生成这个eventpoll 结构, 后续对这个fd 的操作都是在这个eventpoll 这个结构下面的, 这个eventpoll 结构会被保存在file struct 的 private_data 这个结构体里面
 
-```
+```c
 struct eventpoll {
 	/* Protect the this structure access */
 	spinlock_t lock;
@@ -70,7 +70,7 @@ struct eventpoll {
 
 epitem 这个表示的是每一个加入到eventpoll 的结构里面的fd 的时候, 都会有一个epitem 这个结构体, 这个结构体是是连成一个红黑树挂载eventpoll 下面的, 后续查找某一个fd 是否有事件等等都是在这个epitem 上面进行操作
 
-```
+```c
 /*
  * Each file descriptor added to the eventpoll interface will
  * have an entry of this type linked to the "rbr" RB tree.
@@ -123,13 +123,13 @@ struct epitem {
 	struct epoll_event event;
 };
 
-```
+```c
 
 
 eppoll_entry 
 一个epitem 关联到一个eventpoll, 就会有一个对应的eppoll_entry
 
-```
+```c
 /* Wait structure used by the poll hooks */
 struct eppoll_entry {
 	/* List header used to link this structure to the "struct epitem" */
@@ -171,7 +171,7 @@ struct eppoll_entry {
 
 #### epoll_create 的过程
 
-```
+```c
 /*
  * Open an eventpoll file descriptor.
  */
@@ -224,7 +224,7 @@ SYSCALL_DEFINE1(epoll_create1, int, flags)
 
 epoll_ctl 做的主要事情就是把某一个fd 要监听的事件过载到eventpoll 里面
 
-```
+```c
 
 SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 		struct epoll_event __user *, event)
@@ -306,7 +306,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 ```
 那么接下来主要看ep_insert 的过程
 
-```
+```c
 
 /*
  * Must be called with "mtx" held.
@@ -421,7 +421,7 @@ init_poll_funcptr(&epq.pt, ep_ptable_queue_proc);
 
 这里因为epoll 注册的是唤醒的时候执行注册的某一个函数, 这个函数就是ep_poll_callback
 
-```
+```c
 
 /*
  * This is the callback that is used to add our wait queue to the
@@ -475,7 +475,7 @@ static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
 
 ep_poll_callback
 
-```
+```c
 /*
  * This is the callback that is passed to the wait queue wakeup
  * machanism. It is called by the stored file descriptors when they
@@ -592,7 +592,7 @@ out_unlock:
 
 #### epoll_wait
 
-```
+```c
 
 /*
  * Implement the event wait interface for the eventpoll file. It is the kernel
@@ -611,7 +611,7 @@ SYSCALL_DEFINE4(epoll_wait, int, epfd, struct epoll_event __user *, events,
 
 ep_poll()
 
-```
+```c
 static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		   int maxevents, long timeout)
 {
@@ -721,7 +721,7 @@ retry:
 
 ep_send_events->ep_scan_ready_list->ep_send_events_proc
 
-```
+```c
 /**
  * ep_scan_ready_list - Scans the ready list in a way that makes possible for
  *                      the scan code, to call f_op->poll(). Also allows for
@@ -809,7 +809,7 @@ static int ep_scan_ready_list(struct eventpoll *ep,
 
 ep_send_events_proc 函数
 
-```
+```c
 // 这里priv 就是用户传进来的events 的包装 ep_send_events_data
 // 这里就是具体的把已经就绪的list copy 给用户空间
 static int ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
@@ -949,7 +949,7 @@ Checks whether there is activity on a file and goes to sleep until something hap
 
 比如以 pipe 的实现举例子的话
 
-```
+```c
 struct pipe_inode_info {
   wait_queue_head_t wait;
   unsigned int nrbufs, curbuf;
@@ -1020,7 +1020,7 @@ static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
 
 1. 在poll/select 的实现里面, 如果监听多个fd, 只要其中有一个fd 有事件达到, 那么久遍历一个list 去检查到底是哪一个事件到达, 并没有像epoll 一样将这些fd 放在一个红黑树上
 
-```
+```c
 
   /*
    * 程序在这里面schedule_timeout 中sleep, 如果有事件到达,
@@ -1044,7 +1044,7 @@ static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
 
 2. 在进行select 的过程中, 是先将要监听的fd 从用户空间拷贝到内核空间, 然后在内核空间里面进行修改以后, 在拷贝回去给用户空间. 这里就设计到内核空间申请内存, 释放内存等等过程
 
-```
+```c
 int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 			   fd_set __user *exp, struct timespec *end_time)
 {
