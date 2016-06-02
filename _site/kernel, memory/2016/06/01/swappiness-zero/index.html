@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201606021907" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201606022150" type="text/css">
 
     <!-- Fonts -->
     
@@ -200,14 +200,14 @@ file_prio = 200 - sc-&gt;swappiness;
 
 <p>这里最重要的需要判断是否需要swap 的在 get_scan_ratio 这个函数</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>   这里可以看到如果把swap 给关闭了, 那么确实就不会进行swap 这个操作了
-   所以这里想把 swap 完全关闭的方法应该是 swapoff -a  
-	if (!sc-&gt;may_swap || (nr_swap_pages &lt;= 0)) {
-		noswap = 1;
-		percent[0] = 0;
-		percent[1] = 100;
-	} else
-		get_scan_ratio(zone, sc, percent);
+<div class="highlighter-rouge"><pre class="highlight"><code>   <span class="err">这里可以看到如果把</span><span class="n">swap</span> <span class="err">给关闭了</span><span class="p">,</span> <span class="err">那么确实就不会进行</span><span class="n">swap</span> <span class="err">这个操作了</span>
+   <span class="err">所以这里想把</span> <span class="n">swap</span> <span class="err">完全关闭的方法应该是</span> <span class="n">swapoff</span> <span class="o">-</span><span class="n">a</span>  
+	<span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">sc</span><span class="o">-&gt;</span><span class="n">may_swap</span> <span class="o">||</span> <span class="p">(</span><span class="n">nr_swap_pages</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">))</span> <span class="p">{</span>
+		<span class="n">noswap</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+		<span class="n">percent</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+		<span class="n">percent</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">100</span><span class="p">;</span>
+	<span class="p">}</span> <span class="k">else</span>
+		<span class="n">get_scan_ratio</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">percent</span><span class="p">);</span>
 
 </code></pre>
 </div>
@@ -215,43 +215,43 @@ file_prio = 200 - sc-&gt;swappiness;
 <p>那么在这个get_scan_radio 里面, 就是计算这次 swap 和 page cache 的比例的时候了</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>
-  /*
+  <span class="cm">/*
    * 首先获得anon 页的个数 和 page cache页的个数
-   */
-	anon  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_ANON) +
-		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_ANON);
-	file  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_FILE) +
-		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_FILE);
+   */</span>
+	<span class="n">anon</span>  <span class="o">=</span> <span class="n">zone_nr_lru_pages</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">LRU_ACTIVE_ANON</span><span class="p">)</span> <span class="o">+</span>
+		<span class="n">zone_nr_lru_pages</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">LRU_INACTIVE_ANON</span><span class="p">);</span>
+	<span class="n">file</span>  <span class="o">=</span> <span class="n">zone_nr_lru_pages</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">LRU_ACTIVE_FILE</span><span class="p">)</span> <span class="o">+</span>
+		<span class="n">zone_nr_lru_pages</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">LRU_INACTIVE_FILE</span><span class="p">);</span>
 
 
-	if (scanning_global_lru(sc)) {
-		free  = zone_page_state(zone, NR_FREE_PAGES);
-		/* If we have very few page cache pages,
-		   force-scan anon pages. */
-    /*
+	<span class="k">if</span> <span class="p">(</span><span class="n">scanning_global_lru</span><span class="p">(</span><span class="n">sc</span><span class="p">))</span> <span class="p">{</span>
+		<span class="n">free</span>  <span class="o">=</span> <span class="n">zone_page_state</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="n">NR_FREE_PAGES</span><span class="p">);</span>
+		<span class="cm">/* If we have very few page cache pages,
+		   force-scan anon pages. */</span>
+    <span class="cm">/*
      * 这里就是如果我们的page cache page 和我们的 free
      * page数小于high_wmark_pages, 也就是3/2 的min_free_pages 的时候, 那么这个时候即使swapiness是0
      * 也是强制的让这次都走这个swapiness, 也就是swapiness 被设置成100
      *
-     */
-		if (unlikely(file + free &lt;= high_wmark_pages(zone))) {
-			percent[0] = 100;
-			percent[1] = 0;
-			return;
-		}
-	}
-   .....
+     */</span>
+		<span class="k">if</span> <span class="p">(</span><span class="n">unlikely</span><span class="p">(</span><span class="n">file</span> <span class="o">+</span> <span class="n">free</span> <span class="o">&lt;=</span> <span class="n">high_wmark_pages</span><span class="p">(</span><span class="n">zone</span><span class="p">)))</span> <span class="p">{</span>
+			<span class="n">percent</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">100</span><span class="p">;</span>
+			<span class="n">percent</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+			<span class="k">return</span><span class="p">;</span>
+		<span class="p">}</span>
+	<span class="p">}</span>
+   <span class="p">.....</span>
 
-	/*
+	<span class="cm">/*
 	 * With swappiness at 100, anonymous and file have the same priority.
 	 * This scanning priority is essentially the inverse of IO cost.
    * 这里可以看到 swappiness 设成100的时候, 意思是从匿名页释放 page 和从 page
    * cache 里面释放 page 是相同的比例 
-	 */
-	anon_prio = sc-&gt;swappiness;
-	file_prio = 200 - sc-&gt;swappiness;
+	 */</span>
+	<span class="n">anon_prio</span> <span class="o">=</span> <span class="n">sc</span><span class="o">-&gt;</span><span class="n">swappiness</span><span class="p">;</span>
+	<span class="n">file_prio</span> <span class="o">=</span> <span class="mi">200</span> <span class="o">-</span> <span class="n">sc</span><span class="o">-&gt;</span><span class="n">swappiness</span><span class="p">;</span>
 
-	/*
+	<span class="cm">/*
    * 这里从获得了 anon 和 file 的比例以后继续的优化, 根据的是历史的 scanned 和
    * rotated page 的比例, 来计算这些 page 是否有效
    *
@@ -259,9 +259,9 @@ file_prio = 200 - sc-&gt;swappiness;
    * 里面又置换到内存里面50 个 page, 另外我在 page cache 区域里面扫描了100个 page,
    * 又置换了10个 page, 这说明在 anon 区域里面的内容是比较经常访问的,
    * 换出去了以后又要换回内存, 所以应该尽量不要让 anno 区域里面的 page 换出 
-	 */
+	 */</span>
 
-  /*
+  <span class="cm">/*
    *   80 * 100 / 50 = 160
    *   120 * 100 / 10 = 1200
    *   percent[0] = 100 * 160 / 1360 = 11
@@ -272,17 +272,17 @@ file_prio = 200 - sc-&gt;swappiness;
    *   percent[1] = 60
    * 
    *   这样可以看出这样就再一次减少了从 anon 区域 reclaim 的比例, 因为 anan里面的 page 是更经常访问的 
-   */
-	ap = (anon_prio + 1) * (reclaim_stat-&gt;recent_scanned[0] + 1);
-	ap /= reclaim_stat-&gt;recent_rotated[0] + 1;
+   */</span>
+	<span class="n">ap</span> <span class="o">=</span> <span class="p">(</span><span class="n">anon_prio</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">reclaim_stat</span><span class="o">-&gt;</span><span class="n">recent_scanned</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+	<span class="n">ap</span> <span class="o">/=</span> <span class="n">reclaim_stat</span><span class="o">-&gt;</span><span class="n">recent_rotated</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
 
-	fp = (file_prio + 1) * (reclaim_stat-&gt;recent_scanned[1] + 1);
-	fp /= reclaim_stat-&gt;recent_rotated[1] + 1;
+	<span class="n">fp</span> <span class="o">=</span> <span class="p">(</span><span class="n">file_prio</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">reclaim_stat</span><span class="o">-&gt;</span><span class="n">recent_scanned</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+	<span class="n">fp</span> <span class="o">/=</span> <span class="n">reclaim_stat</span><span class="o">-&gt;</span><span class="n">recent_rotated</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
 
-	/* Normalize to percentages */
-	percent[0] = 100 * ap / (ap + fp + 1);
-	percent[1] = 100 - percent[0];
-}
+	<span class="cm">/* Normalize to percentages */</span>
+	<span class="n">percent</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">ap</span> <span class="o">/</span> <span class="p">(</span><span class="n">ap</span> <span class="o">+</span> <span class="n">fp</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+	<span class="n">percent</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">-</span> <span class="n">percent</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+<span class="p">}</span>
 
 </code></pre>
 </div>

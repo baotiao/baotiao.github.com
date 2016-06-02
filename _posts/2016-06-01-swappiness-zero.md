@@ -33,7 +33,7 @@ tags: [kernel, memory]
 
 这里最重要的需要判断是否需要swap 的在 get_scan_ratio 这个函数
 
-```
+```c
    这里可以看到如果把swap 给关闭了, 那么确实就不会进行swap 这个操作了
    所以这里想把 swap 完全关闭的方法应该是 swapoff -a  
 	if (!sc->may_swap || (nr_swap_pages <= 0)) {
@@ -47,7 +47,7 @@ tags: [kernel, memory]
 
 那么在这个get_scan_radio 里面, 就是计算这次 swap 和 page cache 的比例的时候了
 
-```
+```c
 
   /*
    * 首先获得anon 页的个数 和 page cache页的个数
