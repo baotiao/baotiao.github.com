@@ -11,12 +11,12 @@
     <meta name="description" content="做有积累的事情">
     <meta name="robots" content="all">
     <meta name="author" content="baotiao">
-    <meta name="keywords" content="vim">
-    <link rel="canonical" href="http://baotiao.github.io//vim/2012/05/03/vim%E5%A4%8D%E5%88%B6%E6%8F%92%E4%BB%B6/">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://baotiao.github.io//2012/05/03/vim-copy-plugin/">
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201606030120" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201606030209" type="text/css">
 
     <!-- Fonts -->
     
@@ -38,7 +38,7 @@
     <meta property="og:type" content="article">
     <meta property="og:title" content="vim复制插件">
     <meta property="og:description" content="做有积累的事情">
-    <meta property="og:url" content="http://baotiao.github.io//vim/2012/05/03/vim%E5%A4%8D%E5%88%B6%E6%8F%92%E4%BB%B6/">
+    <meta property="og:url" content="http://baotiao.github.io//2012/05/03/vim-copy-plugin/">
     <meta property="og:site_name" content="baotiao">
 
     <!-- Twitter Card -->
@@ -48,7 +48,7 @@
     
     <meta name="twitter:title" content="vim复制插件" />
     <meta name="twitter:description" content="做有积累的事情" />
-    <meta name="twitter:url" content="http://baotiao.github.io//vim/2012/05/03/vim%E5%A4%8D%E5%88%B6%E6%8F%92%E4%BB%B6/" />
+    <meta name="twitter:url" content="http://baotiao.github.io//2012/05/03/vim-copy-plugin/" />
 
     <!-- Icons -->
     <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
@@ -110,6 +110,43 @@
 
     
 
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
 
     
 
@@ -169,14 +206,17 @@
 <article class="post-content">
   <p>vim复制的时候不发复制到c-v的复制缓冲区,很麻烦,自己动手,丰衣足食</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>nnoremap y :set operatorfunc=Pbcopyg@
-vnoremap y y:call Pbcopy()
-function! s:Pbcopy()
-    execute 'call system("pbcopy", getreg("\""))'
-    execute 'call system("xsel --clipboard --input", getreg("\""))'
-endfunction 将代码保存再.vim/plugin/copy.vim的文件即可 ubuntu环境下 默认得安装一下xsel这个东西
+<div class="highlighter-rouge"><pre class="highlight"><code>nnoremap <span class="k">y</span> <span class="p">:</span><span class="k">set</span> operatorfunc<span class="p">=</span>Pbcopyg@
+vnoremap <span class="k">y</span> <span class="k">y</span><span class="p">:</span><span class="k">call</span> Pbcopy<span class="p">()</span>
+<span class="k">function</span><span class="p">!</span> <span class="nv">s:Pbcopy</span><span class="p">()</span>
+    execute <span class="s1">'call system("pbcopy", getreg("\""))'</span>
+    execute <span class="s1">'call system("xsel --clipboard --input", getreg("\""))'</span>
+<span class="k">endfunction</span>
 </code></pre>
 </div>
+
+<p>将代码保存再.vim/plugin/copy.vim的文件即可
+ubuntu环境下 默认得安装一下xsel这个东西</p>
 
 </article>
 
@@ -188,7 +228,7 @@ endfunction 将代码保存再.vim/plugin/copy.vim的文件即可 ubuntu环境�
   <div id="disqus_thread"></div>
   <script type="text/javascript">
     var disqus_shortname  = 'baotiao';
-    var disqus_identifier = '/vim/2012/05/03/vim复制插件';
+    var disqus_identifier = '/2012/05/03/vim-copy-plugin';
     var disqus_title      = 'vim复制插件';
 
     (function() {

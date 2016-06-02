@@ -8,7 +8,7 @@
     <link rel="dns-prefetch" href="//cdn.mathjax.org">
     <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="vim grep plugin">
+    <meta name="description" content="做有积累的事情">
     <meta name="robots" content="all">
     <meta name="author" content="baotiao">
     <meta name="keywords" content="">
@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201606030120" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201606030209" type="text/css">
 
     <!-- Fonts -->
     
@@ -47,7 +47,7 @@
         <meta name="twitter:site" content="@baotiao" />
     
     <meta name="twitter:title" content="vim grep plugin" />
-    <meta name="twitter:description" content="vim grep plugin" />
+    <meta name="twitter:description" content="做有积累的事情" />
     <meta name="twitter:url" content="http://baotiao.github.io//2012/05/03/vim-grep/" />
 
     <!-- Icons -->
@@ -110,6 +110,43 @@
 
     
 
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
 
     
 
@@ -167,7 +204,9 @@
 </div>
 
 <article class="post-content">
-  <div class="highlighter-rouge"><pre class="highlight"><code>nnoremap <span class="p">&lt;</span>leader<span class="p">&gt;</span><span class="k">g</span> <span class="p">:</span><span class="k">set</span> operatorfunc<span class="p">=&lt;</span>SID<span class="p">&gt;</span>GrepOperator<span class="p">&lt;</span><span class="k">cr</span><span class="p">&gt;</span><span class="k">g</span>@
+  <p>vim grep 插件</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>nnoremap <span class="p">&lt;</span>leader<span class="p">&gt;</span><span class="k">g</span> <span class="p">:</span><span class="k">set</span> operatorfunc<span class="p">=&lt;</span>SID<span class="p">&gt;</span>GrepOperator<span class="p">&lt;</span><span class="k">cr</span><span class="p">&gt;</span><span class="k">g</span>@
 vnoremap <span class="p">&lt;</span>leader<span class="p">&gt;</span><span class="k">g</span> <span class="p">:&lt;</span>C<span class="p">-</span>U<span class="p">&gt;</span><span class="k">call</span> <span class="p">&lt;</span>SID<span class="p">&gt;</span>GrepOperator<span class="p">(</span>visualmode<span class="p">())&lt;</span><span class="k">cr</span><span class="p">&gt;</span>
 
 <span class="k">function</span><span class="p">!</span> <span class="nv">s:GrepOperator</span><span class="p">(</span>type<span class="p">)</span>
