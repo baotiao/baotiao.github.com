@@ -7,9 +7,11 @@ tags: links
 
 ### friends
 
+- [增哥][9]
 - [志淳][5]
 - [宋昭][6]
 - [王康][7]
+- [晓飞][8]
 
 ### blogs
 
@@ -23,3 +25,5 @@ tags: links
 [5]: http://code6.github.io/
 [6]: http://kernelmaker.github.io/
 [7]: http://catkang.github.io/index.html
+[8]: http://jacketwoo.github.io/
+[9]: http://panweizeng.com/
