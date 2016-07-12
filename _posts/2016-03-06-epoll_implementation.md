@@ -2,7 +2,6 @@
 layout: post
 title: "epoll implementation"
 description: "epoll implementation"
-category: kernel, tech
 tags: [kernel]
 ---
 ### epoll Implementation
@@ -961,6 +960,11 @@ static ssize_t
 pipe_read(struct kiocb *iocb, const struct iovec *_iov,
      unsigned long nr_segs, loff_t pos)
 {
+    ...
+    // 所有的read 操作执行完以后, 判断时候需要做wakeup 操作
+    // 需要做wakeup操作的话, 则把之前注册在这个pipe_inode_info 里面的函数或者
+    // 进程唤醒, 这里是函数还是进程由注册的时候的决定
+
     if (do_wakeup) {
       wake_up_interruptible_sync(&pipe->wait);
       kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);

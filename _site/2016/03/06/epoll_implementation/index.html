@@ -11,12 +11,12 @@
     <meta name="description" content="做有积累的事情">
     <meta name="robots" content="all">
     <meta name="author" content="baotiao">
-    <meta name="keywords" content="kernel, tech">
-    <link rel="canonical" href="http://baotiao.github.io//kernel,%20tech/2016/03/06/epoll_implementation/">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://baotiao.github.io//2016/03/06/epoll_implementation/">
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201606232112" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201607112244" type="text/css">
 
     <!-- Fonts -->
     
@@ -38,7 +38,7 @@
     <meta property="og:type" content="article">
     <meta property="og:title" content="epoll implementation">
     <meta property="og:description" content="epoll implementation">
-    <meta property="og:url" content="http://baotiao.github.io//kernel,%20tech/2016/03/06/epoll_implementation/">
+    <meta property="og:url" content="http://baotiao.github.io//2016/03/06/epoll_implementation/">
     <meta property="og:site_name" content="baotiao">
 
     <!-- Twitter Card -->
@@ -48,7 +48,7 @@
     
     <meta name="twitter:title" content="epoll implementation" />
     <meta name="twitter:description" content="做有积累的事情" />
-    <meta name="twitter:url" content="http://baotiao.github.io//kernel,%20tech/2016/03/06/epoll_implementation/" />
+    <meta name="twitter:url" content="http://baotiao.github.io//2016/03/06/epoll_implementation/" />
 
     <!-- Icons -->
     <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
@@ -1158,6 +1158,11 @@ Checks whether there is activity on a file and goes to sleep until something hap
 <span class="n">pipe_read</span><span class="p">(</span><span class="k">struct</span> <span class="n">kiocb</span> <span class="o">*</span><span class="n">iocb</span><span class="p">,</span> <span class="k">const</span> <span class="k">struct</span> <span class="n">iovec</span> <span class="o">*</span><span class="n">_iov</span><span class="p">,</span>
      <span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">nr_segs</span><span class="p">,</span> <span class="n">loff_t</span> <span class="n">pos</span><span class="p">)</span>
 <span class="p">{</span>
+    <span class="p">...</span>
+    <span class="c1">// 所有的read 操作执行完以后, 判断时候需要做wakeup 操作
+</span>    <span class="c1">// 需要做wakeup操作的话, 则把之前注册在这个pipe_inode_info 里面的函数或者
+</span>    <span class="c1">// 进程唤醒, 这里是函数还是进程由注册的时候的决定
+</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">do_wakeup</span><span class="p">)</span> <span class="p">{</span>
       <span class="n">wake_up_interruptible_sync</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pipe</span><span class="o">-&gt;</span><span class="n">wait</span><span class="p">);</span>
       <span class="n">kill_fasync</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pipe</span><span class="o">-&gt;</span><span class="n">fasync_writers</span><span class="p">,</span> <span class="n">SIGIO</span><span class="p">,</span> <span class="n">POLL_OUT</span><span class="p">);</span>
@@ -1359,7 +1364,7 @@ Checks whether there is activity on a file and goes to sleep until something hap
   <div id="disqus_thread"></div>
   <script type="text/javascript">
     var disqus_shortname  = 'baotiao';
-    var disqus_identifier = '/kernel,%20tech/2016/03/06/epoll_implementation';
+    var disqus_identifier = '/2016/03/06/epoll_implementation';
     var disqus_title      = 'epoll implementation';
 
     (function() {
