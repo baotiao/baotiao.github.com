@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201607112244" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201608150314" type="text/css">
 
     <!-- Fonts -->
     
@@ -196,6 +196,18 @@
     <div class="posts">
       
         <div class="post py3">
+          <p class="post-meta">Mar 5 2012</p>
+          <a href="/tech/2012/03/05/memcached-meituan/" class="post-link"><h3 class="h1 post-title">Memcache stats mt 线上使用情况</h3></a>
+          <p class="post-summary">
+            
+              <p>美团网memcached的使用情况,线上有3个memcached服务器,默认的内存空间是256M.</p>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
           <p class="post-meta">Feb 18 2012</p>
           <a href="/tech/2012/02/18/memcache-slabs/" class="post-link"><h3 class="h1 post-title">Memcache 内存分配</h3></a>
           <p class="post-summary">
@@ -313,19 +325,6 @@ slabclass 的数据结构</p>
             
               <p>cola.php 是一个叫付超群写得框架,可能对比较大型的框架理解不清楚,可以先看这个比较小型的.
 0.1版就包含了框架里面最主要的几个文件,那些扩张功能还不包括在里面,非常适合让我们理解如何实现一个mvc框架的过程.</p>
-
-
-            
-          </p>
-        </div>
-      
-        <div class="post py3">
-          <p class="post-meta">Aug 17 2011</p>
-          <a href="/2011/08/17/grep-in-awk/" class="post-link"><h3 class="h1 post-title">grep in awk</h3></a>
-          <p class="post-summary">
-            
-              <p>```shell
-awk ‘BEGIN {while (( getline &lt; “f2” &gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&lt;lc; i++) { if (match (f2[i], $1)) print f2[i];}}’ f1</p>
 
 
             

@@ -7,6 +7,114 @@
     <atom:link href="http://baotiao.github.io//feed.xml" rel="self" type="application/rss+xml" />
     
       <item>
+        <title>how to read a book</title>
+        <description>&lt;h3 id=&quot;how-to-read-a-book&quot;&gt;How to read a book&lt;/h3&gt;
+
+&lt;p&gt;这是university of Michigan 大学的一个教授写的如何看一本书, 当然也可以用来看论文, 看资料等等, 但是这种方法肯定不适合用来看小说. 我觉得里面讲的一些方法其实我有在做, 有些方法我没做到. 下面介绍一下里面的方法, 当然这里的读书指的是非常功利的读书, 不是读小说. &lt;a href=&quot;http://pne.people.si.umich.edu/PDF/howtoread.pdf&quot;&gt;原文&lt;/a&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;section&quot;&gt;整体&lt;/h4&gt;
+
+&lt;p&gt;读书的目的是为了学会, 了解书上讲的知识. 并且尽可能的花更少的时间去达到这个目标.&lt;/p&gt;
+
+&lt;p&gt;整体的方法就是带着问题来读书, 所以你绝对不能从头读到尾的方式读书, 应该是跳来跳去, 按照自己的目的去发现, 去理解, 去记住那些你想要的知识, 这样就可以在尽可能短的时候获得你想要的知识点.&lt;/p&gt;
+
+&lt;p&gt;我自己的经验就是比如我读csapp的时候, 刚开始读的比较吃力就是因为从头开始往后读, 因为一开始就将cpu的体系结构, 其实看起来很懵逼. 但是从后往前度, 从Application =&amp;gt; os =&amp;gt; Architecture 就顺很多的. 比如读ulk 的时候, 最早也是按照书上的章节读, 后来发现讲内存, 下一章又开始讲锁, cpu调度, 进程等等发现了解的也不是深刻. 后来使用的方法就是把内存相关的章节一起看了, 比如2, 8, 9 然后对内存有了解了, 再去看cpu 相关, 再去看设备相关的, 自我感觉还是比之前的方法好&lt;/p&gt;
+
+&lt;p&gt;那么如何跳来跳去的看书呢, 肯定不是一开始就可以跳来跳去的看的.&lt;/p&gt;
+
+&lt;h5 id=&quot;section-1&quot;&gt;具体做法&lt;/h5&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;通读全文&lt;/p&gt;
+
+    &lt;p&gt;整体把握重点比深入细节要来的重要, 因为无论你看的多认真, 很多时候细节还是需要回头再看的. 但是你知道整个书的主要的问题, 很多细节当需要的时候再去差就行. 比如看ulk 的内存相关的时候, 你知道在kernel 内部, 内存申请的方法有3种,kmalloc, slab, vmalloc. 具体有问题需要你排查的时候, 你再去深入去看slab细节, 这个时候你会记得更清楚&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;决定你打算花多长时间在这本书上&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;带着问题去读书&lt;/p&gt;
+
+    &lt;p&gt;带着问题去看书会让你对想要了解的问题记得更加清楚&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;多个别人交流&lt;/p&gt;
+
+    &lt;p&gt;不要一个人看,  多和别人交流.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;了解这个书的作者或者这个组织&lt;/p&gt;
+
+    &lt;p&gt;这点其实我一直没做到. 作者和正常人一样, 她的观点一定是形成一定是受的教育, 他的工作, 她的以前生活, 他的经历所形成的. 具体的做技术书籍就是他之前做过什么, 主要解决哪些领域的问题等等&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;了解知识背景&lt;/p&gt;
+
+    &lt;p&gt;我觉的这个和了解作者类似, 就跟看文献的时候一定要看背景介绍一样, 不然不知道要解决什么问题就开始看会懵逼&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;好书读三遍&lt;/strong&gt;&lt;/p&gt;
+
+    &lt;p&gt;这个是重点, 那就写三遍. 这个也是我自己的切身体会&lt;/p&gt;
+
+    &lt;p&gt;&lt;strong&gt;好书读三遍&lt;/strong&gt;&lt;/p&gt;
+
+    &lt;p&gt;&lt;strong&gt;好书读三遍&lt;/strong&gt;&lt;/p&gt;
+
+    &lt;p&gt;&lt;strong&gt;好书读三遍&lt;/strong&gt;&lt;/p&gt;
+
+    &lt;ol&gt;
+      &lt;li&gt;
+        &lt;p&gt;整体快速通读.&lt;/p&gt;
+
+        &lt;p&gt;这个时间占用读整个文章的10%,  快读了解这个文章的主要内容. 通读重要的标题, 段落. 对应于我们经常的读文献, 我喜欢的做法就是看第一节Introduce, 第二节整体实现, 然后直接看最后一节conclusion 这样就大概知道这个文献讲什么&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;细读.&lt;/p&gt;
+
+        &lt;p&gt;在第一遍的基础上细读, 这时候你再去细读文章, 因为有了整体的脉络, 不过看到具体结构设计的时候很懵逼, 这一遍就是要掌握这文献的主要内容了&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;复读并且记笔记&lt;/p&gt;
+
+        &lt;p&gt;&lt;strong&gt;记笔记和划重点还是不一样的&lt;/strong&gt;, &lt;strong&gt;记笔记和划重点是不一样的&lt;/strong&gt;,&lt;strong&gt;记笔记和划重点是不一样的&lt;/strong&gt;.&lt;/p&gt;
+
+        &lt;p&gt;因为记笔记使用你自己的语言结合你自己已知的内容框架把作者的观点吸收到你的框架里面. 所以要尽可能用你自己的语言. 直接把作者写的内容拷贝粘贴过来肯定是效果不好的. 一般来说100页的书, 这个时候之下来只需要1-3页的内容. 太多了也不好&lt;/p&gt;
+      &lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;时间&lt;/p&gt;
+
+    &lt;p&gt;一般来说我们的注意力在1个小时以后就会不集中, 因此连续看书3个小时的效果是不如3个分开的一小时来得好. 并且读书消化也是需要时间, 分开时间会在下一次开始的时候逼迫自己去想上次的1个小时读的内容, 加深印象&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;关注重点内容&lt;/p&gt;
+
+    &lt;p&gt;一般来说目录表, 图, 图表, 标题包含更多的重要内容. 一般来说一个文献都是漏斗结构, 也就是我们常说的总-分-总结构, 因此开始和结尾总会包含观点, 中间的一般是具体的验证, 实现过程&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;多做标记, 但不要标记太多&lt;/p&gt;
+
+    &lt;p&gt;我现在看pdf 一般用skim, 然后里面的高亮标记功能还是很不错的&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;用各种方式回顾你学到的内容&lt;/p&gt;
+
+    &lt;p&gt;因为读, 写, 说, 听, 想象是脑海中的各种部分. 尽可能使用各种方法回顾你学到的内容&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;不断练习, 不断练习, 不断练习…&lt;/p&gt;
+
+</description>
+        <pubDate>Mon, 15 Aug 2016 00:00:00 +0800</pubDate>
+        <link>http://baotiao.github.io//2016/08/15/how-to-read/</link>
+        <guid isPermaLink="true">http://baotiao.github.io//2016/08/15/how-to-read/</guid>
+      </item>
+    
+      <item>
         <title>page reclaim wartermark</title>
         <description>&lt;p&gt;首先我们知道操作系统的物理页主要被两部分使用, 一部分是实际使用的物理内存, 也叫anonymous page, 另一部分是 page cache. 同时我们还有 swap 区, 用来在内存不够的时候将 anonymous page 里面的页面置换到 swap 上.&lt;/p&gt;
 
@@ -2490,53 +2598,6 @@ int main(int argc, char **argv){
         <pubDate>Sun, 28 Feb 2016 00:00:00 +0800</pubDate>
         <link>http://baotiao.github.io//kernel/tech/2016/02/28/kernel-file-poll-operations/</link>
         <guid isPermaLink="true">http://baotiao.github.io//kernel/tech/2016/02/28/kernel-file-poll-operations/</guid>
-      </item>
-    
-      <item>
-        <title>Haystack object storage</title>
-        <description>&lt;h3 id=&quot;haystack&quot;&gt;HayStack&lt;/h3&gt;
-&lt;p&gt;HayStack 是facebook 的一个针对图片存储的object storage. 以下大概是HayStack设计&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;图片大部分的应用场景是 只写一次, 然后经常读取, 以及从来不会对图片进行修改. 并且极其少的可能去修改这个图片&lt;/li&gt;
-  &lt;li&gt;Haystack 主要包含Haystack Directory, Haystack Cache, Haystack Store. 那么读写的流程分别是
-&lt;img src=&quot;http://i.imgur.com/Xa1E5zg.png&quot; alt=&quot;Imgur&quot; /&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;img src=&quot;http://i.imgur.com/Hjn71u5.png&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;可以看出这里Haystack Directory 里面应该保存的是数据的元信息&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Haystack Store 可以说自己实现了一套存取图片的引擎. 如果只是用操作系统的文件系统, 存在的问题是.
-    &lt;ul&gt;
-      &lt;li&gt;某一个目录下面存放大量的图片的文件, 那么由于文件系统里面目录也是跟保存在一个block里面, 那么就会造成这个目录的node下面的data block的内容过大, 那么为了取到这个目录的meta信息, 就需要读取多个block 才能读取得到需要的内容&lt;/li&gt;
-      &lt;li&gt;只是用文件系统来保存图片的话, 为了读取到一次图片, 我们需要首先读取对应的目录的inode数据, 然后是目录的data block, 然后从里面找到我们需要的文件, 然后读取这个文件的inode, 然后是读取这个文件的data block. 从这里可以看出, 我们为了找到一个文件, 需要经过多次的磁盘IO最终才能找到这个数据.&lt;/li&gt;
-      &lt;li&gt;如果我们存的图片不大, 那么就会找出大量的小文件的情况发生&lt;/li&gt;
-      &lt;li&gt;通过后续的计算可以看出,比如在xfs系统下面建立一个文件xfs inode 信息大小是536 byte, 而如果可以通过自己实现我们需要的元信息的的大小可以做到40 bytes&lt;/li&gt;
-    &lt;/ul&gt;
-
-    &lt;p&gt;那么Haystack Store 的主要的一个事情就是建立一个大文件, 然后在这个大文件头建立SuperBlock的信息, 然后底下的数据模块具体放文件的内容. 那么在这个大文件里面找到某一个文件的信息就需要一个Index 的信息
-&lt;img src=&quot;http://i.imgur.com/Hyowus5.png&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;这个是Index File 的信息, Index File 里面needle 的数据的顺序必须严格和数据文件的needle 一致
-&lt;img src=&quot;http://i.imgur.com/OyAWZOt.png&quot; alt=&quot;Imgur&quot; /&gt;
-Since index records do not reflect deleted photos, a Store machine may retrieve a photo that has in fact been deleted. To address this issue, after a Store machine reads the entire needle for a photo, that machine can then inspect the deleted flag. If a needle is marked as deleted the Store machine updates its in-memory map- ping accordingly and notifies the Cache that the object was not found.&lt;/p&gt;
-
-&lt;p&gt;所以从这里可以看出来, 具体的文件是否被删除的信息是存放在volume file里面的, 我有一个疑惑? 为什么不直接将这个文件是否被删除的flag存放在index file 里面呢&lt;/p&gt;
-
-&lt;p&gt;总结: HayStack Store的核心其实是自己来分配这个磁盘空间, 就是memcache 一样, 因为作为应用层, 我自己对我当前的应用的需求更加的了解, 而kernel的内存分配规则是针对通用的应用的需求. 因此memcache的做法就是自己提前申请一块大内存, 然后在这块大内存上面自己进行内存分配. 那么HayStack Store 的做法就是自己提前申请一块大的磁盘空间, 然后在这个大的磁盘空间上面进行空间分配, 因为HayStack Store 对这个磁盘的需求的理解是由于kernel的&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Haystack 的优化也主要在于会对文件进行compact, 这里的compact指的是将这个volume file里面标记成删除的文件删除掉, 还有一个是尽可能的减少一个文件需要的inode信息的大小&lt;/li&gt;
-  &lt;li&gt;Haystack 的思想和 log struct file system 很像, 就是顺序写入到磁盘, 然后大部分的读取是会命中cache的, 这样读的时候虽然需要查找多次才能读到数据, 由于cache的命中率高. 所以还是可以接受的. 并且Haystack 由于应用的场景是图片. 所以这种场景对于写入的数据修改的情况就更少了.&lt;/li&gt;
-&lt;/ul&gt;
-</description>
-        <pubDate>Fri, 25 Dec 2015 00:00:00 +0800</pubDate>
-        <link>http://baotiao.github.io//2015/12/25/facebook-haystack/</link>
-        <guid isPermaLink="true">http://baotiao.github.io//2015/12/25/facebook-haystack/</guid>
       </item>
     
   </channel>
