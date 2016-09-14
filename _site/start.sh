@@ -19,4 +19,5 @@ else
     echo "we just need line or local";
     exit 2;
 fi
-jekyll server --watch
+bundle exec jekyll serve
+# jekyll server --watch

@@ -3,16 +3,16 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>The first post &#8211; baotiao</title>
+    <title>cache policy &#8211; baotiao</title>
     <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
     <link rel="dns-prefetch" href="//cdn.mathjax.org">
     <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="做有积累的事情">
+    <meta name="description" content="cache policy">
     <meta name="robots" content="all">
     <meta name="author" content="baotiao">
     <meta name="keywords" content="">
-    <link rel="canonical" href="http://baotiao.github.io//2011/06/14/first-post/">
+    <link rel="canonical" href="http://baotiao.github.io//2016/09/14/cache-policy/">
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
@@ -36,9 +36,9 @@
     <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
     <meta property="og:locale" content="en_US">
     <meta property="og:type" content="article">
-    <meta property="og:title" content="The first post">
-    <meta property="og:description" content="The first post">
-    <meta property="og:url" content="http://baotiao.github.io//2011/06/14/first-post/">
+    <meta property="og:title" content="cache policy">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://baotiao.github.io//2016/09/14/cache-policy/">
     <meta property="og:site_name" content="baotiao">
 
     <!-- Twitter Card -->
@@ -46,9 +46,9 @@
     
         <meta name="twitter:site" content="@baotiao" />
     
-    <meta name="twitter:title" content="The first post" />
-    <meta name="twitter:description" content="做有积累的事情" />
-    <meta name="twitter:url" content="http://baotiao.github.io//2011/06/14/first-post/" />
+    <meta name="twitter:title" content="cache policy" />
+    <meta name="twitter:description" content="cache policy" />
+    <meta name="twitter:url" content="http://baotiao.github.io//2016/09/14/cache-policy/" />
 
     <!-- Icons -->
     <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
@@ -193,8 +193,8 @@
 
 
 <div class="post-header mb2">
-  <h1>The first post</h1>
-  <span class="post-meta">Jun 14 2011</span><br>
+  <h1>cache policy</h1>
+  <span class="post-meta">Sep 14 2016</span><br>
   
   <span class="post-meta small">
   
@@ -204,7 +204,45 @@
 </div>
 
 <article class="post-content">
-  <p>今天照毕业照,不过昨晚刚通宵完.</p>
+  <h3 id="cache-policy">cache policy</h3>
+
+<p>近期在做ceph cache-tier 相关的事情, 在cache-tier 里面cache有多种更新策略</p>
+
+<p>其实更缓存相关的系统里面, 都存在这几种策略, 比如操作系统的page cache,
+业务层使用memcache, redis 作为后端数据库的缓存的时候,
+也都要考虑缓存和后端存储的数据一致性问题. 其实就是更新操作的时候,
+什么时候去更新缓存, 什么时候去更新后端存储的问题?</p>
+
+<p>那么这个时候一般会有3种策略</p>
+
+<ol>
+  <li>no-write</li>
+  <li>write-through</li>
+  <li>write-back</li>
+</ol>
+
+<ul>
+  <li>no-write</li>
+</ul>
+
+<p>no-write 的实现方式是写入数据的时候是直接将数据写入到后端存储, 并且标记cache 中的数据是无效的, 那么后续的某一次读取发现无效以后, 会发起一次读取请求, 将后端存储中的数据更新到cache 中, 并且标记有效</p>
+
+<p>这个策略其实很少使用</p>
+
+<ul>
+  <li>write-through</li>
+</ul>
+
+<p>write-through 实现方式是写入的时候将cache 和 后端存储的数据一起更新, 这种方法最能够保证cache 数据的一致性. 并且也是简单的方法, 但也是性能最低的一个方法</p>
+
+<ul>
+  <li>write-back</li>
+</ul>
+
+<p>write-back 也是linux page cache采用的方式, 我觉得也是最通用的一种方式, 在write-back 策略里面, 写入操作是直接更新到cache 里面的,  后端存储不会马上更新. 然后这些需要更新的page 会被标记成dirty, 放到一个dirty list 里面, 然后周期性的有pdflush(2.6.32 以后就是flush per device)进行将cache 里面的数据刷回后端存储,  然后这些page 就不在标记dirty.</p>
+
+<p>write-back 方案可以看成是write-through 的一个优化版本,  其实就是通过lazy write 一次写入比较大的数据来提高这个写入的性能, 但是带来的问题可能就是缓存中的数据有可能丢失了. 所以在linux 里面可以通过fsync 来强制某一次的写入写到磁盘, 也就是从write-back 变成write-through了</p>
+
 
 </article>
 
@@ -216,8 +254,8 @@
   <div id="disqus_thread"></div>
   <script type="text/javascript">
     var disqus_shortname  = 'baotiao';
-    var disqus_identifier = '/2011/06/14/first-post';
-    var disqus_title      = 'The first post';
+    var disqus_identifier = '/2016/09/14/cache-policy';
+    var disqus_title      = 'cache policy';
 
     (function() {
       var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;

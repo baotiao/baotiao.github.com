@@ -7,6 +7,53 @@
     <atom:link href="http://baotiao.github.io//feed.xml" rel="self" type="application/rss+xml" />
     
       <item>
+        <title>cache policy</title>
+        <description>&lt;h3 id=&quot;cache-policy&quot;&gt;cache policy&lt;/h3&gt;
+
+&lt;p&gt;近期在做ceph cache-tier 相关的事情, 在cache-tier 里面cache有多种更新策略&lt;/p&gt;
+
+&lt;p&gt;其实更缓存相关的系统里面, 都存在这几种策略, 比如操作系统的page cache,
+业务层使用memcache, redis 作为后端数据库的缓存的时候,
+也都要考虑缓存和后端存储的数据一致性问题. 其实就是更新操作的时候,
+什么时候去更新缓存, 什么时候去更新后端存储的问题?&lt;/p&gt;
+
+&lt;p&gt;那么这个时候一般会有3种策略&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;no-write&lt;/li&gt;
+  &lt;li&gt;write-through&lt;/li&gt;
+  &lt;li&gt;write-back&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;no-write&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;no-write 的实现方式是写入数据的时候是直接将数据写入到后端存储, 并且标记cache 中的数据是无效的, 那么后续的某一次读取发现无效以后, 会发起一次读取请求, 将后端存储中的数据更新到cache 中, 并且标记有效&lt;/p&gt;
+
+&lt;p&gt;这个策略其实很少使用&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;write-through&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;write-through 实现方式是写入的时候将cache 和 后端存储的数据一起更新, 这种方法最能够保证cache 数据的一致性. 并且也是简单的方法, 但也是性能最低的一个方法&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;write-back&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;write-back 也是linux page cache采用的方式, 我觉得也是最通用的一种方式, 在write-back 策略里面, 写入操作是直接更新到cache 里面的,  后端存储不会马上更新. 然后这些需要更新的page 会被标记成dirty, 放到一个dirty list 里面, 然后周期性的有pdflush(2.6.32 以后就是flush per device)进行将cache 里面的数据刷回后端存储,  然后这些page 就不在标记dirty.&lt;/p&gt;
+
+&lt;p&gt;write-back 方案可以看成是write-through 的一个优化版本,  其实就是通过lazy write 一次写入比较大的数据来提高这个写入的性能, 但是带来的问题可能就是缓存中的数据有可能丢失了. 所以在linux 里面可以通过fsync 来强制某一次的写入写到磁盘, 也就是从write-back 变成write-through了&lt;/p&gt;
+
+</description>
+        <pubDate>Wed, 14 Sep 2016 00:00:00 +0800</pubDate>
+        <link>http://baotiao.github.io//2016/09/14/cache-policy/</link>
+        <guid isPermaLink="true">http://baotiao.github.io//2016/09/14/cache-policy/</guid>
+      </item>
+    
+      <item>
         <title>talk about kernel process descriptor</title>
         <description>&lt;h3 id=&quot;taskstruct-threadstruct-tssstruct-threadinfo-&quot;&gt;task_struct, thread_struct, tss_struct, thread_info 他们之间的关系是什么&lt;/h3&gt;
 
@@ -2386,204 +2433,6 @@ Checks whether there is activity on a file and goes to sleep until something hap
         <pubDate>Sun, 06 Mar 2016 00:00:00 +0800</pubDate>
         <link>http://baotiao.github.io//2016/03/06/epoll_implementation/</link>
         <guid isPermaLink="true">http://baotiao.github.io//2016/03/06/epoll_implementation/</guid>
-      </item>
-    
-      <item>
-        <title>kernel list</title>
-        <description>&lt;h3 id=&quot;section&quot;&gt;困惑点&lt;/h3&gt;
-&lt;p&gt;之前看kernel list 的时候困惑的地方在于这个list里面居然没有指针指向这个list
-对应的struct, 而是直接指向struct 里面的list 元素,
-比如这样&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;struct my_cool_list{
-  struct list_head list; /* kernel&#39;s list structure */
-  int my_cool_data;
-  void* my_cool_void;
-};
-
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;那么怎么返回这个实际包含这个list 里面的元素的struct 的结构体呢?&lt;/p&gt;
-
-&lt;p&gt;答案: 其实最重要的一点就是有list_entry(ptr, type, member) 这个宏定义,
-这个宏实现可以从一个struct 里面的一个元素, 然后返回这个struct 的地址,
-这个是怎么做的呢?&lt;/p&gt;
-
-&lt;p&gt;其实也很好实现, 就是把struct 里面的偏移量拿来加减就可以了, 比如
-struct node {
-  int a;
-  int b;
-}&lt;/p&gt;
-
-&lt;p&gt;知道这个node.b 的地址, 那么很容易根据偏移量减去这个地址就可以了. 所以&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;#define list_entry(ptr, type, member) \
-        ((type *)((char *)(ptr)-(unsigned long)(&amp;amp;((type *)0)-&amp;gt;member)))
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;p&gt;这里ptr 就是这个b 的地址, 然后type 就是这个node 这个结构体, member 就是这个b.&lt;/p&gt;
-
-&lt;p&gt;那么这里我们是怎么知道b 这个元素在这个结构体里面的偏移量呢?&lt;/p&gt;
-
-&lt;p&gt;Now the question is how can we compute the offset of an element in a structure? Suppose you have a data structure struct foo_bar and you want to find the offset of element boo in it, this is how you do it:
-(unsigned long)(&amp;amp;((struct foo_bar *)0)-&amp;gt;boo)&lt;/p&gt;
-
-&lt;p&gt;这样就可以了
-这里的做法就是用foo_bar 结构体指针指向这个0这个地址, -&amp;gt; boo的操作其实就是增加这个偏移量, 然后获得这个元素的地址了&lt;/p&gt;
-
-&lt;p&gt;其他的地方就是普通的list 结构, 然后封装好了比较方便的操作了
-&lt;img src=&quot;http://i.imgur.com/513DxAK.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
-
-&lt;h3 id=&quot;kernel-list-&quot;&gt;kernel list 好在哪里呢?&lt;/h3&gt;
-
-&lt;p&gt;我们平常自己实现的list 一般是这么实现的&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;
-struct my_list{
-  void *myitem;
-  struct my_list *next;
-  struct my_list *prev;
-};
-
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;这里我们想要获得下一个list元素, 一般有一个对应struct 类型的指针 *next;&lt;br /&gt;
-然后这个next 指针一般指向下一个my_list;&lt;/p&gt;
-
-&lt;p&gt;然而kernel 里面的list 是这么实现&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;struct my_cool_list{
-  struct list_head list; /* kernel&#39;s list structure */
-  int my_cool_data;
-  void* my_cool_void;
-};
-
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;这里可以看到相比较于我们自己实现的list, kernel list 的优点有&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;直接把这个list_head 结构体放在一个struct 内部, 就可以让这个struct 实现一个list 结构, 不需要知道这个struct 的类型, 实现的非常的通用, 这里也可以在这个 把这个list 连接的不是这个my_cool_list 类型, 连接其他类型也是完全可以&lt;/li&gt;
-  &lt;li&gt;可以放多个list_head 结构, 这样这个结构体就可以连成多个list, 虽然原生的方法也可以, 不过这样看上去非常的简洁&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;这个是list 的具体使用方法,&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;
-#include &amp;lt;stdio.h&amp;gt;
-#include &amp;lt;stdlib.h&amp;gt;
-
-#include &quot;list.h&quot;
-
-struct kool_list{
-  int to;
-  struct list_head list;
-  int from;
-};
-
-int main(int argc, char **argv){
-
-  struct kool_list *tmp;
-  struct list_head *pos, *q;
-  unsigned int i;
-
-  struct kool_list mylist;
-  INIT_LIST_HEAD(&amp;amp;mylist.list);
-  /* or you could have declared this with the following macro
-  * LIST_HEAD(mylist); which declares and initializes the list
-   */
-
-  /* adding elements to mylist */
-  for(i=5; i!=0; --i){
-    tmp= (struct kool_list *)malloc(sizeof(struct kool_list));
-
-    /* INIT_LIST_HEAD(&amp;amp;tmp-&amp;gt;list);
-    *
-    * this initializes a dynamically allocated list_head. we
-    * you can omit this if subsequent call is add_list() or
-    * anything along that line because the next, prev
-    * fields get initialized in those functions.
-     */
-    printf(&quot;enter to and from:&quot;);
-    scanf(&quot;%d %d&quot;, &amp;amp;tmp-&amp;gt;to, &amp;amp;tmp-&amp;gt;from);
-
-    /* add the new item &#39;tmp&#39; to the list of items in mylist */
-    list_add(&amp;amp;(tmp-&amp;gt;list), &amp;amp;(mylist.list));
-    /* you can also use list_add_tail() which adds new items to
-    * the tail end of the list
-     */
-  }
-  printf(&quot;\n&quot;);
-
-  /* now you have a circularly linked list of items of type struct kool_list.
-  * now let us go through the items and print them out
-   */
-
-  /* list_for_each() is a macro for a for loop.
-  * first parameter is used as the counter in for loop. in other words, inside the
-  * loop it points to the current item&#39;s list_head.
-  * second parameter is the pointer to the list. it is not manipulated by the macro.
-   */
-  printf(&quot;traversing the list using list_for_each()\n&quot;);
-  list_for_each(pos, &amp;amp;mylist.list){
-
-    /* at this point: pos-&amp;gt;next points to the next item&#39;s &#39;list&#39; variable and
-    * pos-&amp;gt;prev points to the previous item&#39;s &#39;list&#39; variable. Here item is
-    * of type struct kool_list. But we need to access the item itself not the
-    * variable &#39;list&#39; in the item! macro list_entry() does just that. See &quot;How
-    * does this work?&quot; below for an explanation of how this is done.
-     */
-    tmp= list_entry(pos, struct kool_list, list);
-
-    /* given a pointer to struct list_head, type of data structure it is part of,
-    * and it&#39;s name (struct list_head&#39;s name in the data structure) it returns a
-    * pointer to the data structure in which the pointer is part of.
-    * For example, in the above line list_entry() will return a pointer to the
-    * struct kool_list item it is embedded in!
-     */
-
-    printf(&quot;to= %d from= %d\n&quot;, tmp-&amp;gt;to, tmp-&amp;gt;from);
-
-  }
-  printf(&quot;\n&quot;);
-  /* since this is a circularly linked list. you can traverse the list in reverse order
-  * as well. all you need to do is replace &#39;list_for_each&#39; with &#39;list_for_each_prev&#39;
-  * everything else remain the same!
-  *
-  * Also you can traverse the list using list_for_each_entry() to iterate over a given
-  * type of entries. For example:
-   */
-  printf(&quot;traversing the list using list_for_each_entry()\n&quot;);
-  list_for_each_entry(tmp, &amp;amp;mylist.list, list)
-    printf(&quot;to= %d from= %d\n&quot;, tmp-&amp;gt;to, tmp-&amp;gt;from);
-  printf(&quot;\n&quot;);
-
-  /* now let&#39;s be good and free the kool_list items. since we will be removing items
-  * off the list using list_del() we need to use a safer version of the list_for_each()
-  * macro aptly named list_for_each_safe(). Note that you MUST use this macro if the loop
-  * involves deletions of items (or moving items from one list to another).
-   */
-  printf(&quot;deleting the list using list_for_each_safe()\n&quot;);
-  list_for_each_safe(pos, q, &amp;amp;mylist.list){
-    tmp= list_entry(pos, struct kool_list, list);
-    printf(&quot;freeing item to= %d from= %d\n&quot;, tmp-&amp;gt;to, tmp-&amp;gt;from);
-    list_del(pos);
-    free(tmp);
-  }
-
-  return 0;
-}
-
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-</description>
-        <pubDate>Sun, 28 Feb 2016 00:00:00 +0800</pubDate>
-        <link>http://baotiao.github.io//kernel,%20tech/2016/02/28/kernel-list/</link>
-        <guid isPermaLink="true">http://baotiao.github.io//kernel,%20tech/2016/02/28/kernel-list/</guid>
       </item>
     
   </channel>
