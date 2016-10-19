@@ -94,6 +94,7 @@ wmark_min 是说当前的这个空闲的 page frame 已经极地了, 当有内�
 wmark_low 是用来唤醒 kswap 进程, 当我们某一个__alloc_pages 的时候发现 free page fram 小于 wmark_low 的时候, 就会唤醒这个kswapd 进程, 进行 page reclaim
 
 wmark_high 是当 kswapd 这个进程进行 page reclaim 了以后, 什么时候停止的标志, 只有当 page frame 大于这个 pagh_high 的时候, kswapd 进程才会停止, 继续sleep
+![Imgur](http://i.imgur.com/iAj7rWj.png)
 
 所以其实wmark_min, wmark_low, wmark_high 都是为了kernel 能够允许atomic 类型的申请操作成功服务的
 
