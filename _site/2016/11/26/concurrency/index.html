@@ -3,16 +3,16 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>grep in awk &#8211; baotiao</title>
+    <title>talk about event based concurrency &#8211; baotiao</title>
     <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
     <link rel="dns-prefetch" href="//cdn.mathjax.org">
     <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="做有积累的事情">
+    <meta name="description" content="谈谈对multi thread 和 event based concurrency 的看法">
     <meta name="robots" content="all">
     <meta name="author" content="baotiao">
     <meta name="keywords" content="">
-    <link rel="canonical" href="http://baotiao.github.io//2011/08/17/grep-in-awk/">
+    <link rel="canonical" href="http://baotiao.github.io//2016/11/26/concurrency/">
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
@@ -36,9 +36,9 @@
     <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
     <meta property="og:locale" content="en_US">
     <meta property="og:type" content="article">
-    <meta property="og:title" content="grep in awk">
+    <meta property="og:title" content="talk about event based concurrency">
     <meta property="og:description" content="做有积累的事情">
-    <meta property="og:url" content="http://baotiao.github.io//2011/08/17/grep-in-awk/">
+    <meta property="og:url" content="http://baotiao.github.io//2016/11/26/concurrency/">
     <meta property="og:site_name" content="baotiao">
 
     <!-- Twitter Card -->
@@ -46,9 +46,9 @@
     
         <meta name="twitter:site" content="@baotiao" />
     
-    <meta name="twitter:title" content="grep in awk" />
-    <meta name="twitter:description" content="做有积累的事情" />
-    <meta name="twitter:url" content="http://baotiao.github.io//2011/08/17/grep-in-awk/" />
+    <meta name="twitter:title" content="talk about event based concurrency" />
+    <meta name="twitter:description" content="谈谈对multi thread 和 event based concurrency 的看法" />
+    <meta name="twitter:url" content="http://baotiao.github.io//2016/11/26/concurrency/" />
 
     <!-- Icons -->
     <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
@@ -193,8 +193,8 @@
 
 
 <div class="post-header mb2">
-  <h1>grep in awk</h1>
-  <span class="post-meta">Aug 17 2011</span><br>
+  <h1>talk about event based concurrency</h1>
+  <span class="post-meta">Nov 26 2016</span><br>
   
   <span class="post-meta small">
   
@@ -204,67 +204,24 @@
 </div>
 
 <article class="post-content">
-  <div class="highlighter-rouge"><pre class="highlight"><code>awk <span class="s1">'BEGIN {while (( getline &lt; "f2" &gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&lt;lc; i++) { if (match (f2[i], $1)) print f2[i];}}'</span> f1
+  <p><strong>比如像redis 单线程基于epoll 这种模型, node.js 这种模型都可以归结为Event-base Concurrency, 那么这种模型和multi-thread 对比有什么区别呢?</strong></p>
 
-awk <span class="s1">'BEGIN {while (( getline &lt; "f2" &gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&lt;lc; i++) { if (f2[i] ~ $1) print f2[i];}}'</span> f1
-</code></pre>
-</div>
+<p>从调度角度来看multi-thread 是kernel 来决定下一个要调度处理的thread 是哪一个. 而kernel cpu scheduler 又是一个很大的模块, 很难肯定下一个要调度的thread 是哪一个.</p>
 
-<p>其中 match 函数 match(s,r)              测试s是否包含匹配r的字符串
-有两个文件 f1 包含</p>
+<p>event-based 是当要监听的fd 有事情到达的时候, 由当前这个thread 来决定下一个要执行的event 是谁, 也就是说event-based 是可以实现用户自己决定下一个要执行的任务是谁. 比如简单的可以记录我这次到达的fd里面哪些是优先级高的fd即可.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>czz 234
-xyy 2ee
-ghy 2g3
-</code></pre>
-</div>
+<p>因为multi-thread 会考虑到每一个thread 的优先级等等, 而且如果thread 数目过多那么肯定会影响到具体的调度.虽然kernel scheduler 能够做到O(1) 的级别. 对比event-base, 切换线程需要切换上下文, 因此肯定会有性能的损耗.</p>
 
-<p>f2包含</p>
+<p>而在event-base 里面, 所有的event 的优先级都是一样的, 然后在处理event 的handler 里面决定先处理哪一个event. 但是同样有一个问题就是如果这个event-base 里面event 比较多, 那么性能肯定也会下来.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="nv">au</span><span class="o">=</span>xyygxh
-ssssssssssssss
-<span class="nv">au</span><span class="o">=</span>xyy;xyygxhgxh
-<span class="nv">au</span><span class="o">=</span>czz;andxyy
-<span class="nv">au</span><span class="o">=</span>czz;andguanxiaohong
-</code></pre>
-</div>
+<p>那么event-base 缺点也有, 如果要使用多核的cpu的时候, 想要同时并行的运行多个event server 的时候, 需要用lock 进行同步的问题又来了.</p>
 
-<p>现在 要把 f2 搜索一次 如果有包含 czz 就列出来, 然后 再把f2搜索一次 有xyy就列出来 
-所以答案应该是</p>
+<p>另外其实有些系统调用并不能支持异步, 比如如果一个处理 event handler 访问内存的时候触发了page fault, 那么这个时候是并不能把这个event handler 切换出去了, 必须等待这个page fault 执行完才可以. 所以kernel 还是不能做到全异步话, 还是有一些逻辑同步的.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="nv">au</span><span class="o">=</span>czz;andxyy
-<span class="nv">au</span><span class="o">=</span>czz;andguanxiaohong
-<span class="nv">au</span><span class="o">=</span>xyy;xyygxhgxh
-<span class="nv">au</span><span class="o">=</span>czz;andxyy
-<span class="nv">au</span><span class="o">=</span>xyy;xyygxhgxh
-</code></pre>
-</div>
+<p>pink 里面的设计, 其实是综合上面考虑的结果, 不是一个纯 multi-thread, 也不是一个纯even based. 会有多个work thread, 然后每一个work thread 内部是event-base concurrency.</p>
 
-<p>刚开始想到的是 先 awk 然后 里面再用 grep 来做,不过后来试验了无数次 grep 总是报错, 不过也知道了 grep 里面包含awk的方法.
-就是 grep “$(awk ‘{printf(“%s”), $1;}’ f1)” f2 这样就是把  f2 中 包含 czz 或者 xyy 或者 ghy 的找出来.
-后来grep 放弃了, 后来看到有这个 match 函数 试了一下,马上就可以了.</p>
+<p><img src="http://i.imgur.com/XXfibpV.png" alt="" /></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>awk <span class="s1">'BEGIN {while (( getline &lt; "f2" &gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&lt;lc; i++) { if (match (f2[i], $1)) print f2[i];}}'</span> f1
-</code></pre>
-</div>
-
-<p>这里 在 BEGIN 的时候 吧 f2的文件都读进来,然后 存在f2数组里面,然后 接下来对每一个f1文件里面的每一行 都 与f2数组做比较.
-match(s,r) 的意思是测试s是否包含匹配r 的字符串. 所以f2[i] 包含 $1 就会输出 f2[i].</p>
-
-<p>还有一种做法</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>awk <span class="s1">'BEGIN {while (( getline &lt; "f2" &gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&lt;lc; i++) { if (f2[i] ~ $1) print f2[i];}}'</span> f1
-</code></pre>
-</div>
-
-<p>这里 匹配的时候要注意两点  if (f2[i] ~ $1) 就是 f2[i] 中 包含 $1 这个正则表达式 
-还有 就是 是否要用着 /””/ 这个问题, 如果是变量就不要用,不是变量就必须用. 
-这样这里就不用grep  实际上也是实现了 grep 的功能.
-线上实际用到这个命令的地方.</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>awk <span class="s1">'BEGIN { while (( getline &lt; "/var/sankuai/wwwlogs/www.meituan.com-110816-access_log" &gt; 0))  { f2[lc] = $0; lc++;}} -F "," { name = "au="$2"[;|\"]"; for (i = 1; i &lt; lc; i++) {if (f2[i] ~ name) print f2[i];} printf("\n\n");}'</span> zhuagui.ouput &gt; zhuagui50
-</code></pre>
-</div>
 
 </article>
 
@@ -276,8 +233,8 @@ match(s,r) 的意思是测试s是否包含匹配r 的字符串. 所以f2[i] 包�
   <div id="disqus_thread"></div>
   <script type="text/javascript">
     var disqus_shortname  = 'baotiao';
-    var disqus_identifier = '/2011/08/17/grep-in-awk';
-    var disqus_title      = 'grep in awk';
+    var disqus_identifier = '/2016/11/26/concurrency';
+    var disqus_title      = 'talk about event based concurrency';
 
     (function() {
       var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
