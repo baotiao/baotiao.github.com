@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201611260343" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201612071927" type="text/css">
 
     <!-- Fonts -->
     
@@ -196,6 +196,23 @@
     <div class="posts">
       
         <div class="post py3">
+          <p class="post-meta">Sep 3 2013</p>
+          <a href="/2013/09/03/leverdb-thought/" class="post-link"><h3 class="h1 post-title">levelDB thought</h3></a>
+          <p class="post-summary">
+            
+              <ol>
+  <li>在ENV 里面可以把levelDB的结果从写入到本地 改成写入到 hdfs 来实现数据的备份, 复制等操作 具体的做法就是调用hdfs的写入这些库来实现.  这样实现levelDB的分布实话非常方便</li>
+  <li>levelDB的VersionSet 是管理者 version. 然后 每一个version 有一个列表, 这个列表是这个version 的对应的所有的SST文件.  所以你要查找某一个Version的数据的时候.  先会在这个VersionSet里面查找一遍包含这个当前快照的一个版本, 然后再从这个version 的这个list里面去具体的文件查找具体的内容</li>
+  <li>在一台机器上面getInstance()出来1000 levelDB的实例的话, 只会有一个compaction线程, 然后一个机器1000 个levelDB 实例和1个机器1个levelDB的实例的话 带来的好处是在机器挂掉得时候recovery的非常的快.  不过这样compaction起来就很费劲</li>
+  <li>在将本地文件写入到hdfs的节点中, 因为hdfs的写入性能比较慢.  所以在本地应该是writrBranch. 然后20ms向hdfs写一次. 这样比较适合.</li>
+  <li>levelDB 如何实现原子的getAndSet.  因为levelDB不是再内存层面实现这个对具体某一个key操作. 所以这个levelDB 的getAndSet操作不是通过汇编层面实现的.</li>
+</ol>
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
           <p class="post-meta">Aug 22 2013</p>
           <a href="/2013/08/22/leveldb-iterator/" class="post-link"><h3 class="h1 post-title">levelDB中用到的迭代器模型</h3></a>
           <p class="post-summary">
@@ -305,18 +322,6 @@
           <p class="post-summary">
             
               <p>一个函数被定义成inline 函数. 那么就跟macro 宏一样, 在编译器编译的时候,如果编译器发现你的函数是inline类型的,就把你编译成inline code.</p>
-
-
-            
-          </p>
-        </div>
-      
-        <div class="post py3">
-          <p class="post-meta">Jun 18 2012</p>
-          <a href="/2012/06/18/c++-single-model/" class="post-link"><h3 class="h1 post-title">c++泛型单例模式</h3></a>
-          <p class="post-summary">
-            
-              <p>单例模式是在设计模式里面很常见的一种,用来确保一个类只有一个实例. 首先是原生态版本的实现.</p>
 
 
             

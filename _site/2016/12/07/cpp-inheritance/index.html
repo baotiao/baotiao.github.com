@@ -3,16 +3,16 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>Paxos introduction &#8211; baotiao</title>
+    <title>cpp inheritance summary &#8211; baotiao</title>
     <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
     <link rel="dns-prefetch" href="//cdn.mathjax.org">
     <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="做有积累的事情">
+    <meta name="description" content="cpp inheritance 和 composition 一些总结">
     <meta name="robots" content="all">
     <meta name="author" content="baotiao">
-    <meta name="keywords" content="tech">
-    <link rel="canonical" href="http://baotiao.github.io//tech/2014/09/09/paxos-introduction/">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://baotiao.github.io//2016/12/07/cpp-inheritance/">
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
@@ -36,9 +36,9 @@
     <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
     <meta property="og:locale" content="en_US">
     <meta property="og:type" content="article">
-    <meta property="og:title" content="Paxos introduction">
-    <meta property="og:description" content="Paxos introduction">
-    <meta property="og:url" content="http://baotiao.github.io//tech/2014/09/09/paxos-introduction/">
+    <meta property="og:title" content="cpp inheritance summary">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://baotiao.github.io//2016/12/07/cpp-inheritance/">
     <meta property="og:site_name" content="baotiao">
 
     <!-- Twitter Card -->
@@ -46,9 +46,9 @@
     
         <meta name="twitter:site" content="@baotiao" />
     
-    <meta name="twitter:title" content="Paxos introduction" />
-    <meta name="twitter:description" content="做有积累的事情" />
-    <meta name="twitter:url" content="http://baotiao.github.io//tech/2014/09/09/paxos-introduction/" />
+    <meta name="twitter:title" content="cpp inheritance summary" />
+    <meta name="twitter:description" content="cpp inheritance 和 composition 一些总结" />
+    <meta name="twitter:url" content="http://baotiao.github.io//2016/12/07/cpp-inheritance/" />
 
     <!-- Icons -->
     <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
@@ -193,8 +193,8 @@
 
 
 <div class="post-header mb2">
-  <h1>Paxos introduction</h1>
-  <span class="post-meta">Sep 9 2014</span><br>
+  <h1>cpp inheritance summary</h1>
+  <span class="post-meta">Dec 7 2016</span><br>
   
   <span class="post-meta small">
   
@@ -204,10 +204,52 @@
 </div>
 
 <article class="post-content">
-  <p>Introduction of Paxos protocol in my company.</p>
+  <h4 id="inheritance--composition-">关于inheritance 和 composition 对比</h4>
 
-<iframe src="//www.slideshare.net/slideshow/embed_code/38862630" width="512" height="421" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" style="border:1px solid #CCC; border-width:1px; margin-bottom:5px; max-width: 100%;" allowfullscreen=""> </iframe>
-<div style="margin-bottom:5px"> <strong> <a href="https://www.slideshare.net/baotiao/paxos-38862630" title="Paxos introduction" target="_blank">Paxos introduction</a> </strong> from <strong><a href="http://www.slideshare.net/baotiao" target="_blank">宗志 陈</a></strong> </div>
+<p>public inheritance 表示的是 is-a 的关系</p>
+
+<p>所有能够用在base class 上面的东西应该都可以使用到 derive class上, 	因为所有的derive class 都是base class的一种</p>
+
+<p>composition 有两个含义</p>
+
+<ol>
+  <li>表示的是has-a 的关系</li>
+  <li>表示由什么东西来实现</li>
+</ol>
+
+<p>这里检查是否能够使用inheritance 的方法是. 是否所有客户端对base class 的操作都能够用到这个derive class 上, 并且不需要知道这个derive class 的具体实现细节.</p>
+
+<p>My suggestion is to enhance your “is a / has a” heuristic with the <a href="http://www.objectmentor.com/resources/articles/lsp.pdf">Liskov Substitution Principle</a>.
+To check whether an inheritence relationship complies with the Liskov Substitution Principle, ask whether clients of a base class can operate on the sub class without knowing that it is operating on a sub class. Of course, all the properties of the sub class must be preserved.</p>
+
+<p>有一个观点看来,  composition 的封装粒度要比 inheritance 来的更高,  因为 inheritance 需要知道更多基类的细节. 所以要判断需要使用composition 还是 inheritance 的时候, 先判断是否能够使用inheritance, 然后偏向于使用composition</p>
+
+<h4 id="section">在类里面通常有3个类型的函数</h4>
+
+<ol>
+  <li>pure virtual function</li>
+  <li>non-pure virtual function</li>
+  <li>non-virtual function</li>
+</ol>
+
+<p>pure virtual function 表示的是只继承这个接口, 并没有提供默认的实现</p>
+
+<p>常见的一个问题是有时候我们看到代码里面会有pure virtual function, 但是这个pure virtual function 又会有一个默认的实现, 为什么要这样写?</p>
+
+<p>比如rocksdb DB::Put 是pure virtual, 在DBImpl 里面有DB::Put的实现逻辑, 然后DBImpl::Put 只是去调用了一下这个DB::Put 方法. 这样方便如果又有DBImpl2 继承自 DBImpl, 需要写Put 的时候, 直接调用DB类提供的默认方法就可以了</p>
+
+<p>这里是希望的derive class 需要明确的去实现这个function, 而不是使用virtual function 那样有默认的实现方法. 但是又希望base class 给function 提供默认的实现的方法</p>
+
+<p>non-pure virtual function 表示的是继承这个接口并且给出了默认的实现</p>
+
+<p>non-virtual function 表示的是继承了这个接口并且强制了这个实现, 所以我们不应该在派生类里面去重新实现一个non-virtual function.</p>
+
+<h4 id="section-1">其他</h4>
+
+<ul>
+  <li>在继承的时候, 只要继承virtual 和 pure-virtual 函数, 如果你要继承 non-virtual 函数, 这说明你的设计有问题了</li>
+  <li>在继承一个参数有默认值的函数的时候, 不要去修改这个函数的默认值, 因为这个默认值的绑定是随着这个类, 而这个函数的绑定是随着这个对象的</li>
+</ul>
 
 </article>
 
@@ -219,8 +261,8 @@
   <div id="disqus_thread"></div>
   <script type="text/javascript">
     var disqus_shortname  = 'baotiao';
-    var disqus_identifier = '/tech/2014/09/09/paxos-introduction';
-    var disqus_title      = 'Paxos introduction';
+    var disqus_identifier = '/2016/12/07/cpp-inheritance';
+    var disqus_title      = 'cpp inheritance summary';
 
     (function() {
       var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
