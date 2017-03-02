@@ -5,7 +5,7 @@ summary: page cache dirty_expire_interval 一些问题
 ---
 
 
-昨天分享disk and page cache 遗留了几个问题, 回去又看代码加实际验证了一下, 得到如下结论:
+昨天分享[disk and page cache](https://www.slideshare.net/baotiao/disk-and-page-cache) 遗留了几个问题, 回去又看代码加实际验证了一下, 得到如下结论:
 
 1. dirty_expired_interval 确实和我们昨天所说的是一样的效果
 

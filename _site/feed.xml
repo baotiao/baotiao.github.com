@@ -312,7 +312,7 @@ vm.dirty_ratio = 80
     
       <item>
         <title>page cache dirty_expire_interval</title>
-        <description>&lt;p&gt;昨天分享disk and page cache 遗留了几个问题, 回去又看代码加实际验证了一下, 得到如下结论:&lt;/p&gt;
+        <description>&lt;p&gt;昨天分享&lt;a href=&quot;https://www.slideshare.net/baotiao/disk-and-page-cache&quot;&gt;disk and page cache&lt;/a&gt; 遗留了几个问题, 回去又看代码加实际验证了一下, 得到如下结论:&lt;/p&gt;
 
 &lt;ol&gt;
   &lt;li&gt;dirty_expired_interval 确实和我们昨天所说的是一样的效果&lt;/li&gt;
