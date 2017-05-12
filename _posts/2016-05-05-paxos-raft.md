@@ -36,7 +36,7 @@ title: "谈谈paxos, multi-paxos, raft"
 
     ![](http://i.imgur.com/2KO9khV.jpg)
 
-    可以看出, raft 里面follower 的log 一定是leader log 的子集, 而raft 不做这个保证
+    可以看出, raft 里面follower 的log 一定是leader log 的子集, 而 multi-paxos 不做这个保证
 
 3. 关于paxos, multi-paxos, raft 的关系
 
