@@ -7,6 +7,88 @@
     <atom:link href="http://baotiao.github.io//feed.xml" rel="self" type="application/rss+xml" />
     
       <item>
+        <title>Paper Review - Amazon Aurora</title>
+        <description>&lt;p&gt;最近Amazon 在 SIGMOD 发了AWS 上面号称比mysql 快5倍的RDS Aurora 的论文. 当年Amazon 发布Dynamo的论文时候, 让大家知道了原来Nosql 还可以这么搞, 就有了后来的百家齐放, 不知道Aurora 的效果如何.&lt;/p&gt;
+
+&lt;p&gt;Aurora 主要结构由 database 和 storage service 组成&lt;/p&gt;
+
+&lt;p&gt;Aurora 使用叫做以服务为中心的架构设计. 其实就是 database 节点都是无状态节点, 也就是只包含了(SQL + Transactions) 这两层. 所有的数据都存在storage service.  这里的storage service 使用的是Amazon S3 服务.&lt;/p&gt;
+
+&lt;p&gt;Aurora 的核心思想还是把 sql 里面的计算和存储分开, 并且是直接通过修改mysql 5.6 代码的方法. 看图1 里面的核心架构就可以看得出来, 但是这样带来的问题是之前 中心化的结构都在单机上, 肯定没有问题, 那么这样计算和存储拆开以后, 性能问题如何解决, 所以一开始论文也是, 到最后瓶颈就在网络上了&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://i.imgur.com/6xY047A.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;从上图可以看出AZ 有主从结构, 然后所有&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;那么接下来就是如何持久化数据的问题.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Aurora 提供的也是Quorum 机制, Qurora 认为(2 + 2 &amp;gt; 3) 的quorum 机制是不安全的, 因此使用的是 (4 + 3 &amp;gt; 6) 的副本机制, 数据分布在3个AZ(Availability zone)(可以理解为Amazon 的每一个机房), 每一个Availability Zone 里面有两个副本的数据. 为什么2 + 2 &amp;gt; 3 的quorum 不安全呢?&lt;/p&gt;
+
+&lt;p&gt;在AZ A, B, C 三个副本的情况下, 每一个AZ 肯定都存在一些坏盘情况存在, 这个时候后台正在修复这些数据, 如果这个时候 AZ C 由于某些原因整个AZ挂了, 那么这个时候这些正在后台修理的这部分数据就无法满足 2/3 的Quorum, 因为可能这个数据写入在AZ C, 同时另一个副本在AZ A, 但是这块盘坏了,  剩余的一个在AZ B 里面的数据我们不知道是否是最新的, 只能等AZ C 恢复我们才能够知道.&lt;/p&gt;
+
+&lt;p&gt;因此我们使用 (4 + 3 &amp;gt; 6) 的机制, 这样能够处理即使整个AZ 都坏了, 并且有一个副本坏了, 也不影响一致性.  因此有了数据分布在3个AZ, 每个AZ有两个副本的设计. 这样的设计肯定能够保证在坏掉一个AZ 和一个storage node 的时候可以保证正常的读取, 在挂掉任意两个storage node 的时候能够保证写入.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;另外一个就是数据恢复时间的问题?&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;为了解决数据恢复时间比较慢的问题, 将数据切成了10G 大小的PG(Protection Group), 和分片一样. 为什么要切的这么小呢?&lt;/p&gt;
+
+&lt;p&gt;为了保证模型的可靠性, 那么我们必须满足连续两次的平均失效时间(MTTF Mean Time to Failure)小于修复他们其中任何一个的平均修复时间(MTTR Mean Time to Repair), 这也能理解 因为如果修复时间不能小于这个连续连个的失败时间, 就有可能照成第3个节点, 第4个节点失败, 而修复还没有结束, 那么就无法保证上诉的4/6 的qurom 的要求了.&lt;/p&gt;
+
+&lt;p&gt;那么如何减小MTTF 比较麻烦, 那么我们就想办法加快MTTR, 做法就是把数据裁剪成10G 大小的PG(Protection Groups), 这样对于一个PG 修复的时间在万兆网卡下, 差不多10s能够恢复.&lt;/p&gt;
+
+&lt;p&gt;什么时候我们能看到这种问题呢? 因为10G segment 可以在10 内修复. 那么我们需要有2个node 在10s 同时出错, 并且有一个不包含他们两个的AZ 也同时出错, 才会出问题. 这个在我们观察到的可能性很小&lt;/p&gt;
+
+&lt;p&gt;综上 storage service 整体架构&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://i.imgur.com/BhzOkP3.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;可以看出Aurora AZ是有主从结构的存在, 数据被切分成多个PG(Protection Groups), 每一个PG 由6个segment 组成, segment大小是10G. 每个PG的6个segment分散在3个AZ 中, 每一个AZ的storage node 由多个 segment 组成, 所有的这些PG 的redo log最后都会存储在Amazon S3上&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;接下来就是核心叫 The log is the database&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;熟悉Raft 协议的同学就不会陌生, 就是raft 协议里面Log 和状态机的关系. 只要顺序apply log, 那么就可以生成对应时刻的状态机. 在Aurora 里面log 就是mysql 的redo log, 状态机就是这个Segment. 当然Aurora 并没有使用Raft/Multi-paxos 协议, 但是我感觉有点类似, 我们下面分析.&lt;/p&gt;
+
+&lt;p&gt;每一条redo log 有一个唯一的单调递增的 Log Sequence Number(LSN), 这个LSN 是由database 来生成, 从上面的架构图看估计是Dynamo DB. spanner 里面用的是时间戳.&lt;/p&gt;
+
+&lt;p&gt;每一个独立的storage node 都需要保留自己的redo log stream, Aurora 认为 2PC 太繁琐,  容错太差, 因为写入并没有走2PC. 写入是Quorum 的, 不会保证每一个storage node 都有完整的redo log stream. 然后Aurora 通过gossip 协议不断去把每一个storage node 里面空缺的redo log 补上, 并更新DB 里面的内容. 这里就更Multi-Paxos 的写入过程基本一样&lt;/p&gt;
+
+&lt;p&gt;storage service 会确认一个最大的保证之前操作都已经写入的 LSN VCL(Volume Complete LSN). 像Raft 里面的log 一样, 可能存在写入的log, 最后没提交的情况.&lt;/p&gt;
+
+&lt;p&gt;database 会通过标记的LSN 来对这些log 进行截断, 这种标记的LSN 叫做CPL(consistency Point LSNs), 这些CPL 里面比VCL 小的最大的那个叫做VDL(Volume Durable LSNs).  这个就跟Raft 里面的全局commit Index 类似. 一般每一个MTR(mini-transactions) 里面的最后一个记录是一个CPL.&lt;/p&gt;
+
+&lt;p&gt;SCL(segment complete LSN) 记录着每一个segment 已经确认commit 的 LSN, 相当于raft 里面的每一个节点自己的commit Index. Aurora 也会使用这个commit Index 来进行节点间交互去补齐log.&lt;/p&gt;
+
+&lt;p&gt;那么事务commit 的过程就是这样, 每一个事务都有一个对应”commit LSN”, 那么这个事务提交以后就去做其他的事情, 什么时候通知这个事务已经提交成功呢? 就是当VDL(VDL 由databse 来发送, storage service来确认更新) 大于等于”commit LSN” 以后, 就会有一个专门的线程去通知这个等待的client, 你这个事务已经提交完成了.&lt;/p&gt;
+
+&lt;p&gt;如果这个事务提交失败, 那么接下来的Recovery 是怎么处理的呢?&lt;/p&gt;
+
+&lt;p&gt;首先这个Recovery 是由storage node 来处理的,  是以每一个PG 为维度进行处理, 在database 起来的时候通过 quorum 读取足够多的副本, 然后根据副本里面的内容得到VDL, 因为每一个时候最后一条记录是一个CPL, 这些CPL 里面最大的就是VDL,  然后把这个VDL 发送给其他的副本, 把大于VDL 的redo log 清除掉, 然后恢复这个PG的数据&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;亮点&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;项目直接从mysql 5.6 版本的代码剥离出来, 那么这样的换, SQL 协议兼容这块会做的比较容易了.&lt;/li&gt;
+  &lt;li&gt;Aurora 用了大量AWS 内部非常成熟的服务, 和 spanner-sql 类似, 目前来看基于稳定的Nosql 去实现Newsql 大家基本都是这个路子. 当然得有一个足够稳定的底层存储才行.&lt;/li&gt;
+  &lt;li&gt;每一个Protect Group 的内容是一个状态机, 对应的redo log 保存在Amazon S3 里面, 只需要通过顺序apply redo log 的内容就可以恢复这个Protect Group&lt;/li&gt;
+  &lt;li&gt;将redo log 做成异步, 这样带来好处可以惰性更新. 读取的时候如果这个page 还有没apply 的redo log, 就等待redo log apply 完成. 还有就是Rocovery 的时候非常的快, 不需要等redo log apply 完成再起来. 其实这又和raft 里面log 和 状态机的关系一样&lt;/li&gt;
+  &lt;li&gt;支持分布式的事务并没有通过2PC, 而是通过gossip+Quorum 机制来保证(跟Dynamo 通过gossip 来保证元信息的一致性一样的暴力, 哈哈), 在加上每一个redo log 有一个唯一的LSN 等等机制来实现强一致. 当然其实这里已经很类似raft 协议了&lt;/li&gt;
+&lt;/ol&gt;
+
+</description>
+        <pubDate>Wed, 17 May 2017 00:00:00 +0800</pubDate>
+        <link>http://baotiao.github.io//2017/05/17/amazon-aurora/</link>
+        <guid isPermaLink="true">http://baotiao.github.io//2017/05/17/amazon-aurora/</guid>
+      </item>
+    
+      <item>
         <title>linux write 落盘问题</title>
         <description>&lt;h3 id=&quot;data-to-disk&quot;&gt;data to disk&lt;/h3&gt;
 
@@ -1082,107 +1164,6 @@ To check whether an inheritence relationship complies with the Liskov Substituti
         <pubDate>Mon, 15 Aug 2016 00:00:00 +0800</pubDate>
         <link>http://baotiao.github.io//2016/08/15/how-to-read/</link>
         <guid isPermaLink="true">http://baotiao.github.io//2016/08/15/how-to-read/</guid>
-      </item>
-    
-      <item>
-        <title>page reclaim wartermark</title>
-        <description>&lt;p&gt;首先我们知道操作系统的物理页主要被两部分使用, 一部分是实际使用的物理内存, 也叫anonymous page, 另一部分是 page cache. 同时我们还有 swap 区, 用来在内存不够的时候将 anonymous page 里面的页面置换到 swap 上.&lt;/p&gt;
-
-&lt;p&gt;那么kernel 什么时候认为内存是不够的, 需要做 page reclaim呢?&lt;/p&gt;
-
-&lt;p&gt;我们通过 cat /proc/zoneinfo 可以看到这样的信息&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Node 1, zone   Normal
-  pages free     19387934
-        min      11289
-        low      14111
-        high     16933
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;p&gt;这里这几个 min, low, high 又是什么意思?&lt;/p&gt;
-
-&lt;p&gt;首先需要了解的一个概念是The Pool of Reserved Page Frames. 意思是每一个 zone 都需要保留一些 page frame. 为什么每一个 zone 都需要保留一些 page frames 呢? 我们知道操作系统在内存不够的时候, 可以直接进行 direct page reclaim, 回收部分的page frame, 那为什么还需要保留一些 page frames 呢?&lt;/p&gt;
-
-&lt;p&gt;因为在 kernel 内部有一些操作是不允许切换的, 比如在处理一个中断的时候或者执行代码的某一临界区域. 在这个时候kernel 的内存申请操作必须是 atomic 的(这个在内存申请的 flag 里面有GFP_ATOMIC). 为了满足这个 atomic 内存申请的需求, 因此我们必须在每个 zone 保留一定数目的 page. 所以低于这个数目的 free pages frame 以后, kernel 就认为自己处于 low_memory 状态了. 我们管这个数叫 min_free_bytes. 那么这个数是怎么算的?&lt;/p&gt;
-
-&lt;p&gt;每一个 zone 的初始化的时候都需要执行&lt;/p&gt;
-
-&lt;p&gt;mm/wmark_alloc:init_per_zone_wmark_min()&lt;/p&gt;
-
-&lt;p&gt;在init_per_zone_wmark_min 里面主要初始化设置了 min_free_kbytes&lt;/p&gt;
-
-&lt;p&gt;The amount of the reserved memory (in kilobytes) is stored in the min_free_kbytes variable. Its initial value is set during kernel initialization and depends on the amount of physical memory that is directly mapped in the kernel’s fourth gigabyte of linear addresses—that is, it depends on the number of page frames included in the ZONE_DMA and ZONE_NORMAL memory zones:&lt;/p&gt;
-
-&lt;p&gt;min_free_kbytes = int_sqrt(16 × directly mapped memory)     (kilobytes)&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;// 这里 lowmem_kbytes 就是映射在操作系统的实际物理内存上面的 physical memory 的 page 数, 其实就是 ZONE_DMA + ZONE_NORMAL 的 page
-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lowmem_kbytes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nr_free_buffer_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wmark_SIZE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;min_free_kbytes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;int_sqrt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lowmem_kbytes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;However, initially min_free_kbytes cannot be lower than 128 and greater than 65,536.&lt;/p&gt;
-
-&lt;p&gt;这个min_free_kbytes 最大64M 最小128k,  所以一般 kernel 里面为 atomic 操作留的 page 数有几十 M. 这个 min_free_kbytes 是对于全部的 zone 而言,  因为希望满足 kernel 的 atomic 类型的内存申请操作肯定是对于全部的物理内存而言的&lt;/p&gt;
-
-&lt;p&gt;有了这个概念以后, 我们就知道每一个 zone 里面的 wmark_min, wmark_low, wmark_high 这些 watermark 数值是什么意思了&lt;/p&gt;
-
-&lt;p&gt;然后接下来设置wmark_min, wmark_low, wmark_high 这几个watermark 主要在setup_per_zone_wmarks() 这个函数里面&lt;/p&gt;
-
-&lt;p&gt;那么具体的计算 wmark_min, wmark_low, wmark_high 过程&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pages_min&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;min_free_kbytes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PAGE_SHIFT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lowmem_pages&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;flags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-&lt;span class=&quot;cm&quot;&gt;/* Calculate total number of !ZONE_HIGHMEM pages */&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;for_each_zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;is_highmem&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;lowmem_pages&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;present_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-&lt;span class=&quot;n&quot;&gt;for_each_zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;u64&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-  &lt;span class=&quot;n&quot;&gt;spin_lock_irqsave&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;flags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;u64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pages_min&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;present_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;do_div&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lowmem_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;watermark&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;WMARK_MIN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;watermark&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;WMARK_LOW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;  &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;min_wmark_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;watermark&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;WMARK_HIGH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;min_wmark_pages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;zone&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;可以看出这里每一个 zone 的 wmark_min 的根据自己的内存大小比例分配对应百分比的 min_free_kbytes. 也就是所有 zone 的 wmark_min 加起来就是这个 min_free_kbytes&lt;/p&gt;
-
-&lt;p&gt;wmark_low = 5/4 * wmark_min&lt;/p&gt;
-
-&lt;p&gt;wmark_high = 3/2 * wmark_min&lt;/p&gt;
-
-&lt;p&gt;每一个zone 还有一个reserve page, 用来限制在 high level zone 满足不了请求的情况下, low level zone 自己需要保留的page数.具体的初始化在&lt;/p&gt;
-
-&lt;p&gt;setup_per_zone_lowmem_reserve()&lt;/p&gt;
-
-&lt;p&gt;那么这里来理解一下设置这些wmark_min, wmark_low, wmark_high 的目的了.&lt;/p&gt;
-
-&lt;p&gt;这里min_free_kbytes 主要是kernel 为了留给&lt;code class=&quot;highlighter-rouge&quot;&gt;__GFP_ATOMIC&lt;/code&gt; 类型的内存申请操作, 因为在操作系统里面有一些内存申请操作是不允许切换的,也就是不能在这个时候把当前这个 cpu 交给别的进程, 比如handling an interrupt or executing code inside an critical region. 那么这时候肯定也是希望kernel 内存申请操作应该是非阻塞的. 因此希望系统至少能够留下 min_free_kbytes 的空间用户&lt;code class=&quot;highlighter-rouge&quot;&gt;__GFP_ATOMIC&lt;/code&gt; 类型的内存申请操作.&lt;/p&gt;
-
-&lt;p&gt;wmark_min 是说当前的这个空闲的 page frame 已经极地了, 当有内存申请操作的时候, 如果是非内核的内存申请操作, 那么就返回失败, 如果申请操作来自kernel, 比如调用的是 __alloc_pages_high_priority() 的时候, 就可以返回内存&lt;/p&gt;
-
-&lt;p&gt;wmark_low 是用来唤醒 kswap 进程, 当我们某一个__alloc_pages 的时候发现 free page fram 小于 wmark_low 的时候, 就会唤醒这个kswapd 进程, 进行 page reclaim&lt;/p&gt;
-
-&lt;p&gt;wmark_high 是当 kswapd 这个进程进行 page reclaim 了以后, 什么时候停止的标志, 只有当 page frame 大于这个 pagh_high 的时候, kswapd 进程才会停止, 继续sleep
-&lt;img src=&quot;http://i.imgur.com/iAj7rWj.png&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;所以其实wmark_min, wmark_low, wmark_high 都是为了kernel 能够允许atomic 类型的申请操作成功服务的&lt;/p&gt;
-
-&lt;p&gt;注: 代码都是基于 linux2.6.32版本&lt;/p&gt;
-</description>
-        <pubDate>Thu, 02 Jun 2016 00:00:00 +0800</pubDate>
-        <link>http://baotiao.github.io//2016/06/02/page-reclaim/</link>
-        <guid isPermaLink="true">http://baotiao.github.io//2016/06/02/page-reclaim/</guid>
       </item>
     
   </channel>
