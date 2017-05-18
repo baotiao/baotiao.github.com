@@ -8,7 +8,9 @@
     
       <item>
         <title>Paper Review - Amazon Aurora</title>
-        <description>&lt;p&gt;最近Amazon 在 SIGMOD 发了AWS 上面号称比mysql 快5倍的RDS Aurora 的论文. 当年Amazon 发布Dynamo的论文时候, 让大家知道了原来Nosql 还可以这么搞, 就有了后来的百家齐放, 不知道Aurora 的效果如何.&lt;/p&gt;
+        <description>&lt;h3 id=&quot;paper-review-amazon-aurora&quot;&gt;[Paper review] Amazon Aurora&lt;/h3&gt;
+
+&lt;p&gt;最近Amazon 在 SIGMOD 发了AWS 上面号称比mysql 快5倍的RDS Aurora 的论文. 当年Amazon 发布Dynamo的论文时候, 让大家知道了原来Nosql 还可以这么搞, 就有了后来的百家齐放, 不知道Aurora 的效果如何.&lt;/p&gt;
 
 &lt;p&gt;Aurora 主要结构由 database 和 storage service 组成&lt;/p&gt;
 
@@ -76,11 +78,14 @@
 
 &lt;ol&gt;
   &lt;li&gt;项目直接从mysql 5.6 版本的代码剥离出来, 那么这样的换, SQL 协议兼容这块会做的比较容易了.&lt;/li&gt;
+  &lt;li&gt;计算和存储分开, 目前是这些分布式系统的通用实现了吧&lt;/li&gt;
   &lt;li&gt;Aurora 用了大量AWS 内部非常成熟的服务, 和 spanner-sql 类似, 目前来看基于稳定的Nosql 去实现Newsql 大家基本都是这个路子. 当然得有一个足够稳定的底层存储才行.&lt;/li&gt;
   &lt;li&gt;每一个Protect Group 的内容是一个状态机, 对应的redo log 保存在Amazon S3 里面, 只需要通过顺序apply redo log 的内容就可以恢复这个Protect Group&lt;/li&gt;
   &lt;li&gt;将redo log 做成异步, 这样带来好处可以惰性更新. 读取的时候如果这个page 还有没apply 的redo log, 就等待redo log apply 完成. 还有就是Rocovery 的时候非常的快, 不需要等redo log apply 完成再起来. 其实这又和raft 里面log 和 状态机的关系一样&lt;/li&gt;
   &lt;li&gt;支持分布式的事务并没有通过2PC, 而是通过gossip+Quorum 机制来保证(跟Dynamo 通过gossip 来保证元信息的一致性一样的暴力, 哈哈), 在加上每一个redo log 有一个唯一的LSN 等等机制来实现强一致. 当然其实这里已经很类似raft 协议了&lt;/li&gt;
 &lt;/ol&gt;
+
+&lt;p&gt;不过整个文章都没有讲到针对这种将storage, log 与计算层面分离以后, SQL 层面针对性的改动, 因为如果有范围查询的话以前在单机就本地执行就好, 但是现在这种架构需要生成多个请求去不同的storage-node 去请求数据. 倒是 Spanner: Becoming a SQL System 有大量的介绍, 回头可以看看&lt;/p&gt;
 
 </description>
         <pubDate>Wed, 17 May 2017 00:00:00 +0800</pubDate>
