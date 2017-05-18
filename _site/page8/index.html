@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201705181100" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201705182007" type="text/css">
 
     <!-- Fonts -->
     
@@ -202,6 +202,19 @@
     <div class="posts">
       
         <div class="post py3">
+          <p class="post-meta">Aug 17 2011</p>
+          <a href="/2011/08/17/grep-in-awk/" class="post-link"><h3 class="h1 post-title">grep in awk</h3></a>
+          <p class="post-summary">
+            
+              <p>```shell
+awk ‘BEGIN {while (( getline &lt; “f2” &gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&lt;lc; i++) { if (match (f2[i], $1)) print f2[i];}}’ f1</p>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
           <p class="post-meta">Aug 12 2011</p>
           <a href="/tech/2011/08/12/vim/" class="post-link"><h3 class="h1 post-title">vim 一些命令</h3></a>
           <p class="post-summary">
@@ -356,18 +369,6 @@ swap 就是linux下的虚拟内存分区,它的作用是在物理内存使用完
           <p class="post-summary">
             
               <p>答辩还是挺水的.忽悠着,忽悠着,就过了.唉.</p>
-
-            
-          </p>
-        </div>
-      
-        <div class="post py3">
-          <p class="post-meta">Jun 27 2011</p>
-          <a href="/2011/06/27/goodbye-club/" class="post-link"><h3 class="h1 post-title">和俱乐部的散伙饭</h3></a>
-          <p class="post-summary">
-            
-              <p>和 俱乐部吃饭了散伙饭。。
-俱乐部的白姐 给教了很多很多。。</p>
 
             
           </p>
