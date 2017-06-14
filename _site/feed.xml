@@ -7,6 +7,477 @@
     <atom:link href="http://baotiao.github.io//feed.xml" rel="self" type="application/rss+xml" />
     
       <item>
+        <title>systemtap tips and examples</title>
+        <description>&lt;h3 id=&quot;systemtap-tips-and-example&quot;&gt;systemtap tips and example&lt;/h3&gt;
+
+&lt;p&gt;man stapprobes 可以看到大部分的文档信息&lt;/p&gt;
+
+&lt;h4 id=&quot;stap-&quot;&gt;stap 常用参数:&lt;/h4&gt;
+
+&lt;p&gt;-c: 通过指定 -c 参数可以在运行stap 程序的时候通过target() 获得当前的pid() 写起来很方便&lt;/p&gt;
+
+&lt;p&gt;stap m.stp -c ./a.out&lt;/p&gt;
+
+&lt;p&gt;那么程序里面就可以这么写&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;if&lt;/code&gt; (target()== pid()) {&lt;/p&gt;
+
+&lt;p&gt;-x: 和 -c 一样可以再 target() 里面获得pid&lt;/p&gt;
+
+&lt;p&gt;-d: 增加某一个库的或者二进制文件&lt;/p&gt;
+
+&lt;p&gt;sudo stap tm.stp  -d /lib64/libc-2.12.so -d /usr/local/pika22/bin/pika&lt;/p&gt;
+
+&lt;p&gt;可以通过stap -l 看到不管是用户空间还是内核里面的某一个函数所在的路径. 换成 -L 可以看到具体可以看的变量&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xusiliang@redis220 ~]&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;stap -l &lt;span class=&quot;s1&quot;&gt;&#39;process(&quot;/usr/local/pika22/bin/pika&quot;).function(&quot;AutoPurge&quot;)&#39;&lt;/span&gt;
+process&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;/usr/local/pika22/bin/pika&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;AutoPurge@src/pika_server.cc:1164&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xusiliang@redis220 ~]&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;stap -L &lt;span class=&quot;s1&quot;&gt;&#39;process(&quot;/usr/local/pika22/bin/pika&quot;).function(&quot;AutoPurge&quot;)&#39;&lt;/span&gt;
+process&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;/usr/local/pika22/bin/pika&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;AutoPurge@src/pika_server.cc:1164&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$this&lt;/span&gt;:class PikaServer&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; const
+
+&lt;span class=&quot;c&quot;&gt;# 还可以使用正则, 看到所有的函数&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;xusiliang@redis220 ~]&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;stap -L &lt;span class=&quot;s1&quot;&gt;&#39;process(&quot;/usr/local/pika22/bin/pika&quot;).function(&quot;Auto*&quot;)&#39;&lt;/span&gt;
+process&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;/usr/local/pika22/bin/pika&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;AutoCompactRange@src/pika_server.cc:1114&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$this&lt;/span&gt;:class PikaServer&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; const
+process&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;/usr/local/pika22/bin/pika&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;AutoPurge@src/pika_server.cc:1164&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$this&lt;/span&gt;:class PikaServer&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; const
+process&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;/usr/local/pika22/bin/pika&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;AutoRollLogger@./db/auto_roll_logger.h:24&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+process&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;/usr/local/pika22/bin/pika&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;AutoThreadOperationStageUpdater@util/thread_status_util.cc:161&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$this&lt;/span&gt;:class AutoThreadOperationStageUpdater&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; const &lt;span class=&quot;nv&quot;&gt;$stage&lt;/span&gt;:enum OperationStage
+
+&lt;span class=&quot;c&quot;&gt;# 想使用statement probe 的时候, 很多时候某些行是有问题的, 这个时候只能通过 -L 可以看出到底哪些行可以probe, 这里就是在fork.c 里面这个copy_process 可以加statement 的地方&lt;/span&gt;
+└─[&lt;span class=&quot;nv&quot;&gt;$]&lt;/span&gt; sudo stap -L &lt;span class=&quot;s1&quot;&gt;&#39;kernel.statement(&quot;copy_process@fork.c:*&quot;)&#39;&lt;/span&gt;
+kernel.statement&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;copy_process@kernel/fork.c:1148&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$clone_flags&lt;/span&gt;:long unsigned int &lt;span class=&quot;nv&quot;&gt;$stack_start&lt;/span&gt;:long unsigned int &lt;span class=&quot;nv&quot;&gt;$stack_size&lt;/span&gt;:long unsigned int &lt;span class=&quot;nv&quot;&gt;$child_tidptr&lt;/span&gt;:int&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$pid&lt;/span&gt;:struct pid&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$trace&lt;/span&gt;:int
+kernel.statement&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;copy_process@kernel/fork.c:1158&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$trace&lt;/span&gt;:int &lt;span class=&quot;nv&quot;&gt;$pid&lt;/span&gt;:struct pid&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$child_tidptr&lt;/span&gt;:int&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$stack_size&lt;/span&gt;:long unsigned int &lt;span class=&quot;nv&quot;&gt;$stack_start&lt;/span&gt;:long unsigned int &lt;span class=&quot;nv&quot;&gt;$clone_flags&lt;/span&gt;:long unsigned int
+kernel.statement&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;copy_process@kernel/fork.c:1161&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$trace&lt;/span&gt;:int &lt;span class=&quot;nv&quot;&gt;$pid&lt;/span&gt;:struct pid&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$child_tidptr&lt;/span&gt;:int&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$stack_size&lt;/span&gt;:long unsigned int &lt;span class=&quot;nv&quot;&gt;$stack_start&lt;/span&gt;:long unsigned int &lt;span class=&quot;nv&quot;&gt;$clone_flags&lt;/span&gt;:long unsigned int
+kernel.statement&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;copy_process@kernel/fork.c:1168&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$trace&lt;/span&gt;:int &lt;span class=&quot;nv&quot;&gt;$pid&lt;/span&gt;:struct pid&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$child_tidptr&lt;/span&gt;:int&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$stack_size&lt;/span&gt;:long unsigned int &lt;span class=&quot;nv&quot;&gt;$stack_start&lt;/span&gt;:long unsigned int &lt;span class=&quot;nv&quot;&gt;$clone_flags&lt;/span&gt;:long unsigned int
+kernel.statement&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;copy_process@kernel/fork.c:1176&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$trace&lt;/span&gt;:int &lt;span class=&quot;nv&quot;&gt;$pid&lt;/span&gt;:struct pid&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$child_tidptr&lt;/span&gt;:int&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$stack_size&lt;/span&gt;:long unsigned int &lt;span class=&quot;nv&quot;&gt;$stack_start&lt;/span&gt;:long unsigned int &lt;span class=&quot;nv&quot;&gt;$clone_flags&lt;/span&gt;:long unsigned int
+
+&lt;span class=&quot;c&quot;&gt;# 这里是找出sys_madvise 可以加statement 的行数有哪些, 并且可以看打印哪些变量&lt;/span&gt;
+└─[&lt;span class=&quot;nv&quot;&gt;$]&lt;/span&gt; sudo stap -L &lt;span class=&quot;s1&quot;&gt;&#39;kernel.statement(&quot;sys_madvise@madvise.c:*&quot;)&#39;&lt;/span&gt;
+kernel.statement&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;SyS_madvise@mm/madvise.c:460&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$start&lt;/span&gt;:long int &lt;span class=&quot;nv&quot;&gt;$len_in&lt;/span&gt;:long int &lt;span class=&quot;nv&quot;&gt;$behavior&lt;/span&gt;:long int
+kernel.statement&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;SyS_madvise@mm/madvise.c:464&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$start&lt;/span&gt;:long int &lt;span class=&quot;nv&quot;&gt;$len_in&lt;/span&gt;:long int &lt;span class=&quot;nv&quot;&gt;$behavior&lt;/span&gt;:long int
+kernel.statement&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;SyS_madvise@mm/madvise.c:471&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$start&lt;/span&gt;:long int &lt;span class=&quot;nv&quot;&gt;$len_in&lt;/span&gt;:long int &lt;span class=&quot;nv&quot;&gt;$behavior&lt;/span&gt;:long int
+kernel.statement&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;SyS_madvise@mm/madvise.c:472&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$start&lt;/span&gt;:long int &lt;span class=&quot;nv&quot;&gt;$len_in&lt;/span&gt;:long int &lt;span class=&quot;nv&quot;&gt;$behavior&lt;/span&gt;:long int
+kernel.statement&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;SyS_madvise@mm/madvise.c:475&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$start&lt;/span&gt;:long int &lt;span class=&quot;nv&quot;&gt;$len_in&lt;/span&gt;:long int &lt;span class=&quot;nv&quot;&gt;$behavior&lt;/span&gt;:long int
+kernel.statement&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;SyS_madvise@mm/madvise.c:477&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$start&lt;/span&gt;:long int &lt;span class=&quot;nv&quot;&gt;$len_in&lt;/span&gt;:long int &lt;span class=&quot;nv&quot;&gt;$behavior&lt;/span&gt;:long int
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;systemtap-&quot;&gt;systemtap 常用函数&lt;/h4&gt;
+
+&lt;p&gt;tid() 获得当前执行线程的thread id&lt;/p&gt;
+
+&lt;p&gt;经常可以写这样的小Probe 来验证这句话对不对&lt;/p&gt;
+
+&lt;p&gt;sudo stap -e ‘probe begin { printf(“%d\n”, gettimeofday_s()) }’&lt;/p&gt;
+
+&lt;h4 id=&quot;systemtap--1&quot;&gt;2.0.0.8 内核线上systemtap 安装&lt;/h4&gt;
+
+&lt;p&gt;wget http://xxxxxxxxxxxxxxxxxxxxxxxxxx/kernel/rs-2.0.0.8.tar.gz&lt;/p&gt;
+
+&lt;p&gt;这个是线上centos 6.2 的内核需要的包. 主要包含以下内容&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;└─[&lt;span class=&quot;nv&quot;&gt;$]&lt;/span&gt; tar -zxvf rs-2.0.0.8.tar.gz
+rs-2.0.0.8/
+rs-2.0.0.8/perf-2.6.32-220.7.1.el6.2.0.0.8.x86_64.rpm
+rs-2.0.0.8/kernel-2.6.32-220.7.1.el6.2.0.0.8.x86_64.rpm
+rs-2.0.0.8/kernel-debuginfo-2.6.32-220.7.1.el6.2.0.0.8.x86_64.rpm
+rs-2.0.0.8/kernel-devel-2.6.32-220.7.1.el6.2.0.0.8.x86_64.rpm
+rs-2.0.0.8/perf-debuginfo-2.6.32-220.7.1.el6.2.0.0.8.x86_64.rpm
+rs-2.0.0.8/kernel-firmware-2.6.32-220.7.1.el6.2.0.0.8.x86_64.rpm
+rs-2.0.0.8/kernel-headers-2.6.32-220.7.1.el6.2.0.0.8.x86_64.rpm
+rs-2.0.0.8/python-perf-2.6.32-220.7.1.el6.2.0.0.8.x86_64.rpm
+rs-2.0.0.8/kernel-debuginfo-common-x86_64-2.6.32-220.7.1.el6.2.0.0.8.x86_64.rpm
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;找到跟 uname -rn 对应版本的 /lib/modules/&lt;code class=&quot;highlighter-rouge&quot;&gt;uname -rn&lt;/code&gt;/build  指向 /usr/src/kernel/uname -rn&lt;/p&gt;
+
+&lt;p&gt;尽可能把名字都改成和uname -rn 一样的.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt; /lib/modules/2.6.32-220.7.1.el6.2.0.0.8.x86_64/build -&amp;gt; ../../../usr/src/kernels/2.6.32-220.7.1.el6.2.0.0.8.x86_64
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;如果还有问题, 比如没有对应kernel 版本对应的代码等等, 为了能够让systemtap 跑起来, 比如可以跑 nd_syscall 这些命令也是很有用, 不需要符号表, 那么直接将&lt;/p&gt;
+
+&lt;p&gt;/usr/src/kernels/2.6.32-220.7.1.el6.2.0.0.8.x86_64/include/linux/utsrelease.h 里面的内核版本改成uname -rn 里面显示的版本就行&lt;/p&gt;
+
+&lt;h4 id=&quot;systemtap--2&quot;&gt;systemtap 配套工具&lt;/h4&gt;
+
+&lt;p&gt;addr2line -e ./a.out 0x4004a6&lt;/p&gt;
+
+&lt;p&gt;通过 print_ubacktrace() 可以详细的看到函数的调用栈, 这个时候再用addr2line 去获得对应地址的代码&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;brkcall 0x80fee4000
+ 0x34794e0a4a : brk+0xa/0x70 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/lib64/libc-2.12.so]
+ 0x34794e0af5 : __sbrk+0x45/0xa0 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/lib64/libc-2.12.so]
+ 0x7f33e850c160 : sbrk+0x40/0xe0 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/usr/local/pika22/lib/libtcmalloc.so.4]
+ 0x7f33e84f55c3 : _ZN16SbrkSysAllocator5AllocEmPmm+0x53/0xd0 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/usr/local/pika22/lib/libtcmalloc.so.4]
+ 0x7f33e84f5546 : _ZN19DefaultSysAllocator5AllocEmPmm+0x36/0x60 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/usr/local/pika22/lib/libtcmalloc.so.4]
+ 0x7f33e84f5a0c : _Z20TCMalloc_SystemAllocmPmm+0x6c/0xd0 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/usr/local/pika22/lib/libtcmalloc.so.4]
+ 0x7f33e84f7905 : _ZN8tcmalloc8PageHeap8GrowHeapEm+0x65/0x360 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/usr/local/pika22/lib/libtcmalloc.so.4]
+ 0x7f33e84f7c2b : _ZN8tcmalloc8PageHeap3NewEm+0x2b/0x40 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/usr/local/pika22/lib/libtcmalloc.so.4]
+ 0x7f33e8506c4a : tc_malloc+0x5aa/0x800 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/usr/local/pika22/lib/libtcmalloc.so.4]
+ 0x711d7d : _ZN4pink9RedisConnC2EiRKSs+0x8d/0xa0 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/usr/local/pika22/bin/pika]
+ 0x4f29d1 : _ZN14PikaClientConnC1EiSsPN4pink6ThreadE+0x11/0x80 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/usr/local/pika22/bin/pika]
+ 0x55480c : _ZN4pink12WorkerThreadI14PikaClientConnE10ThreadMainEv+0x33c/0x7a0 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/usr/local/pika22/bin/pika]
+ 0x70fbfd : _ZN4pink6Thread9RunThreadEPv+0x9d/0x180 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/usr/local/pika22/bin/pika]
+ 0x3479807aa1 : start_thread+0xd1/0x3d4 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/lib64/libpthread-2.12.so]
+ 0x34794e8bcd : __clone+0x6d/0x90 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;/lib64/libc-2.12.so]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;那么这里你就可以使用&lt;/p&gt;
+
+&lt;p&gt;addr2line -e /usr/local/pika22/bin/pika 0x711d7d 看到对应的申请的代码了&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;[xusiliang@redis220 ~]$ addr2line -e /usr/local/pika22/bin/pika 0x711d7d
+/data1/songzhao/Develop/pika/third/pink/src/redis_conn.cc:139
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;systemtap-example&quot;&gt;systemtap example&lt;/h4&gt;
+
+&lt;p&gt;写的example, 通过example 可以很快的了解常用的语法&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;#!/usr/bin/stap&lt;/span&gt;
+
+probe begin
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  log&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;begin to probe&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+/&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+ &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 这里是probe 系统调用的写法
+ &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+probe syscall.madvise
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;execname&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;a.out&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    /&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+     &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 这里通过stap -L syscall.madvise 可以获得可以 probe 的几个变量的值
+     &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 那么这里就可以把这些变量都打印出来
+     &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;%d %d %d&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$start&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$len_in&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$behavior&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;;
+
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;write %s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, name&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;;
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;thread_indent&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, thread_indent&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;1&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt;;
+
+    /&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+     &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; vars 是打印出所有的参数, vars 是打印所有函数里面的本地局部变量
+     &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; parms 是包含上面的两个
+     &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;vars %s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$$&lt;/span&gt;vars&lt;span class=&quot;nv&quot;&gt;$)&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;locals %s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$$&lt;/span&gt;locals&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;parms %s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$$&lt;/span&gt;parms&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+probe syscall.madvise.return
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;execname&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;a.out&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$return&lt;/span&gt; &amp;lt; 0&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+      print_regs&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+      print_backtrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;%d %d %d&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$start&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$len_in&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$behavior&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;;
+
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;write %s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, name&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;;
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;thread_indent&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, thread_indent&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;-1&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt;;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+/&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+ &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 具体probe 函数里面的某一行
+ &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+probe kernel.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;*@mm/madvise.c:488&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;current end %d&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$end&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+/&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+ &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 当需要probe 两个函数, 但是都是一样处理结果的时候 用逗号&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;,&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; 分开
+ &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+probe kernel.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;tlb_finish_mmu&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;, kernel.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;madvise_hwpoison&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;execname&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;a.out&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;vars %s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$$&lt;/span&gt;vars&lt;span class=&quot;nv&quot;&gt;$)&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;thread_indent&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, thread_indent&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;-1&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt;;
+    print_backtrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+    print_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+probe kernel.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;free_pages&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;execname&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;a.out&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;vars %s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$$&lt;/span&gt;vars&lt;span class=&quot;nv&quot;&gt;$)&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;thread_indent&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, thread_indent&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;-1&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt;;
+    print_backtrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+    print_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+
+probe kernel.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;madvise_behavior_valid&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;execname&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;a.out&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    print_backtrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;probe syscall.brk
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;execname&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;a.out&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;brkcall %s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, argstr&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+    /&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;%d %d %d&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$start&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$len_in&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$behavior&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;; &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;vars %s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$$&lt;/span&gt;vars&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+    /&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 经常发现print_backtrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; 和 print_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; 一起用的时候, 打印出来的信息会少很多 &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+    /&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; print_backtrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+    /&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 用来打印出调用brk 系统调用的时候的函数调用栈, 这个时候需要将其他的动态库都传入到stap 的参数列表里面 &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+    /&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; !sudo stap -d /usr/lib64/libc-2.17.so -d /data5/tmp/a.out -d /usr/lib64/ld-2.17.so -d /usr/lib64/libtcmalloc.so.4.2.6 &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;user space backtrace&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+    print_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+很多时候如果执行的有问题, 遇到符号表信息不对 等等情况, 可以直接把 syscall 改成nd_syscall 就行, 这样就不需要符号表了
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;#!/usr/bin/stap&lt;/span&gt;
+
+probe begin
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  /&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+   &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 一般开头加上这个, 用于指导Probe 已经开始了, 因为经常probe 要准备一会
+   &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+  log&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;begin to probe&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+
+/&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+ &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 这里是probe kernel 里面的某一个函数的写法
+ &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+probe kernel.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;page_remove_rmap&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;execname&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;a.out&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;%d %s &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, pid&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;, execname&lt;span class=&quot;o&quot;&gt;())&lt;/span&gt;
+    print_backtrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+    print_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+/&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+ &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 这个是去 probe 系统调用返回的时候的写法
+ &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+probe syscall.madvise.return
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  /&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+   &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 判断如果是 a.out 才打印出相关的信息, 不然信息太多
+   &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;execname&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;a.out&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;madvise %d %s (%s)&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, pid&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;, execname&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;, argstr&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+    /&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+     &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 经常用, 分别打印出kernel 内部的堆栈和用户空间的堆栈
+     &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+    print_backtrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+    print_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+/&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+ &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; 这里也是probe kernel 里面的某一个函数的写法
+ &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/
+probe kernel.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;__free_pages&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;execname&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;a.out&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;%d %s &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, pid&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;, execname&lt;span class=&quot;o&quot;&gt;())&lt;/span&gt;
+    print_backtrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+    print_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+probe kernel.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;do_munmap&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;execname&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;a.out&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;%d %s &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, pid&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;, execname&lt;span class=&quot;o&quot;&gt;())&lt;/span&gt;
+    print_backtrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+    print_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+probe kernel.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;free_pages&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;execname&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;a.out&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+
+    &lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;%d %s &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, pid&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;, execname&lt;span class=&quot;o&quot;&gt;())&lt;/span&gt;
+    print_backtrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+    print_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;cp&quot;&gt;# 统计malloc 和 free 分别调用了多少次, 并且看到调用的位置
+#!/usr/bin/stap
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;probe&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;begin&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;begin to probe&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;global&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nmalloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nfree&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;// 这里因为使用的是tcmalloc, 如果使用默认的ptmalloc, 那么这里就是probe process(&quot;/lib64/libc.so.6&quot;).function(&quot;malloc&quot;) {
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;probe&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;process&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;/usr/local/pika22/lib/libtcmalloc.so.4&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;malloc&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;process&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;/usr/local/pika22/lib/libtcmalloc.so.4&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;realloc&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;execname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;pika&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;nmalloc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;malloc %s &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;argstr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;print_ubacktrace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;probe&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;process&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;/usr/local/pika22/lib/libtcmalloc.so.4&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;free&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;execname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;pika&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;nfree&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;free %s &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;argstr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;print_ubacktrace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;probe&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;timer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;malloc %d free %d&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nmalloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nfree&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;#!/usr/bin/stap
+
+probe begin
+{
+  log(&quot;begin to probe&quot;)
+}
+
+probe syscall.brk 
+{
+  if (execname() == &quot;a.out&quot;) {
+    printf(&quot;brkcall %d %s (%s)\n&quot;, pid(), execname(), argstr)
+  }
+}
+
+probe syscall.mmap2
+{
+  if (execname() == &quot;a.out&quot;) {
+    printf(&quot;mmap %d %s (%s)\n&quot;, pid(), execname(), argstr)
+  }
+}
+
+probe syscall.madvise
+{
+  if (execname() == &quot;a.out&quot;) {
+    printf(&quot;madvise %d %s (%s)\n&quot;, pid(), execname(), argstr)
+  }
+}
+
+/* probe syscall.open  */
+/* { */
+/*   printf(&quot;%d %s (%s)\n&quot;, pid(), execname(), argstr) */
+/* } */
+
+probe timer.ms(10000)
+{
+  exit()
+}
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;用来查看内存泄露的一个工具, 比valgrind 方便的地方在于不用线上跑valgrind, 而且可以精确到线程级别&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# 执行方法 sudo stap tm.stp  -d /lib64/libc-2.12.so -d /usr/local/pika22/bin/pika -d /usr/local/pika22/lib/libtcmalloc.so.4 -d /lib64/libpthread-2.12.so&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;#!/usr/bin/stap&lt;/span&gt;
+
+probe begin
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  log&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;begin to probe&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# 对某一个地址调用的malloc, free的次数. &lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# 如果 = 0, 说明正常free掉, &lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# 如果 = 1, 说明malloc, 但是还没被free&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# 如果 &amp;gt; 1, 说明这个地址被多次给malloc返回给用户, 肯定不正常&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# 如果 &amp;lt; 1, 说明这个地址被多次free 也就是我们常说的double free 问题&lt;/span&gt;
+global g_cnt
+&lt;span class=&quot;c&quot;&gt;# 用来记录前一次调用的时候的 ubacktrace 信息&lt;/span&gt;
+global g_stack
+&lt;span class=&quot;c&quot;&gt;# 用来记录上次操作的时间&lt;/span&gt;
+global g_time
+
+probe process&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;/usr/local/pika22/lib/libtcmalloc.so.4&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;__libc_malloc&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.return, process&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;/usr/local/pika22/lib/libtcmalloc.so.4&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;__libc_calloc&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.return
+
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;tid&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; 11808&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+			g_cnt[&lt;span class=&quot;nv&quot;&gt;$return&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;++
+			g_stack[&lt;span class=&quot;nv&quot;&gt;$return&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; sprint_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+			g_time[&lt;span class=&quot;nv&quot;&gt;$return&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; gettimeofday_s&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+	&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+probe process&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;/usr/local/pika22/lib/libtcmalloc.so.4&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;__libc_free&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;tid&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; 11808 &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; g_time[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; !&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 0&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;# 这里对于之前没有进行过处理的节点忽略&lt;/span&gt;
+    g_cnt[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;--
+    &lt;span class=&quot;c&quot;&gt;# 正常的malloc free 分支&lt;/span&gt;
+		&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;g_cnt[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; 0&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+			&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt; !&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 0&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+				&lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;A normal malloc and free&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+				g_stack[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; sprint_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+			&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+      &lt;span class=&quot;c&quot;&gt;# 可能出现的double free 分支&lt;/span&gt;
+		&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;g_cnt[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &amp;lt; 0 &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt; !&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 0&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+				&lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;double free problem address %d cnt %d&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;, g_cnt[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;])&lt;/span&gt;
+				&lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, g_stack[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;])&lt;/span&gt;
+				&lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;the destructure &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+				print_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; 
+      &lt;span class=&quot;c&quot;&gt;# 多次malloc 返回同一个地址的分支, 这种情况很少见&lt;/span&gt;
+		&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;g_cnt[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &amp;gt; 1 &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt; !&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 0&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+			&lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;malloc large than 0&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+			print_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+		&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+	&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+probe timer.s&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;5&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+	foreach &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;mem &lt;span class=&quot;k&quot;&gt;in &lt;/span&gt;g_cnt&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;# 这里可以根据定义来调整这个10 的大小, 也就是说这里想打印出 10s 之前申请过内存&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;# 但是 10s 之内没有被free 的情况, 这里因为 pika 在短连接的时候都是10之内申请 然后就释放&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;# 如果10s 之内没有释放, 那肯定就是内存出现了问题&lt;/span&gt;
+		&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;g_cnt[mem] &amp;gt; 0 &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; gettimeofday_s&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; - g_time[mem] &amp;gt; 10&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+			&lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, g_stack[mem]&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+		&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+	&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+</description>
+        <pubDate>Wed, 14 Jun 2017 00:00:00 +0800</pubDate>
+        <link>http://baotiao.github.io//2017/06/14/systemtap-tips-and-example/</link>
+        <guid isPermaLink="true">http://baotiao.github.io//2017/06/14/systemtap-tips-and-example/</guid>
+      </item>
+    
+      <item>
         <title>使用systemtap 找内存泄露问题</title>
         <description>&lt;p&gt;前几周搞了好多天pika 内存泄露的问题, pika 在使用的过程中,在非正常关闭连接的情况下, 由于pika 网络编程框架Pink 在代码实现中没有正确处理, 导致非正常关闭的情况下, 只把这个句柄关闭, 而这个时候对应的连接指针依然是NULL, 导致这个连接的指针丢失, 导致了内存泄露.&lt;/p&gt;
 
@@ -1372,53 +1843,6 @@ To check whether an inheritence relationship complies with the Liskov Substituti
         <pubDate>Thu, 24 Nov 2016 00:00:00 +0800</pubDate>
         <link>http://baotiao.github.io//2016/11/24/cpp-pass-this/</link>
         <guid isPermaLink="true">http://baotiao.github.io//2016/11/24/cpp-pass-this/</guid>
-      </item>
-    
-      <item>
-        <title>cache policy</title>
-        <description>&lt;h3 id=&quot;cache-policy&quot;&gt;cache policy&lt;/h3&gt;
-
-&lt;p&gt;近期在做ceph cache-tier 相关的事情, 在cache-tier 里面cache有多种更新策略&lt;/p&gt;
-
-&lt;p&gt;其实更缓存相关的系统里面, 都存在这几种策略, 比如操作系统的page cache,
-业务层使用memcache, redis 作为后端数据库的缓存的时候,
-也都要考虑缓存和后端存储的数据一致性问题. 其实就是更新操作的时候,
-什么时候去更新缓存, 什么时候去更新后端存储的问题?&lt;/p&gt;
-
-&lt;p&gt;那么这个时候一般会有3种策略&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;no-write&lt;/li&gt;
-  &lt;li&gt;write-through&lt;/li&gt;
-  &lt;li&gt;write-back&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;no-write&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;no-write 的实现方式是写入数据的时候是直接将数据写入到后端存储, 并且标记cache 中的数据是无效的, 那么后续的某一次读取发现无效以后, 会发起一次读取请求, 将后端存储中的数据更新到cache 中, 并且标记有效&lt;/p&gt;
-
-&lt;p&gt;这个策略其实很少使用&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;write-through&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;write-through 实现方式是写入的时候将cache 和 后端存储的数据一起更新, 这种方法最能够保证cache 数据的一致性. 并且也是简单的方法, 但也是性能最低的一个方法&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;write-back&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;write-back 也是linux page cache采用的方式, 我觉得也是最通用的一种方式, 在write-back 策略里面, 写入操作是直接更新到cache 里面的,  后端存储不会马上更新. 然后这些需要更新的page 会被标记成dirty, 放到一个dirty list 里面, 然后周期性的有pdflush(2.6.32 以后就是flush per device)进行将cache 里面的数据刷回后端存储,  然后这些page 就不在标记dirty.&lt;/p&gt;
-
-&lt;p&gt;write-back 方案可以看成是write-through 的一个优化版本,  其实就是通过lazy write 一次写入比较大的数据来提高这个写入的性能, 但是带来的问题可能就是缓存中的数据有可能丢失了. 所以在linux 里面可以通过fsync 来强制某一次的写入写到磁盘, 也就是从write-back 变成write-through了&lt;/p&gt;
-
-</description>
-        <pubDate>Wed, 14 Sep 2016 00:00:00 +0800</pubDate>
-        <link>http://baotiao.github.io//2016/09/14/cache-policy/</link>
-        <guid isPermaLink="true">http://baotiao.github.io//2016/09/14/cache-policy/</guid>
       </item>
     
   </channel>
