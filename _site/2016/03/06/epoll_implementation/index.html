@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201705182007" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201706141707" type="text/css">
 
     <!-- Fonts -->
     
@@ -325,15 +325,13 @@
 	<span class="cm">/* The structure that describe the interested events and the source fd */</span>
 	<span class="k">struct</span> <span class="n">epoll_event</span> <span class="n">event</span><span class="p">;</span>
 <span class="p">};</span>
+</code></pre>
+</div>
 
-<span class="err">```</span><span class="n">c</span>
+<p>eppoll_entry 
+一个epitem 关联到一个eventpoll, 就会有一个对应的eppoll_entry</p>
 
-
-<span class="n">eppoll_entry</span> 
-<span class="err">一个</span><span class="n">epitem</span> <span class="err">关联到一个</span><span class="n">eventpoll</span><span class="p">,</span> <span class="err">就会有一个对应的</span><span class="n">eppoll_entry</span>
-
-<span class="err">```</span><span class="n">c</span>
-<span class="cm">/* Wait structure used by the poll hooks */</span>
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="cm">/* Wait structure used by the poll hooks */</span>
 <span class="k">struct</span> <span class="n">eppoll_entry</span> <span class="p">{</span>
 	<span class="cm">/* List header used to link this structure to the "struct epitem" */</span>
   <span class="cm">/*
@@ -369,7 +367,6 @@
 	<span class="cm">/* The wait queue head that linked the "wait" wait queue item */</span>
 	<span class="n">wait_queue_head_t</span> <span class="o">*</span><span class="n">whead</span><span class="p">;</span>
 <span class="p">};</span>
-
 </code></pre>
 </div>
 
@@ -475,7 +472,7 @@
 	 * We have to check that the file structure underneath the file descriptor
 	 * the user passed to us _is_ an eventpoll file. And also we do not permit
 	 * adding an epoll file descriptor inside itself.
-   * 这里可以看到如果把自己的epoll 的fd 添加到 epoll_ctl 里面的fd 是有问题的
+     * 这里可以看到如果把自己的epoll 的fd 添加到 epoll_ctl 里面的fd 是有问题的
 	 */</span>
 	<span class="n">error</span> <span class="o">=</span> <span class="o">-</span><span class="n">EINVAL</span><span class="p">;</span>
 	<span class="k">if</span> <span class="p">(</span><span class="n">file</span> <span class="o">==</span> <span class="n">tfile</span> <span class="o">||</span> <span class="o">!</span><span class="n">is_file_epoll</span><span class="p">(</span><span class="n">file</span><span class="p">))</span>
@@ -493,7 +490,7 @@
 	 * Try to lookup the file inside our RB tree, Since we grabbed "mtx"
 	 * above, we can be sure to be able to use the item looked up by
 	 * ep_find() till we release the mutex.
-   * 根据这个fd 找出对应的epitem, 这里把所有的epitem 根据fd号挂载到红黑树上
+     * 根据这个fd 找出对应的epitem, 这里把所有的epitem 根据fd号挂载到红黑树上
 	 */</span>
 	<span class="n">epi</span> <span class="o">=</span> <span class="n">ep_find</span><span class="p">(</span><span class="n">ep</span><span class="p">,</span> <span class="n">tfile</span><span class="p">,</span> <span class="n">fd</span><span class="p">);</span>
 
@@ -505,7 +502,6 @@
 			<span class="n">error</span> <span class="o">=</span> <span class="n">ep_insert</span><span class="p">(</span><span class="n">ep</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">epds</span><span class="p">,</span> <span class="n">tfile</span><span class="p">,</span> <span class="n">fd</span><span class="p">);</span>
 		<span class="p">}</span> <span class="k">else</span>
 			<span class="n">error</span> <span class="o">=</span> <span class="o">-</span><span class="n">EEXIST</span><span class="p">;</span>
-
 </code></pre>
 </div>
 <p>那么接下来主要看ep_insert 的过程</p>
@@ -588,8 +584,8 @@
 
 	<span class="cm">/*
 	 * Add the current item to the RB tree. All RB tree operations are
-	 * protected by "mtx", and ep_insert() is called with "mtx" held.
-   * 这里是具体把这个epitem 加入到这个eventpoll 的 rb tree 的过程
+	 * protected by "mtx", and ep_insert() is called with "mtx" held. 
+	 * 这里是具体把这个epitem 加入到这个eventpoll 的 rb tree 的过程
 	 */</span>
 	<span class="n">ep_rbtree_insert</span><span class="p">(</span><span class="n">ep</span><span class="p">,</span> <span class="n">epi</span><span class="p">);</span>
 
@@ -606,7 +602,6 @@
 		<span class="k">if</span> <span class="p">(</span><span class="n">waitqueue_active</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ep</span><span class="o">-&gt;</span><span class="n">poll_wait</span><span class="p">))</span>
 			<span class="n">pwake</span><span class="o">++</span><span class="p">;</span>
 	<span class="p">}</span>
-
 </code></pre>
 </div>
 
@@ -673,7 +668,6 @@
 		<span class="n">epi</span><span class="o">-&gt;</span><span class="n">nwait</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 	<span class="p">}</span>
 <span class="p">}</span>
-
 </code></pre>
 </div>
 
@@ -738,8 +732,8 @@
 	 * every device reports the events in the "key" parameter of the
 	 * callback. We need to be able to handle both cases here, hence the
 	 * test for "key" != NULL before the event match test.
-   * 这里其实key 有可能记录了当前这个fd的事件, 如果记录了,
-   * 就判断key里面返回的事件和 这个fd关注的事件是否有重合
+     * 这里其实key 有可能记录了当前这个fd的事件, 如果记录了,
+     * 就判断key里面返回的事件和这个fd关注的事件是否有重合
 	 */</span>
 	<span class="k">if</span> <span class="p">(</span><span class="n">key</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="p">((</span><span class="kt">unsigned</span> <span class="kt">long</span><span class="p">)</span> <span class="n">key</span> <span class="o">&amp;</span> <span class="n">epi</span><span class="o">-&gt;</span><span class="n">event</span><span class="p">.</span><span class="n">events</span><span class="p">))</span>
 		<span class="k">goto</span> <span class="n">out_unlock</span><span class="p">;</span>
@@ -790,7 +784,6 @@
 
 	<span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
 <span class="p">}</span>
-
 </code></pre>
 </div>
 
@@ -917,7 +910,6 @@
 
 	<span class="k">return</span> <span class="n">res</span><span class="p">;</span>
 <span class="p">}</span>
-
 </code></pre>
 </div>
 
@@ -980,7 +972,7 @@
 
 	<span class="cm">/*
 	 * Now call the callback function.
-   * 这里的sproc 就是 ep_send_events_proc
+	 * 这里的sproc 就是 ep_send_events_proc
 	 */</span>
 	<span class="n">error</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="n">sproc</span><span class="p">)(</span><span class="n">ep</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">txlist</span><span class="p">,</span> <span class="n">priv</span><span class="p">);</span>
 
@@ -1007,7 +999,6 @@
 	 * ep-&gt;rdllist.
 	 */</span>
 	<span class="n">ep</span><span class="o">-&gt;</span><span class="n">ovflist</span> <span class="o">=</span> <span class="n">EP_UNACTIVE_PTR</span><span class="p">;</span>
-
 </code></pre>
 </div>
 
@@ -1015,8 +1006,7 @@
 
 <div class="highlighter-rouge"><pre class="highlight"><code><span class="c1">// 这里priv 就是用户传进来的events 的包装 ep_send_events_data
 // 这里就是具体的把已经就绪的list copy 给用户空间
-</span><span class="k">static</span> <span class="kt">int</span> <span class="nf">ep_send_events_proc</span><span class="p">(</span><span class="k">struct</span> <span class="n">eventpoll</span> <span class="o">*</span><span class="n">ep</span><span class="p">,</span> <span class="k">struct</span> <span class="n">list_head</span> <span class="o">*</span><span class="n">head</span><span class="p">,</span>
-			       <span class="kt">void</span> <span class="o">*</span><span class="n">priv</span><span class="p">)</span>
+</span><span class="k">static</span> <span class="kt">int</span> <span class="nf">ep_send_events_proc</span><span class="p">(</span><span class="k">struct</span> <span class="n">eventpoll</span> <span class="o">*</span><span class="n">ep</span><span class="p">,</span> <span class="k">struct</span> <span class="n">list_head</span> <span class="o">*</span><span class="n">head</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">priv</span><span class="p">)</span>
 <span class="p">{</span>
   <span class="cm">/*
    * 这里esed 里面的内容就是 ep-&gt;rdllist 里面的内容
@@ -1125,7 +1115,6 @@
 
 	<span class="k">return</span> <span class="n">eventcnt</span><span class="p">;</span>
 <span class="p">}</span>
-
 </code></pre>
 </div>
 
@@ -1159,15 +1148,15 @@ Checks whether there is activity on a file and goes to sleep until something hap
   <span class="k">struct</span> <span class="n">page</span> <span class="o">*</span><span class="n">tmp_page</span><span class="p">;</span>
   <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">readers</span><span class="p">;</span>
 
-<span class="err">这里有一个</span><span class="n">pipe_inode_info</span><span class="p">,</span> <span class="err">如果当这个</span><span class="n">pipe</span> <span class="err">有数据写入的时候</span>
-<span class="k">static</span> <span class="kt">ssize_t</span>
-<span class="n">pipe_read</span><span class="p">(</span><span class="k">struct</span> <span class="n">kiocb</span> <span class="o">*</span><span class="n">iocb</span><span class="p">,</span> <span class="k">const</span> <span class="k">struct</span> <span class="n">iovec</span> <span class="o">*</span><span class="n">_iov</span><span class="p">,</span>
+<span class="c1">// 这里有一个pipe_inode_info, 如果当这个pipe 有数据写入的时候
+</span><span class="k">static</span> <span class="kt">ssize_t</span>
+<span class="nf">pipe_read</span><span class="p">(</span><span class="k">struct</span> <span class="n">kiocb</span> <span class="o">*</span><span class="n">iocb</span><span class="p">,</span> <span class="k">const</span> <span class="k">struct</span> <span class="n">iovec</span> <span class="o">*</span><span class="n">_iov</span><span class="p">,</span>
      <span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">nr_segs</span><span class="p">,</span> <span class="n">loff_t</span> <span class="n">pos</span><span class="p">)</span>
 <span class="p">{</span>
     <span class="p">...</span>
     <span class="c1">// 所有的read 操作执行完以后, 判断时候需要做wakeup 操作
 </span>    <span class="c1">// 需要做wakeup操作的话, 则把之前注册在这个pipe_inode_info 里面的函数或者
-</span>    <span class="c1">// 进程唤醒, 这里是函数还是进程由注册的时候的决定
+</span>    <span class="c1">// 进程唤醒, 这里是函数还是由进程注册的时候的决定
 </span>
     <span class="k">if</span> <span class="p">(</span><span class="n">do_wakeup</span><span class="p">)</span> <span class="p">{</span>
       <span class="n">wake_up_interruptible_sync</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pipe</span><span class="o">-&gt;</span><span class="n">wait</span><span class="p">);</span>
@@ -1190,7 +1179,6 @@ Checks whether there is activity on a file and goes to sleep until something hap
       <span class="k">break</span><span class="p">;</span>
   <span class="p">}</span>
 <span class="err">就是执行注册的函数</span>
-
 </code></pre>
 </div>
 
@@ -1219,8 +1207,11 @@ Checks whether there is activity on a file and goes to sleep until something hap
 
 <p>poll_wait 本质到最后调用的是ep_ptable_queue_proc函数, 因为在epoll 调用tfile-&gt;f_op-&gt;poll 的时候已经注册了这个回调函数</p>
 
-<p>static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
-         poll_table *pt)
+<p>这里是通过</p>
+
+<p>init_poll_funcptr 这个函数来注册对应的poll_queue_proc的</p>
+
+<p>static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead, poll_table *pt)
 {</p>
 
 <h4 id="pollselect-">为什么说 poll/select 的性能比较低</h4>

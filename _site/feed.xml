@@ -7,6 +7,194 @@
     <atom:link href="http://baotiao.github.io//feed.xml" rel="self" type="application/rss+xml" />
     
       <item>
+        <title>使用systemtap 找内存泄露问题</title>
+        <description>&lt;p&gt;前几周搞了好多天pika 内存泄露的问题, pika 在使用的过程中,在非正常关闭连接的情况下, 由于pika 网络编程框架Pink 在代码实现中没有正确处理, 导致非正常关闭的情况下, 只把这个句柄关闭, 而这个时候对应的连接指针依然是NULL, 导致这个连接的指针丢失, 导致了内存泄露.&lt;/p&gt;
+
+&lt;p&gt;程序的内存泄露是一个写c++程序常见的棘手的问题, 特别是在测试环境难以复现, 线上环境需要运行很长一段时间以后才可以出现的问题. 不稳定复现的bug 不是好bug&lt;/p&gt;
+
+&lt;p&gt;在排查这个问题的过程中, 发现systemtap 是一个好东西, 除了可以用来看内核的调用栈以外, 还可以用来观测用户空间的函数调用并进行统计,  并且systemtap 与valgrind 相比, 无需编译的时候加任何参数, 直接在线上就可以使用(当然了线上需要安装debuginfo debuginfo-common), 不需要业务的配合也可以观测&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;#!/usr/bin/stap&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# 这里核心的想法就是通过systemtap 找到malloc, realloc 返回的地址, &lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# 可以通过systemtap 里面的$return 来获得, 并记录, 然后再记录free 的时候是否对这些地址进行过free. &lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# 可以通过 $ptr 来获得. 具体的systemtap 用法可以看官网&lt;/span&gt;
+
+probe begin
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+  log&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;begin to probe&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# 对某一个地址调用的malloc, free的次数. &lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# 如果 = 0, 说明正常free掉, &lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# 如果 = 1, 说明malloc, 但是还没被free&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# 如果 &amp;gt; 1, 说明这个地址被多次给malloc返回给用户, 肯定不正常&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# 如果 &amp;lt; 1, 说明这个地址被多次free 也就是我们常说的double free 问题&lt;/span&gt;
+global g_cnt
+&lt;span class=&quot;c&quot;&gt;# 用来记录前一次调用的时候的 ubacktrace 信息&lt;/span&gt;
+global g_stack
+&lt;span class=&quot;c&quot;&gt;# 用来记录上次操作的时间&lt;/span&gt;
+global g_time
+
+&lt;span class=&quot;c&quot;&gt;# 每一次malloc, realloc 最后都会调到glic 里面的__libc_malloc, __libc_calloc&lt;/span&gt;
+probe process&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;/usr/local/pika22/lib/libtcmalloc.so.4&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;__libc_malloc&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.return, process&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;/usr/local/pika22/lib/libtcmalloc.so.4&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;__libc_calloc&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.return
+
+&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;tid&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; 11808&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+			g_cnt[&lt;span class=&quot;nv&quot;&gt;$return&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;++
+			g_stack[&lt;span class=&quot;nv&quot;&gt;$return&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; sprint_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+			g_time[&lt;span class=&quot;nv&quot;&gt;$return&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; gettimeofday_s&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+	&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+probe process&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;/usr/local/pika22/lib/libtcmalloc.so.4&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;.function&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;__libc_free&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;tid&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; 11808 &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; g_time[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; !&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 0&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;# 这里对于之前没有进行过处理的节点忽略&lt;/span&gt;
+    g_cnt[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;--
+    &lt;span class=&quot;c&quot;&gt;# 正常的malloc free 分支&lt;/span&gt;
+		&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;g_cnt[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; 0&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+			&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt; !&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 0&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+				&lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;A normal malloc and free&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+				g_stack[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; sprint_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+			&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+      &lt;span class=&quot;c&quot;&gt;# 可能出现的double free 分支&lt;/span&gt;
+		&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;g_cnt[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &amp;lt; 0 &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt; !&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 0&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+				&lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;double free problem address %d cnt %d&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, &lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;, g_cnt[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;])&lt;/span&gt;
+				&lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, g_stack[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;])&lt;/span&gt;
+				&lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;the destructure &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+				print_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; 
+      &lt;span class=&quot;c&quot;&gt;# 多次malloc 返回同一个地址的分支, 这种情况很少见&lt;/span&gt;
+		&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;g_cnt[&lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &amp;gt; 1 &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$ptr&lt;/span&gt; !&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 0&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+			&lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;malloc large than 0&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+			print_ubacktrace&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+		&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+	&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+probe timer.s&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;5&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+	foreach &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;mem &lt;span class=&quot;k&quot;&gt;in &lt;/span&gt;g_cnt&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;# 这里可以根据定义来调整这个10 的大小, 也就是说这里想打印出 10s 之前申请过内存&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;# 但是 10s 之内没有被free 的情况, 这里因为 pika 在短连接的时候都是10之内申请 然后就释放&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;# 如果10s 之内没有释放, 那肯定就是内存出现了问题&lt;/span&gt;
+		&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;g_cnt[mem] &amp;gt; 0 &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; gettimeofday_s&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; - g_time[mem] &amp;gt; 10&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+			&lt;span class=&quot;nb&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;, g_stack[mem]&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+		&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+	&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;可以看到有这样的输出结果:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;_ZN4pink9RedisConnC2EiRKSs+0x8d [pika]
+_ZN14PikaClientConnC1EiSsPN4pink6ThreadE+0x11 [pika]
+_ZN4pink12WorkerThreadI14PikaClientConnE10ThreadMainEv+0x33c [pika]
+_ZN4pink6Thread9RunThreadEPv+0x9d [pika]
+start_thread+0xd1 [libpthread-2.12.so]
+__clone+0x6d [libc-2.12.so]
+
+
+
+_ZN4pink9RedisConnC2EiRKSs+0x7c [pika]
+_ZN14PikaClientConnC1EiSsPN4pink6ThreadE+0x11 [pika]
+_ZN4pink12WorkerThreadI14PikaClientConnE10ThreadMainEv+0x33c [pika]
+_ZN4pink6Thread9RunThreadEPv+0x9d [pika]
+start_thread+0xd1 [libpthread-2.12.so]
+__clone+0x6d [libc-2.12.so]
+
+
+
+_ZN4pink9RedisConnC2EiRKSs+0x8d [pika]
+_ZN14PikaClientConnC1EiSsPN4pink6ThreadE+0x11 [pika]
+_ZN4pink12WorkerThreadI14PikaClientConnE10ThreadMainEv+0x33c [pika]
+_ZN4pink6Thread9RunThreadEPv+0x9d [pika]
+start_thread+0xd1 [libpthread-2.12.so]
+__clone+0x6d [libc-2.12.so]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;以上就是在这个stap 起来以后, 申请的内存在10s 内没有被正常free 的操作, 这样根据这个堆栈信息就可以知道是我们申请了RedisConn 以后, 并没有被释放导致的内存泄露, 具体看代码我们可以发现&lt;/p&gt;
+
+&lt;p&gt;具体代码如下:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;		  &lt;span class=&quot;c1&quot;&gt;// 这里声明获得对应的连接的指针
+&lt;/span&gt;          &lt;span class=&quot;n&quot;&gt;in_conn&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+          &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;should_close&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+          &lt;span class=&quot;n&quot;&gt;std&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;map&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&amp;gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;iterator&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;iter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;conns_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;begin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+          &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;continue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+          &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+          &lt;span class=&quot;n&quot;&gt;iter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;conns_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fd_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+          &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;iter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;conns_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;pink_epoll_&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PinkDelEvent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fd_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;continue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+          &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+          &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mask_&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EPOLLIN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;c1&quot;&gt;// 如果有读事件, 则对这个连接进行赋值
+&lt;/span&gt;            &lt;span class=&quot;n&quot;&gt;in_conn&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;static_cast&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Conn&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;iter&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;second&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+          &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+          &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mask_&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EPOLLOUT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;c1&quot;&gt;// 如果有读事件, 则对这个连接进行赋值
+&lt;/span&gt;            &lt;span class=&quot;n&quot;&gt;in_conn&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;static_cast&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Conn&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;iter&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;second&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+             
+          &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+          &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mask_&lt;/span&gt;  &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EPOLLERR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mask_&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EPOLLHUP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;should_close&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;RWLock&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rwlock_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;pink_epoll_&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PinkDelEvent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fd_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;c1&quot;&gt;// 这里这两行关闭这个句柄, 并清空对应的连接
+&lt;/span&gt;            &lt;span class=&quot;c1&quot;&gt;// 由于如果没有接收到读或者写事件, 那么这里的in_conn 依然是NULL
+&lt;/span&gt;            &lt;span class=&quot;c1&quot;&gt;// 因此就造成了内存泄露
+&lt;/span&gt;            &lt;span class=&quot;n&quot;&gt;close&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fd_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;delete&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;in_conn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;in_conn&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+            &lt;span class=&quot;n&quot;&gt;conns_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;erase&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fd_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+          &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;err&quot;&gt; &lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;从上面的代码注释中就可以看出内存泄露的原因了.  目前已经修改了Pika 的网络编程框架Pink.&lt;/p&gt;
+
+&lt;p&gt;修改后&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;		   &lt;span class=&quot;c1&quot;&gt;// 这里声明获得对应的连接的指针
+&lt;/span&gt;          &lt;span class=&quot;n&quot;&gt;in_conn&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+          &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;should_close&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+          &lt;span class=&quot;n&quot;&gt;std&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;map&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&amp;gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;iterator&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;iter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;conns_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;begin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+          &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;continue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+          &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+          &lt;span class=&quot;n&quot;&gt;iter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;conns_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fd_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+          &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;iter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;conns_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;pink_epoll_&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PinkDelEvent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fd_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;continue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+          &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+          &lt;span class=&quot;c1&quot;&gt;// 不论有什么事件到达, 先对对应的连接赋值
+&lt;/span&gt;          &lt;span class=&quot;n&quot;&gt;in_conn&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;static_cast&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Conn&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;iter&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;second&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+          &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mask_&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EPOLLIN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;c1&quot;&gt;// 那么这里就不需要赋值了
+&lt;/span&gt;            &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+          &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+          &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pfe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mask_&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EPOLLOUT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;c1&quot;&gt;// 那么这里就不需要赋值了
+&lt;/span&gt;            &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+          &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;不过上面依然有困惑我们的地方在于, 无论是调用close() 关闭连接, 还是通过Kill 强行杀死进程, 都会产生读事件, 因此对应的in_conn 能够赋值, 也就能够正常释放了. 可是出现问题的时候关闭一个连接并没有读事件产生. 后续再看看吧&lt;/p&gt;
+</description>
+        <pubDate>Wed, 14 Jun 2017 00:00:00 +0800</pubDate>
+        <link>http://baotiao.github.io//2017/06/14/systemtap-pika/</link>
+        <guid isPermaLink="true">http://baotiao.github.io//2017/06/14/systemtap-pika/</guid>
+      </item>
+    
+      <item>
         <title>Linux physical page note</title>
         <description>&lt;h3 id=&quot;linux-page-frame-management&quot;&gt;linux page frame management&lt;/h3&gt;
 
@@ -1231,121 +1419,6 @@ To check whether an inheritence relationship complies with the Liskov Substituti
         <pubDate>Wed, 14 Sep 2016 00:00:00 +0800</pubDate>
         <link>http://baotiao.github.io//2016/09/14/cache-policy/</link>
         <guid isPermaLink="true">http://baotiao.github.io//2016/09/14/cache-policy/</guid>
-      </item>
-    
-      <item>
-        <title>talk about kernel process descriptor</title>
-        <description>&lt;h3 id=&quot;taskstruct-threadstruct-tssstruct-threadinfo-&quot;&gt;task_struct, thread_struct, tss_struct, thread_info 他们之间的关系是什么&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;task_struct&lt;/p&gt;
-
-    &lt;p&gt;就是一个process descriptor&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;task_struct&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;volatile&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;state&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;	&lt;span class=&quot;cm&quot;&gt;/* -1 unrunnable, 0 runnable, &amp;gt;0 stopped */&lt;/span&gt;
-  &lt;span class=&quot;cm&quot;&gt;/*
-   * 这个stack 里面存的内容就是内核空间的栈的内容
-   * 内核空间的栈的内容包含两个部分
-   * 1. thread_info
-   * 2. kernel 里面的内核栈空间的内容
-   *
-   * 这个stack 的初始化是在fork.c:dup_task_struct:alloc_thread_info() 里面的
-   * struct thread_info *ti;
-   * tsk-&amp;gt;stack = ti;
-   * 可以看出这个stack 指向的是一个thread_info 结构体
-   *
-   *  struct thread_info {
-   *   struct task_struct	*task;		
-   *   ...
-   *   }
-   *
-   * task_thread_info(p)-&amp;gt;task = p;
-   * 从这里又可以看出 这个thread_info-&amp;gt;task 又指向了这个task_struct
-   * 也就是这两个结构体task_struct, thread_info是互相指向的
-   * 为什么要这样做呢?
-   * 因为cpu 里面的esp寄存器指向的就是kernel stack里面的内容, 然后通过kernel
-   * stack 就可以获得thread_info 这个结构体(因为kernel stack 和 thread_info
-   * 是保存在连续的8k 的空间上的),
-   * 然后根据thread_info-&amp;gt;task就可以找到当前正在运行task_struct 了.
-   */&lt;/span&gt;
-	&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-  &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
-  &lt;span class=&quot;cm&quot;&gt;/* CPU-specific state of this task */&lt;/span&gt;
-  &lt;span class=&quot;cm&quot;&gt;/*
-   * thread_struct 里面保留了大部分的cpu 寄存器的信息
-   * 那么在context switch 的时候这个process 的cpu register
-   * 等信息会被保存在这个thread_struct 里面
-   */&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;thread_struct&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;thread&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;tss_struct&lt;/p&gt;
-
-    &lt;p&gt;是定义的Task State Segment, 也就是 TSS 段, 这个段的主要用在就是存 process context switch 上下文切换的时候的hardware context. 这个 tss_struct 保存在GDT(global descriptor table) 里面. 这个结构并不在task_struct 里面.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tss_struct&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tss&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;per_cpu&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;init_tss&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;cpu&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-&lt;p&gt;从上面可以看出tss_struct 是每一个cpu 有一个这样的结构体&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;thread_struct&lt;/p&gt;
-
-    &lt;p&gt;这个是 process context switch 的时候, 将 hardware context 主要保留在的地方, 每一个线程都包含一份 thread_struct. 当然还有一部分包含在 kernel mode stack 里面, 比如(eax, ebx 等等)&lt;/p&gt;
-
-    &lt;p&gt;这里tss_struct 和 thread_struct 的关系是task_struct-&amp;gt;thread_struct 主要保留的是 context switch 后, 不在cpu中间运行的process的内容, 然后tss_struct 里面的内容是不是就是直接从task_struct-&amp;gt;thread_struct 里面的内容加载进来的呢? 确实是这样的&lt;/p&gt;
-
-    &lt;p&gt;这里也可以看出在做process switch 的时候, 是先获得了要运行的下一个process 的task_struct, 然后从task_struct 里面的thread_struct 加载到GDT里面,&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;thread_info&lt;/p&gt;
-
-    &lt;p&gt;thread_info 用来保存一些需要知道的固定变量, 类似写程序里面的全局变量&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;kernel mode stack&lt;/p&gt;
-
-    &lt;p&gt;kernel mode stack 就是跟我们写程序的user mode stack 一样, 存的是一些临时变量, 和thread_info 相比, thread_info 更类似存全局变量&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;kernel-process--taskstruct-&quot;&gt;kernel 如何获得当前运行process 的 task_struct 的&lt;/h3&gt;
-
-&lt;p&gt;这个就主要通过当前运行的process task_struct 里面的stack 来获得.&lt;/p&gt;
-
-&lt;p&gt;在stack 里面是这样的一个结构&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;http://i.imgur.com/1fAYzia.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;可以看出这个stack 底下是一个thread_info 的结构体, 然后stack 的底部是在最上面, 这一部分就是kernel stack 的内容, esp 指针指向着当前的kernel stack 的头部. 那么这个时候想要获得当前运行process 的task_struct 就比较方便. 因为&lt;/p&gt;
-
-&lt;p&gt;The close association between the thread_info structure and the Kernel Mode stack just described offers a key benefit in terms of efficiency: the kernel can easily obtain the address of the thread_info structure of the process currently running on a CPU from the value of the esp register.&lt;/p&gt;
-
-&lt;p&gt;就是说可以通过esp 很容易获得thread_info 这个结构体的位置, 然后thread_info-&amp;gt;task 里面又保留了这个process descriptor 的指针就可以获得对应的task_struct 的位置了&lt;/p&gt;
-
-&lt;h3 id=&quot;stack--threadinfo-page-&quot;&gt;为什么要把stack 和 thread_info 放在一个page 里面&lt;/h3&gt;
-
-&lt;p&gt;Another advantage of storing the process descriptor with the stack emerges on multi-processor systems: the correct current process for each hardware processor can be derived just by checking the stack, as shown previously.&lt;/p&gt;
-
-&lt;p&gt;Earlier versions of Linux did not store the kernel stack and the process descriptor together.&lt;/p&gt;
-
-&lt;p&gt;因为kernel stack 上面永远放着esp指针, 那么因为esp 肯定在这个page里面, 通过取模很容易就可以获得当前这个thread_info 所在的地址, 通过thread_info 就可以很容易获得task_struct 的地址了&lt;/p&gt;
-
-</description>
-        <pubDate>Mon, 29 Aug 2016 00:00:00 +0800</pubDate>
-        <link>http://baotiao.github.io//2016/08/29/process-descriptor/</link>
-        <guid isPermaLink="true">http://baotiao.github.io//2016/08/29/process-descriptor/</guid>
       </item>
     
   </channel>

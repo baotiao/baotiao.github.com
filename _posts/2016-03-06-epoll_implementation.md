@@ -121,8 +121,7 @@ struct epitem {
 	/* The structure that describe the interested events and the source fd */
 	struct epoll_event event;
 };
-
-```c
+```
 
 
 eppoll_entry 
@@ -165,7 +164,6 @@ struct eppoll_entry {
 	/* The wait queue head that linked the "wait" wait queue item */
 	wait_queue_head_t *whead;
 };
-
 ```
 
 #### epoll_create 的过程
@@ -271,7 +269,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 	 * We have to check that the file structure underneath the file descriptor
 	 * the user passed to us _is_ an eventpoll file. And also we do not permit
 	 * adding an epoll file descriptor inside itself.
-   * 这里可以看到如果把自己的epoll 的fd 添加到 epoll_ctl 里面的fd 是有问题的
+     * 这里可以看到如果把自己的epoll 的fd 添加到 epoll_ctl 里面的fd 是有问题的
 	 */
 	error = -EINVAL;
 	if (file == tfile || !is_file_epoll(file))
@@ -289,7 +287,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 	 * Try to lookup the file inside our RB tree, Since we grabbed "mtx"
 	 * above, we can be sure to be able to use the item looked up by
 	 * ep_find() till we release the mutex.
-   * 根据这个fd 找出对应的epitem, 这里把所有的epitem 根据fd号挂载到红黑树上
+     * 根据这个fd 找出对应的epitem, 这里把所有的epitem 根据fd号挂载到红黑树上
 	 */
 	epi = ep_find(ep, tfile, fd);
 
@@ -301,7 +299,6 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 			error = ep_insert(ep, &epds, tfile, fd);
 		} else
 			error = -EEXIST;
-
 ```
 那么接下来主要看ep_insert 的过程
 
@@ -384,8 +381,8 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 
 	/*
 	 * Add the current item to the RB tree. All RB tree operations are
-	 * protected by "mtx", and ep_insert() is called with "mtx" held.
-   * 这里是具体把这个epitem 加入到这个eventpoll 的 rb tree 的过程
+	 * protected by "mtx", and ep_insert() is called with "mtx" held. 
+	 * 这里是具体把这个epitem 加入到这个eventpoll 的 rb tree 的过程
 	 */
 	ep_rbtree_insert(ep, epi);
 
@@ -402,7 +399,6 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 		if (waitqueue_active(&ep->poll_wait))
 			pwake++;
 	}
-
 ```
 
 那么到这里已经将这个fd 注册到对应的eventpoll上, 那么我们看一下这里注册的函数, 函数是
@@ -469,7 +465,6 @@ static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
 		epi->nwait = -1;
 	}
 }
-
 ```
 
 ep_poll_callback
@@ -534,8 +529,8 @@ static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *k
 	 * every device reports the events in the "key" parameter of the
 	 * callback. We need to be able to handle both cases here, hence the
 	 * test for "key" != NULL before the event match test.
-   * 这里其实key 有可能记录了当前这个fd的事件, 如果记录了,
-   * 就判断key里面返回的事件和 这个fd关注的事件是否有重合
+     * 这里其实key 有可能记录了当前这个fd的事件, 如果记录了,
+     * 就判断key里面返回的事件和这个fd关注的事件是否有重合
 	 */
 	if (key && !((unsigned long) key & epi->event.events))
 		goto out_unlock;
@@ -586,7 +581,6 @@ out_unlock:
 
 	return 1;
 }
-
 ```
 
 #### epoll_wait
@@ -713,7 +707,6 @@ retry:
 
 	return res;
 }
-
 ```
 
 最后就是将发生的events 传递给用户空间
@@ -776,7 +769,7 @@ static int ep_scan_ready_list(struct eventpoll *ep,
 
 	/*
 	 * Now call the callback function.
-   * 这里的sproc 就是 ep_send_events_proc
+	 * 这里的sproc 就是 ep_send_events_proc
 	 */
 	error = (*sproc)(ep, &txlist, priv);
 
@@ -803,7 +796,6 @@ static int ep_scan_ready_list(struct eventpoll *ep,
 	 * ep->rdllist.
 	 */
 	ep->ovflist = EP_UNACTIVE_PTR;
-
 ```
 
 ep_send_events_proc 函数
@@ -811,8 +803,7 @@ ep_send_events_proc 函数
 ```c
 // 这里priv 就是用户传进来的events 的包装 ep_send_events_data
 // 这里就是具体的把已经就绪的list copy 给用户空间
-static int ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
-			       void *priv)
+static int ep_send_events_proc(struct eventpoll *ep, struct list_head *head, void *priv)
 {
   /*
    * 这里esed 里面的内容就是 ep->rdllist 里面的内容
@@ -921,7 +912,6 @@ static int ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
 
 	return eventcnt;
 }
-
 ```
 
 ### Tips:
@@ -955,7 +945,7 @@ struct pipe_inode_info {
   struct page *tmp_page;
   unsigned int readers;
 
-这里有一个pipe_inode_info, 如果当这个pipe 有数据写入的时候
+// 这里有一个pipe_inode_info, 如果当这个pipe 有数据写入的时候
 static ssize_t
 pipe_read(struct kiocb *iocb, const struct iovec *_iov,
      unsigned long nr_segs, loff_t pos)
@@ -963,7 +953,7 @@ pipe_read(struct kiocb *iocb, const struct iovec *_iov,
     ...
     // 所有的read 操作执行完以后, 判断时候需要做wakeup 操作
     // 需要做wakeup操作的话, 则把之前注册在这个pipe_inode_info 里面的函数或者
-    // 进程唤醒, 这里是函数还是进程由注册的时候的决定
+    // 进程唤醒, 这里是函数还是由进程注册的时候的决定
 
     if (do_wakeup) {
       wake_up_interruptible_sync(&pipe->wait);
@@ -986,7 +976,6 @@ static void __wake_up_common(wait_queue_head_t *q, unsigned int mode,
       break;
   }
 就是执行注册的函数
-
 ```
 
 
@@ -1015,8 +1004,11 @@ poll_wait(filp, &pipe->wait, wait);
 
 poll_wait 本质到最后调用的是ep_ptable_queue_proc函数, 因为在epoll 调用tfile->f_op->poll 的时候已经注册了这个回调函数
 
-static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
-         poll_table *pt)
+这里是通过 
+
+init_poll_funcptr 这个函数来注册对应的poll_queue_proc的
+
+static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead, poll_table *pt)
 {
 
 
