@@ -3,16 +3,16 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>c++对象模型 构造函数语义学 &#8211; baotiao</title>
+    <title>thinking about the bottom key-value store &#8211; baotiao</title>
     <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
     <link rel="dns-prefetch" href="//cdn.mathjax.org">
     <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="做有积累的事情">
+    <meta name="description" content="关于底层key-value 存储的思考">
     <meta name="robots" content="all">
     <meta name="author" content="baotiao">
     <meta name="keywords" content="">
-    <link rel="canonical" href="http://baotiao.github.io//2012/09/12/c++-constuct/">
+    <link rel="canonical" href="http://baotiao.github.io//2017/09/11/bottom-key-value-thinking/">
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
@@ -36,9 +36,9 @@
     <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
     <meta property="og:locale" content="en_US">
     <meta property="og:type" content="article">
-    <meta property="og:title" content="c++对象模型 构造函数语义学">
+    <meta property="og:title" content="thinking about the bottom key-value store">
     <meta property="og:description" content="做有积累的事情">
-    <meta property="og:url" content="http://baotiao.github.io//2012/09/12/c++-constuct/">
+    <meta property="og:url" content="http://baotiao.github.io//2017/09/11/bottom-key-value-thinking/">
     <meta property="og:site_name" content="baotiao">
 
     <!-- Twitter Card -->
@@ -46,9 +46,9 @@
     
         <meta name="twitter:site" content="@baotiao" />
     
-    <meta name="twitter:title" content="c++对象模型 构造函数语义学" />
-    <meta name="twitter:description" content="做有积累的事情" />
-    <meta name="twitter:url" content="http://baotiao.github.io//2012/09/12/c++-constuct/" />
+    <meta name="twitter:title" content="thinking about the bottom key-value store" />
+    <meta name="twitter:description" content="关于底层key-value 存储的思考" />
+    <meta name="twitter:url" content="http://baotiao.github.io//2017/09/11/bottom-key-value-thinking/" />
 
     <!-- Icons -->
     <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
@@ -199,8 +199,8 @@
 
 
 <div class="post-header mb2">
-  <h1>c++对象模型 构造函数语义学</h1>
-  <span class="post-meta">Sep 12 2012</span><br>
+  <h1>thinking about the bottom key-value store</h1>
+  <span class="post-meta">Sep 11 2017</span><br>
   
   <span class="post-meta small">
   
@@ -210,47 +210,28 @@
 </div>
 
 <article class="post-content">
-  <h3 id="c-classconstructor">1. C++ 不会为所有的class构造默认的constructor</h3>
+  <p>关于底层key-value 存储的思考</p>
 
-<p>(我们经常认为c++会为所有的class默认添加构造函数)</p>
+<p>之前一直认为 zeppelin 提供的是一个key-value 存储的服务, 其实不够准确, 在zeppelin 提供给 s3 使用的场景里面, zeppelin 应该提供的是一个类似于物理磁盘这样的基础存储, 然后s3 就类似于磁盘上面的文件系统.</p>
 
-<p>只有满足4个条件之一会添加构造函数</p>
-
-<ol>
-  <li>包含带有默认构造函数的对象成员的类</li>
-  <li>继承自带有默认构造函数的基类的类</li>
-  <li>带有虚函数的类</li>
-  <li>带一个虚基类的类</li>
-</ol>
-
-<p>这4中情况会导致编译器必须为未申明构造函数的class, 生成一个默认的constructor. 更多情况下是不会去生成默认的构造函数的.</p>
-
-<h3 id="copy-constructor-">2. copy constructor 构造语义学</h3>
-
-<p>C++并不是为所有的类都够着copy constructor.</p>
-
-<p>默认的情况是如果没有定义copy constructor, 那么一般情况下如果有copy constructor 操作, 默认的是执行bitwise copy semantics. 也就是位逐次拷贝.</p>
-
-<p>当然 bistwise copy 是有条件的,当不满足bitwise copy 的条件的时候,就不能进行bitwise copy. 那么C++就会为该类添加默认的copy constructor. ( 这里我感觉就是深拷贝和浅拷贝的区别,很明显bitwise 是浅拷贝,直接将一个对象的data member 拷贝给同一个类的另一个对象. 而如果这里不能直接内存拷贝,则需要深拷贝.就是需要构造一个copy constructor了)</p>
-
-<p>4种情况不满足bitwise copy. 也就是会调用构造函数</p>
+<p>比如文件系统有目录信息, 在linux 下面, 对于目录的处理和文件是一样的,  一个目录也是inode, 目录下面的文件是存储在这个inode 的data 字段里面, 那么访问这个文件下面有哪些目录的时候就是把这个inode 的data 按照一定的格式解析开来就可以了. 一个文件的目录的访问频率是远高于某一个文件的. 这个和zeppelin 之上搭建一个s3 遇到的问题也是一样, s3 里面需要存储某一个bucket 下面所有的object 的信息, 那么如果和文件系统一样的做法, 应该是在zeppelin 里面有一个专门的key 用于存储这个bucket 下面有哪些object, 然后需要读取的时候去访问这个key 就可以. 那么为什么目前zeppelin-gateway 的做法是把这些meta 信息存储在redis 上面.</p>
 
 <ol>
-  <li>当一个class 内的一个member object,而这个object 声明了一个copy constructor时</li>
-  <li>当class 继承自一个bass class, 而这个bass class 有 copy constructor</li>
-  <li>当class申明了一个或多个 virtual functions 时</li>
-  <li>当class 派生自一个继承串链,其中一个或多个virtual base classes</li>
+  <li>为了性能考虑</li>
+  <li>因为redis 提供了list 这样的操作接口, zeppelin 还不支持</li>
+  <li>因为目前简单的做法只能把这个bucket 下面的文件信息都放在一个key 上, 那么这个key 的访问压力一定特别大, 并且修改的话肯定特别频繁, 所以需要细致的设计如何存储这个bucket的meta信息, 暂时没开始做</li>
 </ol>
 
-<h3 id="copy-assign-constructor-">copy assign constructor 构造语义学</h3>
+<p>其实当初文件系统也遇到类似的问题, 比如当初的ext2 文件系统上面就有一个目录下面能够存储的文件个数的限制这个问题, ext4 目前也是有文件个数的限制.</p>
 
-<p>跟上面的copy constructor 构造语义学一样, 如果能进行浅拷贝就浅拷贝, 不行的时候才会去生成assign operator</p>
+<p>不过这个问题在s3 上面会比在文件系统上面更加的突出, 因为文件系统毕竟是树形接口, 底下不会有太多的文件. 而s3 是一个打平的结构, 这个目录下面的文件个数以及元信息的访问必然比文件系统更多</p>
 
-<h3 id="section">对象析构语义学.</h3>
+<p>但是最后我们还是会像文件系统一样, 把这个信息放回在zeppelin 里面</p>
 
-<p>只有在基类拥有析构函数,或者object member 拥有析构函数的时候,编译器在为类合成析构函数,否则都被视为不需要.</p>
+<p>还有一个原因是我们所说的key-value store 更多偏向于里面的内容是没有关系的, 而在zeppelin 提供给s3 使用的场景里面, 这些key-value 是有关系的, 所以我更倾向于说目前的存储的架构是:</p>
 
-<p>这几个默认生成的函数都是在需要的时候才会被编译器生成出来, 默认情况下是不会生成这些函数的.所以如果class 当成一个存结构体使用, 效率是和C 的stuct 是一样的</p>
+<p>底层提供block store, 然后上层基于各个接口实现不同的封装, 提供amazon s3 的接口就是 s3, 提供POSIX 文件访问的接口就是分布式文件存储, 提供sql 接口就是newsql</p>
+
 
 </article>
 
@@ -262,8 +243,8 @@
   <div id="disqus_thread"></div>
   <script type="text/javascript">
     var disqus_shortname  = 'baotiao';
-    var disqus_identifier = '/2012/09/12/c++-constuct';
-    var disqus_title      = 'c++对象模型 构造函数语义学';
+    var disqus_identifier = '/2017/09/11/bottom-key-value-thinking';
+    var disqus_title      = 'thinking about the bottom key-value store';
 
     (function() {
       var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
