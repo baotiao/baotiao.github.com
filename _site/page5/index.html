@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?201709111831" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?201709120221" type="text/css">
 
     <!-- Fonts -->
     
@@ -202,6 +202,18 @@
     <div class="posts">
       
         <div class="post py3">
+          <p class="post-meta">Mar 28 2014</p>
+          <a href="/tech/2014/03/28/two-phase-commit/" class="post-link"><h3 class="h1 post-title">两阶段提交协议</h3></a>
+          <p class="post-summary">
+            
+              <p>组内的一个分享, 两阶段提交协议</p>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
           <p class="post-meta">Mar 14 2014</p>
           <a href="/tech/2014/03/14/conflict-solution/" class="post-link"><h3 class="h1 post-title">多IDC冲突常见解决方案</h3></a>
           <p class="post-summary">
@@ -308,18 +320,6 @@
   <li>在将本地文件写入到hdfs的节点中, 因为hdfs的写入性能比较慢.  所以在本地应该是writrBranch. 然后20ms向hdfs写一次. 这样比较适合.</li>
   <li>levelDB 如何实现原子的getAndSet.  因为levelDB不是再内存层面实现这个对具体某一个key操作. 所以这个levelDB 的getAndSet操作不是通过汇编层面实现的.</li>
 </ol>
-
-            
-          </p>
-        </div>
-      
-        <div class="post py3">
-          <p class="post-meta">Aug 22 2013</p>
-          <a href="/2013/08/22/leveldb-iterator/" class="post-link"><h3 class="h1 post-title">levelDB中用到的迭代器模型</h3></a>
-          <p class="post-summary">
-            
-              <h3 id="leveldb">迭代器的设计模式是一种很常用的设计模式. leveldb的实现里面就用到了.</h3>
-
 
             
           </p>
