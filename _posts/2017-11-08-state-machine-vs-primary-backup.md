@@ -27,8 +27,17 @@ summary: state machine replication vs primary backup system
 
 3. state machine replication 需要保证每一个操作都是确定性的, 因为每一个server 都必须保证apply 这一系列的client 操作以后, 所有server 的结果必须是一样的. 因此想比如跟时间, random 相关的这些不确定性操作在这里就无法实现, 而在primary back system 里面, 这些不确定性的操作会通过apply 到 state machine 转化成确定性的操作, 所以不会有这个问题. 因此常见的state machine replication 会将这些不确定性的操作给拒绝来解决这个问题. 也就是client 请求的时候就必须保证这些操作是确定性的
 
-    
 
-在zookeeper 的wiki 上面同样有state machine replication 和 primary backup system 的对比, 不过我感觉他主要想表达的是通过multi-paxos 实现的state machine replication 是无法满足有序提交这个问题的, 但是其实在raft 实现的state machine replication 里面是可以满足这个条件的.
+
+
+在 "Vive La Diffe ́rence:Paxos vs. Viewstamped Replication vs. Zab" 这个论文里面, state machine replication 也称作active replication, 而primary-backup system 也称作passive replication, 这样更加的形象, 也就是 state machine replication 是主动去同步数据, 通过达成一致性协议来返回给client, 而primary-backup system 是primary 做了所有了事情, 只是通过一致性协议把数据保存在backups 里面
+
+![Imgur](https://i.imgur.com/bbWksIz.jpg)
+
+
+
+
+
+在zookeeper 的wiki 上面同样有state machine replication 和 primary backup system 的对比, 不过我感觉他主要想表达的是通过multi-paxos 实现的state machine replication 是无法满足有序提交这个问题的, 但是其实在raft 实现的state machine replication 里面是可以满足这个条件的. 所以是否满足有序提交这个问题更多的如上图所示是支持不支持primary-order 的问题
 
 https://cwiki.apache.org/confluence/display/ZOOKEEPER/Zab+vs.+Paxos
