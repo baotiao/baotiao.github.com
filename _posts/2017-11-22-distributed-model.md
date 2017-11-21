@@ -1,7 +1,7 @@
 ---
 layout: post
-title: when we say distributed system, what are we talking about
-summary: when we say distributed system, what are we talking about
+title: when we talk about distributed system, what are we talking about
+summary: when we talk about distributed system, what are we talking about
 
 ---
 
