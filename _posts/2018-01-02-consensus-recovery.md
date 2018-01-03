@@ -1,8 +1,8 @@
 ---
-date: 2011-11-11 17:41:18+00:00
 layout: post
 title: difference between consensus algorithm's recovery phase
 summary: 一致性协议recovery 阶段不同做法
+
 ---
 
 
