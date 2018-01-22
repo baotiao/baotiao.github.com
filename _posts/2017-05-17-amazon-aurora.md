@@ -11,9 +11,9 @@ summary: Amazon Aurora 介绍
 
 最近Amazon 在 SIGMOD 发了AWS 上面号称比mysql 快5倍的RDS Aurora 的论文. 当年Amazon 发布Dynamo的论文时候, 让大家知道了原来Nosql 还可以这么搞, 就有了后来的百家齐放, 不知道Aurora 的效果如何.
 
+Aurora 主要介绍的是如果在公有云上创建高性能的关系型数据库, 跟现有的mysql对比, 主要使用的大量的AWS 的云服务为基础, 包括S3, DynamoDB,SWF 等等.
 
-
-Aurora 主要结构由 database 和 storage service 组成
+ Aurora 结构由 database 和 storage service 组成
 
 Aurora 使用叫做以服务为中心的架构设计. 其实就是 database 节点都是无状态节点, 也就是只包含了(SQL + Transactions) 这两层. 所有的数据都存在storage service.  这里的storage service 使用的是Amazon S3 服务. 
 
@@ -22,6 +22,10 @@ Aurora 的核心思想还是把 sql 里面的计算和存储分开, 并且是直
 ![Imgur](http://i.imgur.com/6xY047A.jpg)
 
 
+
+
+
+aurora 的database => storage node 这一层, 而storage node 中是由连续的PG 组成,   每一个PG大小是10G, 会有6个副本, 分散在3个机房.  PG 的每一个副本是 SSD盘挂载在 amazon 的ec2 下面
 
 
 
@@ -47,23 +51,49 @@ Aurora 提供的也是Quorum 机制, Qurora 认为(2 + 2 > 3) 的quorum 机制�
 
 综上 storage service 整体架构
 
-![Imgur](http://i.imgur.com/BhzOkP3.jpg)
+
+
+
+
+![Imgur](https://i.imgur.com/BhzOkP3.jpg)
 
 可以看出Aurora AZ是有主从结构的存在, 数据被切分成多个PG(Protection Groups), 每一个PG 由6个segment 组成, segment大小是10G. 每个PG的6个segment分散在3个AZ 中, 每一个AZ的storage node 由多个 segment 组成, 所有的这些PG 的redo log最后都会存储在Amazon S3上
-
-
 
 * 接下来就是核心叫 The log is the database
 
 熟悉Raft 协议的同学就不会陌生, 就是raft 协议里面Log 和状态机的关系. 只要顺序apply log, 那么就可以生成对应时刻的状态机. 在Aurora 里面log 就是mysql 的redo log, 状态机就是这个Segment. 当然Aurora 并没有使用Raft/Multi-paxos 协议, 但是我感觉有点类似, 我们下面分析.
 
+Term:
+
+LSN: log sequence number
+
 每一条redo log 有一个唯一的单调递增的 Log Sequence Number(LSN), 这个LSN 是由database 来生成, 从上面的架构图看估计是Dynamo DB. spanner 里面用的是时间戳. 
 
+VCL: volume complete LSN
+
+这个VCL 就是storage node 认为已经提交的LSN, 也就是storage node 保证小于等于这个VCL 的数据都已经确认提交了, 一旦确认提交, 下次recovery 的时候, 这些数据是保证有的. 如果在storage node recovery 阶段的时候, 比VCL 大于的数据就必须要删除, VCL 相当于commit Index.  这个VCL 只是在storage node 层面保证的,  有可能后续database 会让VCL 把某一段开始的 log 又都删掉. 
+
+这里VCL 只是storage node 向database 保证说, 在我storage node 这一层多个节点已经同步, 并且保证一致性了.这个VCL 由storage node 提供.
+
+CPL: consistency point LSN
+
+CPL 是有database 提供, 用来告诉storage node 层哪些日志可以持久化了, 其实这个和文件系统里面保证多个操作的原子性是一样的方法.
+
+为什么需要CPL, 可以这么理解, database 需要告诉storage node 我已经确认到哪些日志, 可能有些日志我已经提交给了storage node了, 但是由于日志需要truncate 进行回滚操作, 那么这个CPL就是告诉storage node 到底哪些日志是我需要的, 其实和文件系统里面保证多个操作原子性用的是一个方法, 所以一般每一个MTR(mini-transactions) 里面的最后一个记录是一个CPL. 
+
+VDL: volume durable LSN
+
+这些CPL 里面最大的并且比VCL小的叫做VDL(Volume Durable LSNs).  可以这么理解, 因为database 会标记很多个CPL, 那么最大的那个并且比VCL 小, 那么也就是到这个VDL 为止的所有的Log 都已经在storage node 这一层持久化了. 那么就是目前database 确认已经提交的位置点了.
+
+所以VDL 是database 这一层已经确认提交的位置点了, 一般来说VCL 都会比VDL 要来的大
+
+SCL: segment complete LSN
+
+MTR: mini transaction
+
+
+
 每一个独立的storage node 都需要保留自己的redo log stream, Aurora 认为 2PC 太繁琐,  容错太差, 因为写入并没有走2PC. 写入是Quorum 的, 不会保证每一个storage node 都有完整的redo log stream. 然后Aurora 通过gossip 协议不断去把每一个storage node 里面空缺的redo log 补上, 并更新DB 里面的内容. 这里就更Multi-Paxos 的写入过程基本一样
-
-storage service 会确认一个最大的保证之前操作都已经写入的 LSN VCL(Volume Complete LSN). 像Raft 里面的log 一样, 可能存在写入的log, 最后没提交的情况. 
-
-database 会通过标记的LSN 来对这些log 进行截断, 这种标记的LSN 叫做CPL(consistency Point LSNs), 这些CPL 里面比VCL 小的最大的那个叫做VDL(Volume Durable LSNs).  这个就跟Raft 里面的全局commit Index 类似. 一般每一个MTR(mini-transactions) 里面的最后一个记录是一个CPL.
 
 SCL(segment complete LSN) 记录着每一个segment 已经确认commit 的 LSN, 相当于raft 里面的每一个节点自己的commit Index. Aurora 也会使用这个commit Index 来进行节点间交互去补齐log.
 
@@ -72,6 +102,44 @@ SCL(segment complete LSN) 记录着每一个segment 已经确认commit 的 LSN, 
 如果这个事务提交失败, 那么接下来的Recovery 是怎么处理的呢?
 
 首先这个Recovery 是由storage node 来处理的,  是以每一个PG 为维度进行处理, 在database 起来的时候通过 quorum 读取足够多的副本, 然后根据副本里面的内容得到VDL, 因为每一个时候最后一条记录是一个CPL, 这些CPL 里面最大的就是VDL,  然后把这个VDL 发送给其他的副本, 把大于VDL 的redo log 清除掉, 然后恢复这个PG的数据
+
+
+
+#### 4.2.3 Reads
+
+读取的时候, database 节点会带一个read-point, 代表当前这个databae 节点所需要的VDL, 那么就会在读取的时候去找一个storage node, 这个storage node 必须包含大于等于该VDL 的日志, 上面讲到VDL 是当前最大的并且小于VCL 的 CPL, 所以其实这里和zookeeper 的做法类似, 就是找一个storage node 他的VDL 大于这个read-point. 
+
+
+
+#### question
+
+1. client 读取的时候可能是从read replicate 这个副本去读, 那么怎么保证读取到的是最新的数据呢? 是不是客户端也需要记录下一些什么东西?
+
+
+
+
+
+
+
+#### storage node
+
+![Imgur](https://i.imgur.com/M6wYlCR.jpg)这里是storage node 写入主要做的事情
+
+1. 接收到 log record 然后加入到内存的queue
+2. 将这个 log record 保存在本地然后这个时候就可以给用户返回了
+3. 将这些Log 进行整理, 包括看log 之间是否有空洞等等, 主要是为了下一步同步给其他的slave 做准备
+4. 通过gossip 协议将log 同步给其他节点(这里具体的做法有点类似raft 协议了, 每一个Log 也会有一个Lsn 这样的东西)
+5. 5这步和4这步是同时进行的过程, 也就是将2 里面的Log 进行合并成page,  相当于把log + page 合并成新的page
+6. 将第4, 第5步定期生成的 Log, page 都保存到s3 中
+7. 定期在5这步里面把旧的Log给删除
+8. 定期在5这步里面进行文件的crc 校验
+
+
+
+
+#### 整体结构
+
+![Imgur](https://i.imgur.com/tE2TMpo.jpg)
 
 
 
@@ -85,4 +153,3 @@ SCL(segment complete LSN) 记录着每一个segment 已经确认commit 的 LSN, 
 6. 支持分布式的事务并没有通过2PC, 而是通过gossip+Quorum 机制来保证(跟Dynamo 通过gossip 来保证元信息的一致性一样的暴力, 哈哈), 在加上每一个redo log 有一个唯一的LSN 等等机制来实现强一致. 当然其实这里已经很类似raft 协议了
 
 不过整个文章都没有讲到针对这种将storage, log 与计算层面分离以后, SQL 层面针对性的改动, 因为如果有范围查询的话以前在单机就本地执行就好, 但是现在这种架构需要生成多个请求去不同的storage-node 去请求数据. 倒是 Spanner: Becoming a SQL System 有大量的介绍, 回头可以看看
-
