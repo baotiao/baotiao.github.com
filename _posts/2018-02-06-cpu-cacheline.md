@@ -13,7 +13,7 @@ http://cenalulu.github.io/linux/all-about-cpu-cache/
 
 http://igoro.com/archive/gallery-of-processor-cache-effects/
 
-一般来说cpu cache line 的大小是64byte.
+一般来说x86 结构cpu cache line 的大小是64byte, arm cacheline 是32byte
 
 Cache Line可以简单的理解为CPU Cache中的最小缓存单位。目前主流的CPU Cache的Cache Line大小都是64Bytes。假设我们有一个512字节的一级缓存，那么按照64B的缓存单位大小来算，这个一级缓存所能存放的缓存个数就是`512/64 = 8`个。
 
