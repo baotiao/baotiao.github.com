@@ -4,6 +4,9 @@ title: Paper Review - Amazon Aurora
 summary: Amazon Aurora 介绍
 
 ---
+### [Paper review] Amazon Aurora 
+
+
 
 最近Amazon 在 SIGMOD 发了AWS 上面号称比mysql 快5倍的RDS Aurora 的论文. 当年Amazon 发布Dynamo的论文时候, 让大家知道了原来Nosql 还可以这么搞, 就有了后来的百家齐放, 不知道Aurora 的效果如何.
 
@@ -61,7 +64,7 @@ Aurora 提供的也是Quorum 机制, Qurora 认为(2 + 2 > 3) 的quorum 机制�
 
 每一个独立的storage node 都需要保留自己的redo log stream, Aurora 认为 2PC 太繁琐,  容错太差, 因为写入并没有走2PC. 写入是Quorum 的, 不会保证每一个storage node 都有完整的redo log stream. 然后Aurora 通过gossip 协议不断去把每一个storage node 里面空缺的redo log 补上, 并更新DB 里面的内容. 这里就跟Multi-Paxos 的写入过程基本一样
 
-Term:
+**Term:**
 
 * LSN: log sequence number
 
@@ -75,19 +78,19 @@ Term:
 
 * CPL: consistency point LSN
 
-  CPL 是有database 提供, 用来告诉storage node 层哪些日志可以持久化了, 其实这个和文件系统里面保证多个操作的原子性是一样的方法.
+  CPL 是由database 提供, 用来告诉storage node 层哪些日志可以持久化了, 其实这个和文件系统里面保证多个操作的原子性是一样的方法.
 
   为什么需要CPL, 可以这么理解, database 需要告诉storage node 我已经确认到哪些日志, 可能有些日志我已经提交给了storage node了, 但是由于日志需要truncate 进行回滚操作, 那么这个CPL就是告诉storage node 到底哪些日志是我需要的, 其实和文件系统里面保证多个操作原子性用的是一个方法, 所以一般每一个MTR(mini-transactions) 里面的最后一个记录是一个CPL. 
 
 * VDL: volume durable LSN
 
-  这些CPL 里面最大的并且比VCL小的CPL叫做VDL(Volume Durable LSNs).  可以这么理解, 因为database 会标记很多个CPL, 那么最大的那个并且比VCL 小, 那么也就是到这个VDL 为止的所有的Log 都已经在storage node 这一层持久化了. 那么就是目前database 确认已经提交的位置点了.
+  因为database 会标记多个CPL, 这些CPL 里面最大的并且比VCL小的CPL叫做VDL(Volume Durable LSNs). 因为VCL表示的是storage node 认为已经确认提交的LSN, 比VCL小, 说明这些日志以及全部都在storage node 这一层确认提交了, CPL 是database 层面告诉storage node 哪些日志可以持久化了,  那么VDL 表示的就是已经经过database 层确认, 并且storage node层面也确认已经持久化的Log, 那么就是目前database 确认已经提交的位置点了.
 
   所以VDL 是database 这一层已经确认提交的位置点了, 一般来说VCL 都会比VDL 要来的大, 这个VDL 是由database 来提供的, 一般来说VDL 也才是database 层面关心的, 因为VCL 中可能包含一个事务中未提交的部分.
 
 * SCL: segment complete LSN
 
-  SCL(segment complete LSN) 记录着每一个segment 已经确认commit 的 LSN, 相当于raft 里面的每一个节点自己的commit Index. Aurora 也会使用这个commit Index 来进行节点间交互去补齐log.
+  SCL(segment complete LSN) 记录着每一个segment 已经确认commit 的 LSN, 相当于raft 里面的每一个节点自己的commit Index. **这里与VCL 的区别是, VCL 是所有节点确认的已经提交的LSN, 而SCL 是自己认为确认已经提交的LSN,** Aurora 也会使用这个commit Index 来进行节点间交互去补齐log.
 
 * MTR: mini transaction
 
@@ -140,12 +143,5 @@ Term:
 
 1. 项目直接从mysql 5.6 版本的代码剥离出来, 那么这样的换, SQL 协议兼容这块会做的比较容易了.
 2. 计算和存储分开, 目前是这些分布式系统的通用实现了吧
-3. Aurora 用了大量AWS 内部非常成熟的服务, 和 spanner-sql 类似, 目前来看基于稳定的Nosql 去实现Newsql 大家基本都是这个路子. 当然得有一个足够稳定的底层存储才行.
-4. 每一个Protect Group 的内容是一个状态机, 对应的redo log 保存在Amazon S3 里面, 只需要通过顺序apply redo log 的内容就可以恢复这个Protect Group
-5. 将redo log 做成异步, 这样带来好处可以惰性更新. 读取的时候如果这个page 还有没apply 的redo log, 就等待redo log apply 完成. 还有就是Rocovery 的时候非常的快, 不需要等redo log apply 完成再起来. 其实这又和raft 里 状态机的关系一样
-6. 支持分布式的事务并没有º
-
-不过整个文章都没有讲到针对这种将storage, lL 层面针对性的改动, 因为如果有范围查询的话仆是现在这种架构需要生成多个请求去不同的storBecoming a SQL System 有大量的介绍, 回头可以看看
-
-
-
+3. Aurora 用了大量AWS 内部非常成熟的服务, 和 spanner-sql 类似o log 保存在Amazon S3 里面, 只需要通过顺序apply t Group
+5. 将redo log 做成异步, 这样带来好处可以有没apply 的redo log, 就等待redo log apply 完成. 还歉redo log apply 完成再起来. 其实这又和raft 里面l机就本地执行就好, 但是现在这种架构需要生成-node 去请求数据. 倒是 Spanner: Becoming a SQL System 
