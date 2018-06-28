@@ -12,6 +12,7 @@ tags: links
 - [宋昭][6]
 - [王康][7]
 - [晓飞][8]
+- [小兄弟][11]
 - [小白帽][10]
 
 ### blogs
@@ -29,3 +30,4 @@ tags: links
 [8]: http://jacketwoo.github.io/
 [9]: http://panweizeng.com/
 [10]: http://www.leviathan.vip/archives/
+[11]: https://gaodq.github.io/
