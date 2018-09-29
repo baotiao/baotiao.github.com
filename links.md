@@ -14,6 +14,7 @@ tags: links
 - [晓飞][8]
 - [小兄弟][11]
 - [小白帽][10]
+- [骑泽][12]
 
 ### blogs
 
@@ -31,3 +32,4 @@ tags: links
 [9]: http://panweizeng.com/
 [10]: http://www.leviathan.vip/archives/
 [11]: https://gaodq.github.io/
+[12]: https://icaruszzc.github.io
