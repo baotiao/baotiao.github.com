@@ -64,17 +64,26 @@ Aurora 提供的也是Quorum 机制, Qurora 认为(2 + 2 > 3) 的quorum 机制�
 
 每一个独立的storage node 都需要保留自己的redo log stream, Aurora 认为 2PC 太繁琐,  容错太差, 因为写入并没有走2PC. 写入是Quorum 的, 不会保证每一个storage node 都有完整的redo log stream. 然后Aurora 通过gossip 协议不断去把每一个storage node 里面空缺的redo log 补上, 并更新DB 里面的内容. 这里就跟Multi-Paxos 的写入过程基本一样
 
+
 **Term:**
+
+**InnoDB 相关**
 
 * LSN: log sequence number
 
-  每一条redo log 有一个唯一的单调递增的 Log Sequence Number(LSN), 这个LSN 是由database 来生成, 从上面的架构图看估计是Dynamo DB. spanner 里面用的是时间戳. 
+  每一条redo log 有一个唯一的单调递增的 Log Sequence Number(LSN), 这个LSN 是由database 来生成.
+
+* MTR: mini transaction
+
+  首先和InnoDB 中的transaction 是两个完全不同概念. transaction 是和对用户提交的一次事务, 而mini transaction 只和redo log 相关,  InnoDB 的redo log 都是由mtr 产生, 所以redo log 是由一堆mtr 组成, 每一个mtr 必须是原子的, mtr 包含对page 的加锁, 放锁以及page 内容的修改. 一个事务产生的redo log 一般会包含多个mtr.
+
+**aurora 引入**
 
 * VCL: volume complete LSN
 
   这个VCL 就是storage node 认为已经提交的LSN, 也就是storage node 保证小于等于这个VCL 的数据都已经确认提交了, 一旦确认提交, 下次recovery 的时候, 这些数据是保证有的. 如果在storage node recovery 阶段的时候, 比VCL 大于的数据就必须要删除, VCL 相当于commit Index.  这个VCL 只是在storage node 层面保证的,  有可能后续database 会让VCL 把某一段开始的 log 又都删掉. 
 
-  这里VCL 只是storage node 向database 保证说, 在我storage node 这一层多个节点已经同步, 并且保证一致性了.这个VCL 由storage node 提供.
+  这里VCL 只是storage node 向database 保证说, 在我storage node 一层多个节点已经同步, 并且保证一致性了.这个VCL 由storage node 提供.
 
 * CPL: consistency point LSN
 
@@ -91,14 +100,6 @@ Aurora 提供的也是Quorum 机制, Qurora 认为(2 + 2 > 3) 的quorum 机制�
 * SCL: segment complete LSN
 
   SCL(segment complete LSN) 记录着每一个segment 已经确认commit 的 LSN, 相当于raft 里面的每一个节点自己的commit Index. **这里与VCL 的区别是, VCL 是所有节点确认的已经提交的LSN, 而SCL 是自己认为确认已经提交的LSN,** Aurora 也会使用这个commit Index 来进行节点间交互去补齐log.
-
-* MTR: mini transaction
-
-  那么事务commit 的过程就是这样, 每一个事务都有一个对应"commit LSN", 那么这个事务提交以后就去做其他的事情, 什么时候通知这个事务已经提交成功呢? 就是当VDL(VDL 由databse 来发送, storage service来确认更新) 大于等于"commit LSN" 以后, 就会有一个专门的线程去通知这个等待的client, 你这个事务已经提交完成了. 
-
-  如果这个事务提交失败, 那么接下来的Recovery 是怎么处理的呢?
-
-  首先这个Recovery 是由storage node 来处理的,  是以每一个PG 为维度进行处理, 在database 起来的时候通过 quorum 读取足够多的副本, 然后根据副本里面的内容得到VDL, 因为每一个时候最后一条记录是一个CPL, 这些CPL 里面最大的就是VDL,  然后把这个VDL 发送给其他的副本, 把大于VDL 的redo log 清除掉, 然后恢复这个PG的数据
 
 
 
