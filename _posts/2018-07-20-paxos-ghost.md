@@ -26,7 +26,7 @@ summary: 关于Paxos 幽灵复现问题的看法
 
 为了处理“幽灵复现”问题，我们在每条日志的内容中保存一个generateID，leader在生成这条日志时以当前的leader ProposalID作为generateID。按logID顺序回放日志时，因为leader在开始服务之前一定会写一条StartWorking日志，所以如果出现generateID相对前一条日志变小的情况，说明这是一条“幽灵复现”日志（它的generateID会小于StartWorking日志），要忽略掉这条日志。
 
-![架构师需要了解的Paxos原理、历程及实战](https://ws2.sinaimg.cn/large/006tNc79ly1ftdiwbbqjgj30zo0egmzn.jpg)
+![Imgur](https://i.imgur.com/TVRIdAC.png)
 
 
 
@@ -51,7 +51,7 @@ summary: 关于Paxos 幽灵复现问题的看法
 
 那么对应于raft 中的第三态问题是, 当最后log Index 为4 的请求超时的时候, 状态机中出现的两种场景都是可能的
 
-![look-behind-buffer-5_jpg](https://ws4.sinaimg.cn/large/006tNc79ly1ftdkuv1mp3j31760f275i.jpg)
+![Imgur](https://i.imgur.com/tjjjyaB.png)
 
 
 
@@ -71,21 +71,21 @@ summary: 关于Paxos 幽灵复现问题的看法
 
 Log Index 4,5 客户端超时未给用户返回, 存在以下日志场景
 
-![look-behind-buffer-5_jpg-1863924](https://ws2.sinaimg.cn/large/006tNc79ly1ftdkw4nyb5j30mg0dkjru.jpg)
+![Imgur](https://i.imgur.com/0rCN6aq.png)
 
 然后 (a) 节点宕机, 这个时候client 是查询不到 Log entry 4, 5 里面的内容
 
-![look-behind-buffer-5_jpg-1863986](https://ws2.sinaimg.cn/large/006tNc79ly1ftdkx82yl3j30m20cmjrx.jpg)
+![Imgur](https://i.imgur.com/S6HbOlq.jpg)
 
 在(b)或(c) 成为Leader 期间, 没有写入任何内容, 然后(a) 又恢复, 并且又重新选主, 那么就存在一下日志, 这个时候client 再查询就查询到Log entry 4,5 里面的内容了
 
-![look-behind-buffer-5_jpg-1864099](https://ws2.sinaimg.cn/large/006tNc79ly1ftdkz5ym7sj30m80cu74v.jpg)
+![Imgur](https://i.imgur.com/qAixVwu.png)
 
 
 
 那么Raft 里面加入了新Leader 必须写入一条当前Term 的Log Entry 就可以解决这个问题, 其实和之前郁白提到的写入一个StartWorking 日志是一样的做法, 由于(b), (c) 有一个Term 3的日志, 就算(a) 节点恢复过来, 也无法成了Leader, 那么后续的读也就不会读到Log Entry 4, 5 里面的内容
 
-![look-behind-buffer-5_jpg-1864187](https://ws2.sinaimg.cn/large/006tNc79ly1ftdl0p3qbyj30nc0d4t9c.jpg)
+![Imgur](https://i.imgur.com/8xNvnDk.png)
 
 
 

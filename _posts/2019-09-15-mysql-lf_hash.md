@@ -24,7 +24,7 @@ our algorithm *will not move the items among the buckets*, rather, it *will move
 
 也就是说不去移动buckets 里面的item, 而是去移动这个bucket, 具体到实现中就是所有的hash_table 中的元素都是在一个有序链表里面, 然后每一个bucket 有一个哨兵指针指向list 里面的元素, 哨兵指向的元素就是该bucket 的第一个元素
 
-![image-20190914024441592](https://tva1.sinaimg.cn/large/006y8mN6ly1g6ygsfuby8j319s0ikadh.jpg)
+![Imgur](https://i.imgur.com/EuFYlxN.jpg)
 
 
 
