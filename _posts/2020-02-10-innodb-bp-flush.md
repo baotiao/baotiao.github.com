@@ -4,26 +4,41 @@ title: InnoDB buffer pool flush 策略
 summary: InnoDB buffer pool flush 策略
  
 ---
-
 ### InnoDB buffer pool flush 策略
 
 
 
 **1. 刷脏整体策略**
 
-
+ 
 
 首先从整体上来说, 刷脏的coordinator_thread 会判断进入哪一种场景刷脏
 
 在 buf_flush_page_coordinator_thread() 函数里面 刷脏主要有3个场景
 
 1. 如果 buf_flush_sync_lsn  > 0, 则因为redo log free space 不够了, 那么我们需要进入同步刷脏阶段了. 所以这个时候pc_request(ULINT_MAX, lsn_limit). 第一个参数直接是ULINT_MAX, 那么 slot->n_pages_requested = ULINT_MAX; 这个时候每一个刷脏线程都尽可能的全部进行刷脏, 所以这个时候是可能超过io_capacity_max 的限制的, 因为并不去检查一个buffer pool 能刷多少脏页了
-2. 最常见逻辑 srv_check_activity(last_activity),  也就是系统有正常活动, 这个时候会通过 page_cleaner_flush_pages_recommendation() 函数去合理的判断应该刷多少个page, 既不抖动, 也能够满足刷脏需求
+2. 最常见逻辑 srv_check_activity(last_activity),  也就是系统有正常活动, 这个时候会通过 page_cleaner_flush_pages_recommendation() 函数去合理的判断应该刷多少个page, 既不抖动, 也能够满足刷脏需求, 但是不会超过io_capacity 的限制
 3. ret_sleep == OS_SYNC_TIME_EXCEEDED  也就是如果系统没有活动, 那么就把srv_io_capacity 尽可能的用上, 100% 的全力去刷脏, 但是不会超过io_capacity_max 的限制.
 
 
 
-第1种和第3中都不需要考虑需要刷多少, 都是尽可能用上就可以. 在第二种就是我们场景的处于adaptive flushing 中
+所以3个场景的刷脏速率依次是
+
+2<3<1
+
+限制的刷脏速率
+
+io_capacity < io_capacity_max < 无限制
+
+
+
+buf_flush_sync_lsn 这个是在什么时候设定的? 
+
+是在做checkpoint 的时候,  log_checkpointer 打checkpoint 之前, 都会检查一下, 是否需要做同步刷脏操作 => log_consider_sync_flush
+
+
+
+在第二种就是我们场景的处于adaptive flushing 中
 
 这里内存占用百分比是多少的时候触发刷脏? 以及内存占用百分比是多少的时候触发更激进的刷脏策略?
 
@@ -57,8 +72,6 @@ pct_for_lsn = af_get_pct_for_lsn() 根据redo log 产生的多少来决定是否
 
 
 
-
-
 page_cleaner->slot 和 page cleaner thread 并不会相等
 
 而且page cleaner 去page_cleaner->slot 里面去领任务, 比如我们有8个buffer pool 那么这个page_cleaner->slot = 8.  我们配置了innodb_page_cleaner = 4, 那么一个thread 就需要flush 2 个buffer pool.
@@ -72,15 +85,15 @@ page_cleaner->slot 和 page cleaner thread 并不会相等
 
 
 ```c++
-  n_pages = (PCT_IO(pct_total) + avg_page_rate + pages_for_lsn) / 3;
+n_pages = (PCT_IO(pct_total) + avg_page_rate + pages_for_lsn) / 3;
 
-  printf("baotiao n_pages %d %d %d %d %d\n", PCT_IO(pct_total), avg_page_rate,  pages_for_lsn, srv_io_capacity, srv_max_io_capacity);
-	  if (n_pages > srv_max_io_capacity) {
+printf("baotiao n_pages %d %d %d %d %d\n", PCT_IO(pct_total), avg_page_rate,  pages_for_lsn, srv_io_capacity, srv_max_io_capacity);
+	if (n_pages > srv_max_io_capacity) {
     n_pages = srv_max_io_capacity;
-  }  
-  // 打印出来是 baotiao n_pages 291 189 400 100 200
-  // 所以可以看到 pct_total 是可以超过100 的, 并且最后的这个n_pages 是经常会超过 srv_io_capacity 的, 只要avg_page_rate 足够快, 就很容易超过srv_io_capacity 限制.
-  // 但是最后这里会有判断如果n_pages > srv_max_io_capacity, 会把n_pages 设置成 srv_max_io_capacity
+}  
+// 打印出来是 baotiao n_pages 291 189 400 100 200
+// 所以可以看到 pct_total 是可以超过100 的, 并且最后的这个n_pages 是经常会超过 srv_io_capacity 的, 只要avg_page_rate 足够快, 就很容易超过srv_io_capacity 限制.
+// 但是最后这里会有判断如果n_pages > srv_max_io_capacity, 会把n_pages 设置成 srv_max_io_capacity
 ```
 
 
@@ -96,6 +109,8 @@ page_cleaner->slot 和 page cleaner thread 并不会相等
 
 
 **2. 具体刷脏方法**
+
+
 
 **当free list 里面没有空闲page 的时候, 从LRU list 上面淘汰数据和从flush_list 上面刷脏, 这个策略是如何控制的呢? **
 
@@ -133,9 +148,17 @@ bpage->buf_fix_count 表示的是记录这个bpage 被引用次数, 每次访问
 
 那么什么时候会从flush_list 上面去执行flush page 操作呢?
 
-在系统正常运行的过程中, 就不断会有page clean 线程对page 执行 flush 操作, 这样可以触发用户从LRU list 里面找page 的时候, 只需要replace 操作, 不需要flush single page 操作, 因为flush single page 操作如果触发, 对用户的请求性能还是影响很大的.
+在系统正常运行的过程中, 就不断会有page clean 线程对page 执行 flush 操作, 这样可以触发用户从LRU list 里面找page 的时候, 只需要replace 操作, 不需要flush single page 操作, 因为flush single page 操作如果触发, 对用户的请求性能影响很大.
 
-所以在page cleaner thread 执行flush 操作以后, 是否会把page 同时从flush_list, LRU list 同时删除, 还是只是将oldest_modification lsn 设置成0 就可以了?
+所以在page cleaner thread 执行flush 操作以后, 在写IO 完成以后, 是否会把page 同时从flush_list, LRU list 同时删除, 还是只是将oldest_modification lsn 设置成0 就可以了?
 
+这里分两种场景考虑:
 
+1. 如果这个page 是从flush_list 上面写IO 完成, 那么就不需要从flush_list上面删除, 因为从flush list 上面删除要完成的操作是刷脏,既然只是为了刷脏, 那么就没必要让他从lru list 上面删除, 有可能这个page 被刷脏了, 还是一个热page 是需要访问的
 
+2. 如果这个page 是从lru_list 上面写IO 完成, 那就需要从lru list 上面删除
+
+   原因: 从lru_list 上面删除的page 肯定说明这个page 不是hot page 了,更大的原因可能是buffer pool 空间不够, 需要从lru list 上面淘汰一些page了, 既然这些page 是要从lru list 上面淘汰的, 那么肯定就需要从LRU list 上面移除
+   
+
+具体代码在buf_page_io_complete() 中

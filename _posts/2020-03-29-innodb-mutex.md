@@ -8,7 +8,7 @@ summary: InnoDB mutex 变化历程
 
 InnoDB 中的mutex 和 rw_lock 在早期的版本都是通过系统提供的cas, tas 语义自己进行实现, 并没有使用pthread_mutex_t, pthread_rwlock_t,  这样实现的好处在于便于统计, 以及为了性能考虑, 还有解决早期操作系统的一些限制.
 
-大概是原理是:
+大概原理是:
 
 在mutex_enter 之后, 在spin 的次数超过 innodb_sync_spin_loops=30 每次最多 innodb_spin_wait_delay=6如果还没有拿到Mutex, 会主动yield() 这个线程, 然后wait 在自己实现的wait array 进行等待.
 
