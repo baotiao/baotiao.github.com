@@ -90,7 +90,7 @@ ibool buf_flush_ready_for_replace(buf_page_t *bpage) {
 
 因此在buf_page_get_gen() 的最后, 是需要获得这个page 的rw_lock. 
 
-在InnoDB 访问btree 的过程中, btr_cur_search_to_nth_level() 函数里面, 在乐观访问的时候, 会对一个page 加s lock, 在有可能修改的时候, 先加sx lock, 然后确认要修改的时候加 x lock, 具体看文章 [InnoDB latch](./InnoDB btr | InnoDB latch.md)
+在InnoDB 访问btree 的过程中, btr_cur_search_to_nth_level() 函数里面, 在乐观访问的时候, 会对一个page 加s lock, 在有可能修改的时候, 先加sx lock, 然后确认要修改的时候加 x lock.
 
 
 
