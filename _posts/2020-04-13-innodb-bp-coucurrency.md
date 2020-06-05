@@ -41,7 +41,7 @@ InnoDB 也是尽可能让持有LRU list, flush list 的时间尽可能短
 我们也叫做buffer block mutex, 在buf_block_t 结构体里面.
 
 BPageMutex mutex 保护的是io_fix, state, buf_fix_count, state 等等变量, 引入这个mutex 是为了减少早期版本直接使用buffer pool->mutex 的开销
-
+可以理解BPageMutex 是保护buf_block_t 结构体, 而下面BPageLock 是为了保护page frame
 
 
 **io_fix, buf_fix_count**
@@ -86,12 +86,30 @@ ibool buf_flush_ready_for_replace(buf_page_t *bpage) {
 
 **BPageLock lock  rw_lock**
 
-在获得一个page 的函数buf_page_get_gen() 里面, 一般同时会执行获得这个page 的rw_lock 类型, 这里的rw_lock 值得是这个page frame rw_lock.
+如上所说, BPageMutex 是保护buf_block_t 结构体, 而BPageLock 是为了保护page frame.
+当需要对buffer pool page frame 内容进行读取/修改的时候, 就需要持有BPageLock.
 
-因此在buf_page_get_gen() 的最后, 是需要获得这个page 的rw_lock. 
+比如最常见的我们要修改一个btree page 内容的时候,
+都需要通过btr_cur_search_to_nth_level() 把page 从磁盘读取到内存中, 然后修改.
+这里修改之前会对page 加 x lock. 如果是读取操作, 就需要加s lock.
 
-在InnoDB 访问btree 的过程中, btr_cur_search_to_nth_level() 函数里面, 在乐观访问的时候, 会对一个page 加s lock, 在有可能修改的时候, 先加sx lock, 然后确认要修改的时候加 x lock.
+同样后台进行刷脏操作的时候, 也需要对page 加x lock.
 
+在InnoDB 访问btree 的过程中, btr_cur_search_to_nth_level() 函数里面, 会对btree index s lock, 如果只是修改leaf page, 那么在8.0 里面, 是沿着btree 的搜索路径, 给路径上的non-leaf page 都加上s lock, 最后给leaf page 加x lock. 具体看文章 InnoDB latch
+
+但是后台操作比如刷脏, 或者当前page frame 不在buffer pool 中, 同样需要拿 page frame rw_lock, 那么是会对前台的page 访问有非常大的性能影响. 因此上述的io_fix, page block mutex 也是为了尽可能减少持有page frame rw_lock 的机会
+
+我们看到官方做了很多优化, 比如尽可能减少访问btree 的时候, 拿着btree index lock, 在访问btree 的时候, 不会像在5.6 时候一样, 拿着整个btree index lock.
+
+这里与5.6 对比, 5.6 在做SMO 的时候, 是所有的读操作也无法进行的, 因为读操作都需要加 index s lock..
+
+在8.0 在做SMO 的时候, 因为index 加的是sx lock, 所以所有的读操作依然是可以进行的, 但是由于sx lock 和 sx lock 之间是互斥的, 因此同一时刻只能有一个smo 在进行.  但是这也比5.6 好很多,  至少在SMO 的过程, 读操作还可以进行的
+
+但是8.0 里面还有一个约束就是同一时刻只能有一个SMO 正在进行, 因为SMO 的时候需要拿 sx lock. 这也是目前8.0 主要问题.
+
+(其实引入sx lock 是对读取的优化, 对写入并没有优化. 因为持有sx lock 的时候, s lock 操作是可以进行的, 但是x lock 操作是不可以进行的. 跟原先需要修改就直接拿着x lock 对比, 允许更多的读取了, 但是x lock 和之前是一样的)
+
+但是这些优化只是优化了用户访问路径上page frame rw_lock 的获取, 但是在后台的路径并没有过多的优化.
 
 
 但是后台操作比如刷脏, 或者当前page frame 不在buffer pool 中, 同样需要拿 page frame rw_lock, 那么是会对前台的page 访问有非常大的性能影响. 因此上述的io_fix, page block mutex 也是为了尽可能减少持有page frame rw_lock 的机会
