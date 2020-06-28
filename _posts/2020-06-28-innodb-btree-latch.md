@@ -1,11 +1,9 @@
 ---
 layout: post
-title: Buffer pool 并发控制
-summary: Buffer pool 并发控制
+title: InnoDB btree latch 优化历程
+summary: InnoDB btree latch 优化历程
 
 ---
-### InnoDB btree latch 优化历程
-
 
 
 (一般在数据库里面latch 指的是物理Lock, Lock 指的是事务的逻辑lock, 这里混用)
