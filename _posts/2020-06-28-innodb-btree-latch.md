@@ -81,7 +81,8 @@ SX Lock 是和 S LOCK 不冲突, 但是和 X LOCK 冲突的, SX LOCK 和 SX LOCK
 
 SX LOCK 的意思我有意向要修改这个保护的范围, 但是现在还没开始修改, 所以还可以继续访问, 但是要修改以后, 就无法访问了.  因为我有意向要修改, 因此不能允许其他的改动发生, 因此和 X LOCK 是冲突的.
 
-**目前主要用途是标记搜索路径上的page sx lock, 当确认需要修改了以后, 见这些page sx lock 转换成x lock**
+**目前主要用途因为index SX lock 和 S LOCK 不冲突, 因此悲观insert 改成index SX LOCK 以后, 可以允许用户的read/乐观写入**
+
 
 SX LOCK 的引入由这个 WL 加入 [WL#6363](https://dev.mysql.com/worklog/task/?id=6363)
 
