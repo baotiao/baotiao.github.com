@@ -1,7 +1,7 @@
 ---
 layout: post
-title: Worklog 更新 InnoDB\: Faster truncate/drop table space
-summary: InnoDB\: Faster truncate/drop table space
+title: [Worklog 更新] InnoDB Faster truncate/drop table space
+summary: InnoDB Faster truncate/drop table space
 ---
 
 **问题**
