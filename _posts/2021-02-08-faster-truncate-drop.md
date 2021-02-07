@@ -1,6 +1,6 @@
 ---
 layout: post
-title: [Worklog] InnoDB Faster truncate/drop table space
+title: "["Worklog"]" InnoDB Faster truncate/drop table space
 summary: InnoDB Faster truncate/drop table space
 ---
 
