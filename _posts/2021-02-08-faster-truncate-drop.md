@@ -137,7 +137,7 @@ BUF_REMOVE_NONE:
 只需要将tablespace 标记删除, 不需要清理bp, 该tablespace 对应bp 中的数据就变成 stale page, 后续会有操作将这些stale page 删除或者复用.
 
 
-**<那么什么时候会将这些 stale page 删除呢?**
+**那么什么时候会将这些 stale page 删除呢?**
 
 总共有多个场景:
 
