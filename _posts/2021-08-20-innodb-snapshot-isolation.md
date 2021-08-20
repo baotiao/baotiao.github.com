@@ -150,7 +150,12 @@ mysql> select * from checking;
                                         | Tom  |    1450 |
                                         +------+---------+
                                         3 rows in set (0.00 sec)
-																				# 这里可以看到Tom = 1450, 而不是从上面 1000 + 200 = 1200, 因为update 的时候, InnoDB 实现的是write-committed repeatable, 不是基于场景的snapshot isolation的实现, write 操作是直接读取的已提交的最新版本的数据1250, 而不是snapshot 中的数据1000.
+
+                                      # 这里可以看到Tom = 1450, 而不是从上面 1000 + 200 = 1200, 
+                                      # 因为update 的时候, InnoDB 实现的是write-committed repeatable, 
+                                      # 不是基于场景的snapshot isolation的实现, 
+                                      # write 操作是直接读取的已提交的最新版本的数据1250, 
+                                      # 而不是snapshot 中的数据1000.
 																				
                                         mysql> commit;
                                         Query OK, 0 rows affected (0.00 sec)
