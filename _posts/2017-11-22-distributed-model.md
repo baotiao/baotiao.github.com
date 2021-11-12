@@ -23,11 +23,11 @@ summary: when we talk about distributed system, what are we talking about
 
 注意这里所说的同步网络跟异步网络跟我们讲操作系统里面的同步操作和异步操作不是一个意思. 计算机领域有很多这样的例子, 比如堆这个字, 在数据结构里面表示"堆" 这个数据结构, 这内存分配里面, 又表示这个是从"堆"空间来分配的内容
 
-* syschronous model
+**syschronous model**
 
 指的是在这个模型里面, 消息的送达和消息的执行是按照规定的时间完成的, 整个系统是按照round 运行, 某一条指令肯定在当前这个round要么执行成功, 要么执行失败.  可以看出这个模型非常理想, 只存在于理论分析领域.
 
-* asynchronous message-passing model
+**asynchronous message-passing model**
 
 指的是在这个网络模型里面, 消息的送达和消息的执行没有时间上限. 比如一条消息有可能因为延迟的原因, 在网络中存在很长一段时间, 不能保证什么时候到达, 有可能永远都到达不了, 也有可能经过一段时间以后有送达了. 比如Java 在执行某一条命令的时候, 由于GC 的原因导致某一条命令卡主, 经过很长一段时间以后, 有可能继续恢复执行了, 也有可能是永久的失败了.
 
@@ -35,7 +35,7 @@ summary: when we talk about distributed system, what are we talking about
 
 这就是我们经常说的"第三态"问题, 就是一个请求永远有三个状态, 1. 返回成功 2. 返回失败 3. 返回超时
 
-* Partially synchronous system model
+**Partially synchronous system model**
 
 半同步网络模型指的是对于这个系统里面消息的送达, 以及消息的执行时间是有一定的上限, 虽然这个上限不是绝对的精确. 超过这个时间上限以后, 这些操作都是失败的.
 
@@ -49,13 +49,13 @@ summary: when we talk about distributed system, what are we talking about
 
 在同步网络的场景下面这些结论都是不合适的, 比如在Byzantium 在同步网络中故障节点数不超过1/3的时候, 是可以解决的, 但是解决成本非常高.
 
-但是其实在很多工程实现的时候, 我们会认为我们所在的网络模型是Partially synchronous system model. 我们会采用lease 等机制, 比如在 chubby, 很多multi-paxos/raft, red-lock 的实现中. 
+但是其实在很多工程实现的时候, **我们会认为我们所在的网络模型是Partially synchronous system model.** 我们会采用lease 等机制, 比如在 chubby, 很多multi-paxos/raft, red-lock 的实现中. 
 
 为什么要这样实现呢?
 
 因为在工程环境中, 虽然不同的机器和节点虽然可能有时间飘逸, 或者说java 的GC 存在一定的时间, 但是我们会认为这些时间存在一定的上限, 因此我们设计系统的时候, 可以利用这个特性, 在不同机器之间, 把主节点的lease 时间设计的相对早一点, 这个时间是允许容忍不同节点之间时间飘逸差异的时间.
 
-当然很可能会访问这样设计的系统不安全. 但是其实如果这个概率足够低, 我们应该是可以容忍的.  比如为什么我们在设计很多系统的不会考虑Byzantium 错误, 也是因为我们认为这个出现概率极其低. 这里就设计到工程实现和理论的区别的. 并且目前也有大量的系统是这么做的, 比如chubby, floyd, redlock, zookeeper 等等
+当然很可能会访问这样设计的系统不安全. 但是其实如果这个概率足够低, 我们应该是可以容忍的.  比如为什么我们在设计很多系统的不会考虑Byzantium 错误, 也是因为我们认为这个出现概率极其低. 这里就涉及到工程实现和理论的区别的. 并且目前也有大量的系统是这么做的, 比如chubby, floyd, redlock, zookeeper 等等
 
 
 
