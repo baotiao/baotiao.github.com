@@ -4,8 +4,6 @@ title: MySQL InnoDB space file
 summary: MySQL InnoDB 物理文件管理
 ---
 
-### InnoDB space file
-
 InnoDB 最后的数据都会落到文件中.
 
 整体而言InnoDB 里面除了redo log 以外都使用统一的结构进行管理, 包括system tablespace(ibdata1), user tablespace(用户表空间), undo log, temp tablespace. 这个结构我们统称space file.
@@ -263,6 +261,7 @@ Next Seg ID: 7
 File size 2604662784
 ========Primary index========
 Primary index root page space_id 15 page_no 4
+Btree hight: 2
 <<<Leaf page segment>>>
 SEGMENT id 4, space id 15
 Extents information:
@@ -287,6 +286,7 @@ Free page num: 44
 
 ========Secondary index========
 Secondary index root page space_id 15 page_no 31940
+Btree hight: 2
 <<<Leaf page segment>>>
 SEGMENT id 6, space id 15
 Extents information:
@@ -308,5 +308,16 @@ Pages information:
 Reserved page num: 19
 Used page num: 19
 Free page num: 0
+
+**Suggestion**
+File size 2604662784, reserved but not used space 39354368, percentage 1.51%
+Optimize table will get new fie size 2565308416
+
 ```
+
+1. 这里tablespace id 是15
+2. Btree 的高度是3层
+3. secondary Index 由于只存索引, 所以primary index 占用的空间是secondary index 的10倍
+4. primary Index 上面大量的page 都是用满的状态, 而secondary 会20% 左右的空闲page
+5. 整体而言, 空闲page 只占了文件的1.51% 左右, 所以不需要做optimize table 操作的
 
