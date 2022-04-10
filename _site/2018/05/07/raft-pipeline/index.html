@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Raft phd 论文中的pipeline 优化 &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="raft phd 论文里面是如何做 Pipeline 优化的?">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://localhost:4000/2018/05/07/raft-pipeline/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?202204110303" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Raft phd 论文中的pipeline 优化">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://localhost:4000/2018/05/07/raft-pipeline/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="Raft phd 论文中的pipeline 优化" />
+    <meta name="twitter:description" content="raft phd 论文里面是如何做 Pipeline 优化的?" />
+    <meta name="twitter:url" content="http://localhost:4000/2018/05/07/raft-pipeline/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://localhost:4000" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>Raft phd 论文中的pipeline 优化</h1>
+  <span class="post-meta">May 7 2018</span><br>
+  
+  <span class="post-meta small">
+  
+    1 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <p>raft phd 论文里面是如何做 Pipeline 优化的?</p>
+
+<p>貌似这里Pipeline 的做法也是不会让日志产生洞, 日志仍然是有序的</p>
+
+<p>leader 和follower 在AppendEntry 的时候, 不需要等待follower 的ack 以后, 立刻发送下一个log entry 的内容. 但是在follower 收到这个AppendEntries 的内容以后,  因为AppendEntries 会默认进行consistency check(这里AppendEntries consistency check 指的是在执行AppendEntries 的时候, 会把之前的一个log 的index, term 也都带上, follower 在收到这条消息以后, 会检查这里的index, term 信息是否与自己本地的最后一个log entry的index, term 一致, 不一致的话就返回错误) 那么即使是pipeline 执行AppendEntries, 仍然会保证如果这个follower 接受后面一个entry 的时候, 必定把之前pipeline 的entry 接受了才行, 不然是不会满足这个 AppendEntries 的约束的, 也就是说即使使用pipeline 依然可以保证Log 是不需要带洞的.  当然raft 作者这里的做法依然是保证简单, 所以让没有通过AppendEntries concsistency check 之后, 默认就让这个AppendEntries 错误, 然后让他重试. 当然也可以有其他的处理方法</p>
+
+<p>同时这里也强调, 使用 pipeline 的话, 必须至少一个leader 与一个follower 建立多个连接?</p>
+
+<p><strong>如果一个leader 与一个follower 共用一个连接使用pipeline 的话, 那么效果会是怎样的呢?</strong></p>
+
+<p>其实这样的pipeline 适合batch 是没有多大区别的, pipeline 最大的目的应该是在latency 比较高的情况下, 也可以充分的利用带宽,  但是如果共用一个连接的话, 在tcp 层面其实就已经是串行的, 因为tcp 同样需要对端的ack, 才会发送下一段的报文, 虽然tcp 有滑动窗口来运行批量发送, 然后在对端重组保证有序, 其实这个滑动窗口就和batch 的作用类似. 因此如果使用单挑连接, 其实是和batch 的效果是差不多的,  使用单条连接的pipeline 其实也不会出现包乱序, 因为tcp 层面就保证了先发送的包一定是在前面的.</p>
+
+<p>说道这里其实raft 同步log和tcp 做的事情类似, 也是希望可靠有序的进行数据同步, 又希望尽可能的利用带宽.</p>
+
+<p><strong>那么使用多条连接的话可能存在什么问题?</strong></p>
+
+<p>如果是一个leader 和 follower 建立多个连接的话,  即使因为在多个tcp 连接中不能保证有序,  但是大部分情况还是先发送的先到达, 即使后发送的先到达了, 由于有AppendEntries consistency check 的存在, 后发送的自然会失败, 失败后重试即可. 其实这里完全也可以像tcp 那样, 有类似滑动窗口的概念,  也就是说AppendEntries 的时候, 如果发现之前的内容还没到达, 那么完全可以在本地的内存中保留一份buffer, 那么可以利用这个buffer 就不需要进行重传了, 当然简单的办法仍然是重传.</p>
+
+<p>当然这里如果引入了类似滑动窗口的概念, 在follower 端保留一份数据的话, 那么自然也就需要拥塞阻塞算法的存在了, 也就是说如果一个follower 节点在前面某一个连接缺少了某一个log 以后, 其他的连接一直发送数据, 这个时候该如何处理, 也就是follower 需要告知leader, 让这个leader 不要再发送内容了, 那么其实就和tcp 里面的拥塞阻塞是一样了.</p>
+
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/2018/05/07/raft-pipeline';
+    var disqus_title      = 'Raft phd 论文中的pipeline 优化';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

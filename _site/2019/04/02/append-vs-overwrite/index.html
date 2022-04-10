@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>How to write file faster &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="How to write file faster">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://localhost:4000/2019/04/02/append-vs-overwrite/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?202204110303" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="How to write file faster">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://localhost:4000/2019/04/02/append-vs-overwrite/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="How to write file faster" />
+    <meta name="twitter:description" content="How to write file faster" />
+    <meta name="twitter:url" content="http://localhost:4000/2019/04/02/append-vs-overwrite/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://localhost:4000" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>How to write file faster</h1>
+  <span class="post-meta">Apr 2 2019</span><br>
+  
+  <span class="post-meta small">
+  
+    6 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <p>结论:</p>
+
+<p>同样写1G 大小的文件, 4k memory and file address aligned 写入:</p>
+
+<p>buffer write: 16920538 us</p>
+
+<p>fallocate + buffer write: 13469360 us</p>
+
+<p>fallocate + filling zero + buffer write: 4028809 us</p>
+
+<p>可以看出fallocate + filling zero +buffer write 的写入时间只有普通buffer write 的1/4</p>
+
+<p>原因是: 在fallocate 阶段,  当我用fallocate 对一个文件预先分配空间的时候, 只是从文件系统中获得了对应的free extents, 但是并不保证把这些extents 里面中的原有数据filling zero. 只有在第一次写入的时候, 会把这个extents 标记成当前这个file 使用, 所以当进行writing 需要分片新的extents的时候, 需要修改文件中的meta data.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;stdio.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;sys/time.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;random&gt;
+</span>
+
+<span class="kt">uint64_t</span> <span class="nf">NowMicros</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">struct</span> <span class="n">timeval</span> <span class="n">tv</span><span class="p">;</span>
+  <span class="n">gettimeofday</span><span class="p">(</span><span class="o">&amp;</span><span class="n">tv</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+  <span class="k">return</span> <span class="n">static_cast</span><span class="o">&lt;</span><span class="kt">uint64_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">tv</span><span class="p">.</span><span class="n">tv_sec</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000000</span> <span class="o">+</span> <span class="n">tv</span><span class="p">.</span><span class="n">tv_usec</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="kt">uint64_t</span> <span class="n">st</span><span class="p">,</span> <span class="n">ed</span><span class="p">;</span>
+  <span class="kt">off_t</span> <span class="n">file_size</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">;</span>
+  <span class="kt">int</span> <span class="n">fd</span> <span class="o">=</span> <span class="n">open</span><span class="p">(</span><span class="s">"/disk11/tf"</span><span class="p">,</span> <span class="n">O_CREAT</span> <span class="o">|</span> <span class="n">O_RDWR</span><span class="p">,</span> <span class="mo">0666</span><span class="p">);</span>
+  <span class="n">st</span> <span class="o">=</span> <span class="n">NowMicros</span><span class="p">();</span>
+  <span class="c1">// int ret;</span>
+  <span class="kt">int</span> <span class="n">ret</span> <span class="o">=</span> <span class="n">fallocate</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">file_size</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span> 
+    <span class="n">printf</span><span class="p">(</span><span class="s">"fallocate err %d</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">ret</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="n">ed</span> <span class="o">=</span> <span class="n">NowMicros</span><span class="p">();</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">"fallocate time microsecond(us) %lld</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">ed</span> <span class="o">-</span> <span class="n">st</span><span class="p">);</span>
+  <span class="n">lseek</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">SEEK_SET</span><span class="p">);</span>
+  <span class="kt">int</span> <span class="n">dsize</span> <span class="o">=</span> <span class="mi">4096</span><span class="p">;</span>
+  <span class="kt">unsigned</span> <span class="kt">char</span> <span class="o">*</span><span class="n">aligned_buf</span><span class="p">;</span>
+  <span class="n">ret</span> <span class="o">=</span> <span class="n">posix_memalign</span><span class="p">((</span><span class="kt">void</span> <span class="o">**</span><span class="p">)</span><span class="o">&amp;</span><span class="n">aligned_buf</span><span class="p">,</span> <span class="mi">4096</span><span class="p">,</span> <span class="mi">4096</span> <span class="o">*</span> <span class="mi">10</span><span class="p">);</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">dsize</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">aligned_buf</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="n">random</span><span class="p">()</span> <span class="o">%</span> <span class="mi">128</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="n">st</span> <span class="o">=</span> <span class="n">NowMicros</span><span class="p">();</span>
+  <span class="kt">int</span> <span class="n">num</span><span class="p">;</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">uint64_t</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">file_size</span> <span class="o">/</span> <span class="n">dsize</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">num</span> <span class="o">=</span> <span class="n">write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="n">aligned_buf</span><span class="p">,</span> <span class="n">dsize</span><span class="p">);</span>
+    <span class="n">fsync</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">num</span> <span class="o">!=</span> <span class="n">dsize</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">printf</span><span class="p">(</span><span class="s">"write error</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+      <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+  <span class="n">ed</span> <span class="o">=</span> <span class="n">NowMicros</span><span class="p">();</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">"first write time microsecond(us) %lld</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">ed</span> <span class="o">-</span> <span class="n">st</span><span class="p">);</span>
+
+  <span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
+  <span class="n">lseek</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">SEEK_SET</span><span class="p">);</span>
+  <span class="n">st</span> <span class="o">=</span> <span class="n">NowMicros</span><span class="p">();</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">uint64_t</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">file_size</span> <span class="o">/</span> <span class="n">dsize</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">num</span> <span class="o">=</span> <span class="n">write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="n">aligned_buf</span><span class="p">,</span> <span class="n">dsize</span><span class="p">);</span>
+    <span class="n">fsync</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">num</span> <span class="o">!=</span> <span class="n">dsize</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">printf</span><span class="p">(</span><span class="s">"write error</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+      <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+  <span class="n">ed</span> <span class="o">=</span> <span class="n">NowMicros</span><span class="p">();</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">"second write time microsecond(us) %lld</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">ed</span> <span class="o">-</span> <span class="n">st</span><span class="p">);</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>FALLOC_FL_ZERO_RANGE mode 是在内核3.15 版本才引入, 也就是在fallocate 以后, 会做filling zero 操作.</p>
+
+<p>所以在write 的时候, 用fallocate 还是能够提高性能的, 因为write 操作主要修改3个部分的信息</p>
+
+<ol>
+  <li>文件的总metadata, 包含文件的大小等等</li>
+  <li>文件的metadata 中具体的文件所对应的extents 信息, 之所以要和上面的meta 信息区分开来, 是因为1 中的metadata 是每一次write 的时候都需要修改的, 但是2 中的metadata 只是具体有数据写入的时候动态修改的.</li>
+  <li>文件的具体数据</li>
+</ol>
+
+<p>所以fallocate 的时候只能够指定的是文件大小的meta 信息,  但是具体data block 所对应的磁盘中extents的信息是否属于当前文件还需要等有数据写入是才知道.  因此使用fallocate 以后可以减少每次修改文件大小的metadata, 但是还是会有更新data block 和磁盘中extent 的关系的metadata</p>
+
+<p>因此 buffer write &lt; fallocate + buffer write &lt; fallocate + filling zero + buffer write</p>
+
+<p>从blktrace 中可以看到这样的信息.</p>
+
+<p>buffer write:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># jbd2 修改元信息相关IO</span>
+259,6   33      200     0.000755218  1392  A  WS 1875247968 + 8 &lt;- <span class="o">(</span>259,9<span class="o">)</span> 1875245920
+259,9   33      201     0.000755544  1392  Q  WS 1875247968 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,9   33      202     0.000755687  1392  G  WS 1875247968 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,6   33      203     0.000756124  1392  A  WS 1875247976 + 8 &lt;- <span class="o">(</span>259,9<span class="o">)</span> 1875245928
+259,9   33      204     0.000756372  1392  Q  WS 1875247976 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,9   33      205     0.000756607  1392  M  WS 1875247976 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,6   33      206     0.000756920  1392  A  WS 1875247984 + 8 &lt;- <span class="o">(</span>259,9<span class="o">)</span> 1875245936
+259,9   33      207     0.000757191  1392  Q  WS 1875247984 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,9   33      208     0.000757293  1392  M  WS 1875247984 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,6   33      209     0.000757580  1392  A  WS 1875247992 + 8 &lt;- <span class="o">(</span>259,9<span class="o">)</span> 1875245944
+259,9   33      210     0.000757834  1392  Q  WS 1875247992 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,9   33      211     0.000758032  1392  M  WS 1875247992 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,9   33      212     0.000758333  1392  U   N <span class="o">[</span>jbd2/nvme8n1p1-] 1
+259,9   33      213     0.000758425  1392  I  WS 1875247968 + 32 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,9   33      214     0.000759065  1392  D  WS 1875247968 + 32 <span class="o">[</span>jbd2/nvme8n1p1-]
+<span class="c"># 对当前jbd2 IO 进行提交, 可以看出这次总共写了32 * 512 = 16kb 大小的数据</span>
+259,9   33      215     0.000769924     0  C  WS 1875247968 + 32 <span class="o">[</span>0]
+259,6   33      216     0.000775814  1392  A FWFS 1875248000 + 8 &lt;- <span class="o">(</span>259,9<span class="o">)</span> 1875245952
+259,9   33      217     0.000776110  1392  Q  WS 1875248000 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,9   33      218     0.000776207  1392  G  WS 1875248000 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,9   33      219     0.000776609  1392  D  WS 1875248000 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+<span class="c"># 对当前的jbd2 IO 进行提交, 可以看出这次总共写了8 * 512 = 4k 大小的数据</span>
+259,9   33      220     0.000783089     0  C  WS 1875248000 + 8 <span class="o">[</span>0]
+<span class="c"># 用户IO 的开始</span>
+259,6    2       64     0.000800621 121336  A  WS 297152 + 8 &lt;- <span class="o">(</span>259,9<span class="o">)</span> 295104
+259,9    2       65     0.000801007 121336  Q  WS 297152 + 8 <span class="o">[</span>a.out]
+259,9    2       66     0.000801523 121336  G  WS 297152 + 8 <span class="o">[</span>a.out]
+259,9    2       67     0.000802355 121336  U   N <span class="o">[</span>a.out] 1
+259,9    2       68     0.000802469 121336  I  WS 297152 + 8 <span class="o">[</span>a.out]
+259,9    2       69     0.000802911 121336  D  WS 297152 + 8 <span class="o">[</span>a.out]
+259,9    2       70     0.000810247     0  C  WS 297152 + 8 <span class="o">[</span>0]
+<span class="c"># 用户IO 的结束</span>
+</code></pre></div></div>
+
+<p>buffer write + fallocate</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># jbd2 修改元信息相关IO</span>
+259,6   33      333     0.001604577  1392  A  WS 1875122848 + 8 &lt;- <span class="o">(</span>259,9<span class="o">)</span> 1875120800
+259,9   33      334     0.001604926  1392  Q  WS 1875122848 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,9   33      335     0.001605169  1392  G  WS 1875122848 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,6   33      336     0.001605627  1392  A  WS 1875122856 + 8 &lt;- <span class="o">(</span>259,9<span class="o">)</span> 1875120808
+259,9   33      337     0.001605896  1392  Q  WS 1875122856 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,9   33      338     0.001606108  1392  M  WS 1875122856 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,9   33      339     0.001606465  1392  U   N <span class="o">[</span>jbd2/nvme8n1p1-] 1
+259,9   33      340     0.001606622  1392  I  WS 1875122848 + 16 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,9   33      341     0.001607091  1392  D  WS 1875122848 + 16 <span class="o">[</span>jbd2/nvme8n1p1-]
+<span class="c"># 对当前jbd2 IO 进行提交, 可以看出这次总共写了16 * 512 = 16kb 大小的数据</span>
+259,9   33      342     0.001614981     0  C  WS 1875122848 + 16 <span class="o">[</span>0]
+259,6   33      343     0.001619920  1392  A FWFS 1875122864 + 8 &lt;- <span class="o">(</span>259,9<span class="o">)</span> 1875120816
+259,9   33      344     0.001620237  1392  Q  WS 1875122864 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,9   33      345     0.001620443  1392  G  WS 1875122864 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+259,9   33      346     0.001620694  1392  D  WS 1875122864 + 8 <span class="o">[</span>jbd2/nvme8n1p1-]
+<span class="c"># 对当前的jbd2 IO 进行提交, 可以看出这次总共写了8 * 512 = 4k 大小的数据</span>
+259,9   33      347     0.001627171     0  C  WS 1875122864 + 8 <span class="o">[</span>0]
+259,6   49      146     0.001641484 119984  A  WS 119802016 + 8 &lt;- <span class="o">(</span>259,9<span class="o">)</span> 119799968
+259,9   49      147     0.001641825 119984  Q  WS 119802016 + 8 <span class="o">[</span>a.out]
+259,9   49      148     0.001642057 119984  G  WS 119802016 + 8 <span class="o">[</span>a.out]
+259,9   49      149     0.001642770 119984  U   N <span class="o">[</span>a.out] 1
+259,9   49      150     0.001642946 119984  I  WS 119802016 + 8 <span class="o">[</span>a.out]
+259,9   49      151     0.001643426 119984  D  WS 119802016 + 8 <span class="o">[</span>a.out]
+259,9   49      152     0.001649782     0  C  WS 119802016 + 8 <span class="o">[</span>0]
+</code></pre></div></div>
+
+<p>从上面的对比可以看出, buffer write 在修改元信息阶段会比buffer write + fallocate 多增加了16kb 大小的IO, 我理解这个额外的16KB 大小的IO 是修改file 的meta 数据, 比如文件的大小. 而额外的4k 是两种IO 都需要的写入free extents 的信息</p>
+
+<p>fallocate + filling zero + buffer write</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># 一个IO 的开始</span>
+
+259,6    0      184     0.001777196 58995  A   R 55314456 + 8 &lt;- <span class="o">(</span>259,9<span class="o">)</span> 55312408
+259,9    0      185     0.001777463 58995  Q   R 55314456 + 8 <span class="o">[</span>a.out]
+259,9    0      186     0.001777594 58995  G   R 55314456 + 8 <span class="o">[</span>a.out]
+259,9    0      187     0.001777863 58995  D  RS 55314456 + 8 <span class="o">[</span>a.out]
+259,9    0      188     0.002418822     0  C  RS 55314456 + 8 <span class="o">[</span>0]
+<span class="c"># 一个读IO 结束</span>
+259,6    0      189     0.002423915 58995  A  WS 55314456 + 8 &lt;- <span class="o">(</span>259,9<span class="o">)</span> 55312408
+259,9    0      190     0.002424192 58995  Q  WS 55314456 + 8 <span class="o">[</span>a.out]
+259,9    0      191     0.002424434 58995  G  WS 55314456 + 8 <span class="o">[</span>a.out]
+259,9    0      192     0.002424816 58995  U   N <span class="o">[</span>a.out] 1
+259,9    0      193     0.002424992 58995  I  WS 55314456 + 8 <span class="o">[</span>a.out]
+259,9    0      194     0.002425247 58995  D  WS 55314456 + 8 <span class="o">[</span>a.out]
+259,9    0      195     0.002432434     0  C  WS 55314456 + 8 <span class="o">[</span>0]
+</code></pre></div></div>
+
+<p>可以看出, 两个IO 之间不需要jdb2 进行元信息的修改, 从而比buffer write + fallocate 又节省了 20kb 大小的IO</p>
+
+<ul>
+  <li>如果使用dsize = 512, blktrace 看到的信息更加明显</li>
+</ul>
+
+<p>当写入数据的大小是512 的时候, 没有fallocate 之前, 每写一次数据, 就需要有jbd2 的IO, 每次都需要去修改文件的大小. 有了fallocate 之后, 写8次才需要有一个jdb2 的IO, 写到4k 大小的数据, 才需要更新free extent信息. 在第二次写入的时候, 就完全没有jbd2 的IO 了.</p>
+
+<p>总结: 所以在顺序写这样的场景中, 比较好的方式是复用当前文件, 在创建新文件的时候通过rename 的方式, 将旧文件复用, 在没有文件可以复用的场景, 通过后台线程提前创建文件并且filling zero 从而达到高效的写入, 这也是我们线上的做法.</p>
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/2019/04/02/append-vs-overwrite';
+    var disqus_title      = 'How to write file faster';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

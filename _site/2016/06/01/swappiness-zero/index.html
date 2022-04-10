@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>swappiness 是否需要设置成0 &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="做有积累的事情">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://localhost:4000/2016/06/01/swappiness-zero/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?202204110303" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="swappiness 是否需要设置成0">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://localhost:4000/2016/06/01/swappiness-zero/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="swappiness 是否需要设置成0" />
+    <meta name="twitter:description" content="做有积累的事情" />
+    <meta name="twitter:url" content="http://localhost:4000/2016/06/01/swappiness-zero/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://localhost:4000" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>swappiness 是否需要设置成0</h1>
+  <span class="post-meta">Jun 1 2016</span><br>
+  
+  <span class="post-meta small">
+  
+    2 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <p>在我们的线上机器里面, 为了避免内存对性能的影响, 经常会将 swappiness 设置成0.  这个 swappiness 具体含义是什么? 这里就能够完全避免 swap 么? 这样做好么?</p>
+
+<h4 id="结论">结论:</h4>
+
+<ol>
+  <li>swappiness 的具体含义是当物理内存不够的时候, 有两种选项</li>
+</ol>
+
+<ul>
+  <li>将一部分 anonymous page 置换到 swap区</li>
+  <li>将 page cache 里面的数据刷回到磁盘, 或者直接清理掉</li>
+</ul>
+
+<p>在这两种选项里面, 置换到swap 的权重, 但不是 swap 和 page cache 的比例, 比如 swappiness = 100 意思是swappiness 和 page cache 的比例是相同的. swappiness = 20 就是 swappiness 和 page cache 比例是1:9, 当然具体 kernle 还做的更细. 具体的计算公式就是,</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>anon_prio = sc-&gt;swappiness;
+file_prio = 200 - sc-&gt;swappiness;
+</code></pre></div></div>
+
+<ol>
+  <li>这样不能避免swap, 当内存不够的时候还是会 swap. 需要执行 swapoff -a 才是完全关闭 swap 的方法</li>
+  <li>不建议线上将 swappiness 设置成0, 因为kernel 对于该 reclaim 的页还是做了很多工作, 选择的是最不活跃的页, 而且 kernel 还会比较每一次 reclaim 的效果.</li>
+</ol>
+
+<h4 id="具体分析">具体分析</h4>
+
+<p>这个问题主要涉及到操作系统是如何做 page reclaim 的</p>
+
+<p>首先我们知道操作系统的物理页主要被两部分使用, 一部分是实际使用的物理内存, 也叫anonymous page, 另一部分是 page cache. 同时我们还有 swap 区, 用来在内存不够的时候将 anonymous page 里面的页面置换到 swap 上.</p>
+
+<p>那么在操作系统内存不够(下一篇文章介绍, 什么时候是内存不够的时候)的时候, 有两个选择. 一个是将 page cache里面的脏页刷回到磁盘, 将干净的页直接丢弃掉. 一个是将实际使用的物理内存里面的不常用的页刷回到 swap 区. 那么操作系统怎么做选择的?</p>
+
+<p>这里最重要的需要判断是否需要swap 的在 get_scan_ratio 这个函数</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 这里可以看到如果把swap 给关闭了, 那么确实就不会进行swap 这个操作了</span>
+<span class="err">所以这里想把</span> <span class="n">swap</span> <span class="err">完全关闭的方法应该是</span> <span class="n">swapoff</span> <span class="o">-</span><span class="n">a</span>  
+<span class="nf">if</span> <span class="p">(</span><span class="o">!</span><span class="n">sc</span><span class="o">-&gt;</span><span class="n">may_swap</span> <span class="o">||</span> <span class="p">(</span><span class="n">nr_swap_pages</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">))</span> <span class="p">{</span>
+  <span class="n">noswap</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="n">percent</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="n">percent</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">100</span><span class="p">;</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+  <span class="n">get_scan_ratio</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">percent</span><span class="p">);</span>
+
+</code></pre></div></div>
+
+<p>那么在这个get_scan_radio 里面, 就是计算这次 swap 和 page cache 的比例的时候了</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="cm">/*
+ * 首先获得anon 页的个数 和 page cache页的个数
+ */</span>
+<span class="n">anon</span>  <span class="o">=</span> <span class="n">zone_nr_lru_pages</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">LRU_ACTIVE_ANON</span><span class="p">)</span> <span class="o">+</span>
+<span class="n">zone_nr_lru_pages</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">LRU_INACTIVE_ANON</span><span class="p">);</span>
+<span class="n">file</span>  <span class="o">=</span> <span class="n">zone_nr_lru_pages</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">LRU_ACTIVE_FILE</span><span class="p">)</span> <span class="o">+</span>
+<span class="n">zone_nr_lru_pages</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">LRU_INACTIVE_FILE</span><span class="p">);</span>
+
+
+<span class="k">if</span> <span class="p">(</span><span class="n">scanning_global_lru</span><span class="p">(</span><span class="n">sc</span><span class="p">))</span> <span class="p">{</span>
+  <span class="n">free</span>  <span class="o">=</span> <span class="n">zone_page_state</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="n">NR_FREE_PAGES</span><span class="p">);</span>
+  <span class="cm">/* If we have very few page cache pages,
+     force-scan anon pages. */</span>
+  <span class="cm">/*
+   * 这里就是如果我们的page cache page 和我们的 free
+   * page数小于high_wmark_pages, 也就是3/2 的min_free_pages 的时候, 那么这个时候即使swapiness是0
+   * 也是强制的让这次都走这个swapiness, 也就是swapiness 被设置成100
+   *
+   */</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">unlikely</span><span class="p">(</span><span class="n">file</span> <span class="o">+</span> <span class="n">free</span> <span class="o">&lt;=</span> <span class="n">high_wmark_pages</span><span class="p">(</span><span class="n">zone</span><span class="p">)))</span> <span class="p">{</span>
+    <span class="n">percent</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">100</span><span class="p">;</span>
+    <span class="n">percent</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">return</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+<span class="p">.....</span>
+
+<span class="cm">/*
+ * With swappiness at 100, anonymous and file have the same priority.
+ * This scanning priority is essentially the inverse of IO cost.
+ * 这里可以看到 swappiness 设成100的时候, 意思是从匿名页释放 page 和从 page
+ * cache 里面释放 page 是相同的比例 
+ */</span>
+<span class="n">anon_prio</span> <span class="o">=</span> <span class="n">sc</span><span class="o">-&gt;</span><span class="n">swappiness</span><span class="p">;</span>
+<span class="n">file_prio</span> <span class="o">=</span> <span class="mi">200</span> <span class="o">-</span> <span class="n">sc</span><span class="o">-&gt;</span><span class="n">swappiness</span><span class="p">;</span>
+
+<span class="cm">/*
+ * 这里从获得了 anon 和 file 的比例以后继续的优化, 根据的是历史的 scanned 和
+ * rotated page 的比例, 来计算这些 page 是否有效
+ *
+ * 这里比如我再 anon 区域扫描了100个 page, 然后 rotated 就是从 swap
+ * 里面又置换到内存里面50 个 page, 另外我在 page cache 区域里面扫描了100个 page,
+ * 又置换了10个 page, 这说明在 anon 区域里面的内容是比较经常访问的,
+ * 换出去了以后又要换回内存, 所以应该尽量不要让 anno 区域里面的 page 换出 
+ */</span>
+
+<span class="cm">/*
+ *   80 * 100 / 50 = 160
+ *   120 * 100 / 10 = 1200
+ *   percent[0] = 100 * 160 / 1360 = 11
+ *   percent[1] = 89
+ * 
+ *   如果没有经过这一步, percent 应该是
+ *   percent[0] = 80 / (80 + 120)  * 100 = 40
+ *   percent[1] = 60
+ * 
+ *   这样可以看出这样就再一次减少了从 anon 区域 reclaim 的比例, 因为 anan里面的 page 是更经常访问的 
+ */</span>
+<span class="n">ap</span> <span class="o">=</span> <span class="p">(</span><span class="n">anon_prio</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">reclaim_stat</span><span class="o">-&gt;</span><span class="n">recent_scanned</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+<span class="n">ap</span> <span class="o">/=</span> <span class="n">reclaim_stat</span><span class="o">-&gt;</span><span class="n">recent_rotated</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+
+<span class="n">fp</span> <span class="o">=</span> <span class="p">(</span><span class="n">file_prio</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">reclaim_stat</span><span class="o">-&gt;</span><span class="n">recent_scanned</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+<span class="n">fp</span> <span class="o">/=</span> <span class="n">reclaim_stat</span><span class="o">-&gt;</span><span class="n">recent_rotated</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+
+<span class="cm">/* Normalize to percentages */</span>
+<span class="n">percent</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">ap</span> <span class="o">/</span> <span class="p">(</span><span class="n">ap</span> <span class="o">+</span> <span class="n">fp</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+<span class="n">percent</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">-</span> <span class="n">percent</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+<span class="err">}</span>
+
+</code></pre></div></div>
+
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/2016/06/01/swappiness-zero';
+    var disqus_title      = 'swappiness 是否需要设置成0';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

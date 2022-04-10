@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>linux write 落盘问题 &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="linux write 落盘问题">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://localhost:4000/2017/03/02/data-to-disk/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?202204110303" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="linux write 落盘问题">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://localhost:4000/2017/03/02/data-to-disk/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="linux write 落盘问题" />
+    <meta name="twitter:description" content="linux write 落盘问题" />
+    <meta name="twitter:url" content="http://localhost:4000/2017/03/02/data-to-disk/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://localhost:4000" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>linux write 落盘问题</h1>
+  <span class="post-meta">Mar 2 2017</span><br>
+  
+  <span class="post-meta small">
+  
+    6 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <h3 id="data-to-disk">data to disk</h3>
+
+<p>数据写到磁盘的一个级别问题</p>
+
+<p><img src="http://i.imgur.com/Kj4jvOF.jpg" alt="Imgur" /></p>
+
+<p>这个是一次write 写入经过的路径</p>
+
+<ol>
+  <li>The client sends a write command to the database (data is in client’s memory).</li>
+  <li>The database receives the write (data is in server’s memory).</li>
+  <li>The database calls the system call that writes the data on disk (data is in the kernel’s buffer).</li>
+  <li>The operating system transfers the write buffer to the disk controller (data is in the disk cache).</li>
+  <li>The disk controller actually writes the data into a physical media (a magnetic disk, a Nand chip, …).</li>
+</ol>
+
+<p>总结:</p>
+
+<p>当我们到第3 步, 也就是write 操作系统返回的时候, 可以保证的是如果process 挂了, 但是操作系统没挂, 这个数据我们是能够刷回磁盘的.</p>
+
+<p>当我们到了第4步, 也就是write 操作, 并且fsync了. 这个时候我们可以保证就算机器挂了, 数据也会写到disk controller. 这个时候正常情况下disk controller 是会保证数据刷回到物理介质的</p>
+
+<p><strong>那么在第三步write 写入到page cache, page cache 是什么时候刷回磁盘的, 以及我们在上层怎么控制这个刷盘的策略呢?</strong></p>
+
+<p>具体在2.6.32 这个版本,  主要的刷盘进程是sync_supers 这个进程, 这个和之前版本的pdflush 进程不一样, 之前版本主要有pdflush 负责刷盘操作</p>
+
+<h3 id="kernel-bdi-module">kernel bdi module</h3>
+
+<p>通过 cat /proc/meminfo | grep Dirty 可以看到Dirty page 有多少个</p>
+
+<p>backing_dev_info: 一个块设备都会包含一个backing_dev_info, 通常是块设备的request queue 会包含 backing_dev 对象</p>
+
+<p>bdi_writeback: 具体执行write_back 线程的封装, bdi_writeback 回去wb_writeback_work 里面取出元素, 然后拿来执行</p>
+
+<p>bdi_writeback_work: 就是具体的每一次的writeback 任务的抽象, 不同的任务可以采用不同的刷新策略, 下图一看到bdi_writeback_work 是挂载backing_dev_info 下面的, bdi_writeback 是从backing_dev_info 下面work_list 去看, 这个队列是否是空的, 如果不是空的就从里面拉出bdi_writeback_work 来消费, 这里bdi_writeback_work 在2.6.32 版本里面是有 wb_writeback_args, bdi_work 组成</p>
+
+<p><img src="http://i.imgur.com/jqTVSMo.jpg" alt="Imgur" /></p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">backing_dev_info</span> <span class="p">{</span>
+	<span class="k">struct</span> <span class="n">list_head</span> <span class="n">bdi_list</span><span class="p">;</span>
+	<span class="k">struct</span> <span class="n">rcu_head</span> <span class="n">rcu_head</span><span class="p">;</span>
+	<span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">ra_pages</span><span class="p">;</span>	<span class="cm">/* max readahead in PAGE_CACHE_SIZE units */</span>
+	<span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">state</span><span class="p">;</span>	<span class="cm">/* Always use atomic bitops on this */</span>
+	<span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">capabilities</span><span class="p">;</span> <span class="cm">/* Device capabilities */</span>
+	<span class="n">congested_fn</span> <span class="o">*</span><span class="n">congested_fn</span><span class="p">;</span> <span class="cm">/* Function pointer if device is md/dm */</span>
+	<span class="kt">void</span> <span class="o">*</span><span class="n">congested_data</span><span class="p">;</span>	<span class="cm">/* Pointer to aux data for congested func */</span>
+	<span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">unplug_io_fn</span><span class="p">)(</span><span class="k">struct</span> <span class="n">backing_dev_info</span> <span class="o">*</span><span class="p">,</span> <span class="k">struct</span> <span class="n">page</span> <span class="o">*</span><span class="p">);</span>
+	<span class="kt">void</span> <span class="o">*</span><span class="n">unplug_io_data</span><span class="p">;</span>
+
+	<span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">;</span>
+
+	<span class="k">struct</span> <span class="n">percpu_counter</span> <span class="n">bdi_stat</span><span class="p">[</span><span class="n">NR_BDI_STAT_ITEMS</span><span class="p">];</span>
+
+	<span class="k">struct</span> <span class="n">prop_local_percpu</span> <span class="n">completions</span><span class="p">;</span>
+	<span class="kt">int</span> <span class="n">dirty_exceeded</span><span class="p">;</span>
+
+	<span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">min_ratio</span><span class="p">;</span>
+	<span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">max_ratio</span><span class="p">,</span> <span class="n">max_prop_frac</span><span class="p">;</span>
+
+	<span class="k">struct</span> <span class="n">bdi_writeback</span> <span class="n">wb</span><span class="p">;</span>  <span class="cm">/* default writeback info for this bdi */</span>
+	<span class="n">spinlock_t</span> <span class="n">wb_lock</span><span class="p">;</span>	  <span class="cm">/* protects update side of wb_list */</span>
+	<span class="k">struct</span> <span class="n">list_head</span> <span class="n">wb_list</span><span class="p">;</span> <span class="cm">/* the flusher threads hanging off this bdi */</span>
+	<span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">wb_mask</span><span class="p">;</span>	  <span class="cm">/* bitmask of registered tasks */</span>
+	<span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">wb_cnt</span><span class="p">;</span>	  <span class="cm">/* number of registered tasks */</span>
+
+	<span class="k">struct</span> <span class="n">list_head</span> <span class="n">work_list</span><span class="p">;</span>
+
+	<span class="k">struct</span> <span class="n">device</span> <span class="o">*</span><span class="n">dev</span><span class="p">;</span>
+
+<span class="cp">#ifdef CONFIG_DEBUG_FS
+</span>	<span class="k">struct</span> <span class="n">dentry</span> <span class="o">*</span><span class="n">debug_dir</span><span class="p">;</span>
+	<span class="k">struct</span> <span class="n">dentry</span> <span class="o">*</span><span class="n">debug_stats</span><span class="p">;</span>
+<span class="cp">#endif
+</span><span class="p">};</span>
+<span class="k">struct</span> <span class="n">bdi_writeback</span> <span class="p">{</span>
+	<span class="k">struct</span> <span class="n">list_head</span> <span class="n">list</span><span class="p">;</span>			<span class="cm">/* hangs off the bdi */</span>
+
+	<span class="k">struct</span> <span class="n">backing_dev_info</span> <span class="o">*</span><span class="n">bdi</span><span class="p">;</span>		<span class="cm">/* our parent bdi */</span>
+	<span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">nr</span><span class="p">;</span>
+
+	<span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">last_old_flush</span><span class="p">;</span>		<span class="cm">/* last old data flush */</span>
+
+	<span class="k">struct</span> <span class="n">task_struct</span>	<span class="o">*</span><span class="n">task</span><span class="p">;</span>		<span class="cm">/* writeback task */</span>
+	<span class="k">struct</span> <span class="n">list_head</span>	<span class="n">b_dirty</span><span class="p">;</span>	<span class="cm">/* dirty inodes */</span>
+	<span class="k">struct</span> <span class="n">list_head</span>	<span class="n">b_io</span><span class="p">;</span>		<span class="cm">/* parked for writeback */</span>
+	<span class="k">struct</span> <span class="n">list_head</span>	<span class="n">b_more_io</span><span class="p">;</span>	<span class="cm">/* parked for more writeback */</span>
+<span class="p">};</span>
+
+<span class="cm">/*
+ * Passed into wb_writeback(), essentially a subset of writeback_control
+ */</span>
+<span class="k">struct</span> <span class="n">wb_writeback_args</span> <span class="p">{</span>
+	<span class="kt">long</span> <span class="n">nr_pages</span><span class="p">;</span>
+	<span class="k">struct</span> <span class="n">super_block</span> <span class="o">*</span><span class="n">sb</span><span class="p">;</span>
+	<span class="k">enum</span> <span class="n">writeback_sync_modes</span> <span class="n">sync_mode</span><span class="p">;</span>
+	<span class="kt">int</span> <span class="n">for_kupdate</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>
+	<span class="kt">int</span> <span class="n">range_cyclic</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>
+	<span class="kt">int</span> <span class="n">for_background</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="cm">/*
+ * Work items for the bdi_writeback threads
+ */</span>
+<span class="k">struct</span> <span class="n">bdi_work</span> <span class="p">{</span>
+	<span class="k">struct</span> <span class="n">list_head</span> <span class="n">list</span><span class="p">;</span>		<span class="cm">/* pending work list */</span>
+	<span class="k">struct</span> <span class="n">rcu_head</span> <span class="n">rcu_head</span><span class="p">;</span>	<span class="cm">/* for RCU free/clear of work */</span>
+
+	<span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">seen</span><span class="p">;</span>		<span class="cm">/* threads that have seen this work */</span>
+	<span class="n">atomic_t</span> <span class="n">pending</span><span class="p">;</span>		<span class="cm">/* number of threads still to do work */</span>
+
+	<span class="k">struct</span> <span class="n">wb_writeback_args</span> <span class="n">args</span><span class="p">;</span>	<span class="cm">/* writeback arguments */</span>
+
+	<span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">state</span><span class="p">;</span>		<span class="cm">/* flag bits, see WS_* */</span>
+<span class="p">};</span>
+
+
+</code></pre></div></div>
+
+<p>bdi_forker_task 在每一个back device 加入以后都会启动一个, bdi_fork_task() 函数没有任何的中途退出机制, bdi_fork_task() 的唯一用途就是检查是否需要启动对应的 flush 线程.</p>
+
+<p>所以默认的启动线程的顺序是通过bdi_register 在backing-dev 模块启动的时候就会启动一个 bdi-default 线程, 这个线程执行的是bdi_forker_task()方法, 这个线程负责启动每一个设备上面的flush- 线程, 这个flush 线程的执行的是bdi_start_fn-&gt;bdi_writeback_task-&gt;bdi_writeback_task(这个方法是一个循环, 直到5分钟没有需要flush 的page, 然后退出)-&gt;wb_do_writeback(这个是具体的刷盘的逻辑, 根据这个来判断是否要退出上层的bdi_writeback_task逻辑)-&gt;wb_writeback()-&gt;writeback_inodes_wb()</p>
+
+<p>另外一个默认启动的线程是 sync_super 线程, 这个线程是去定期将superblock 里面的内容刷新回去</p>
+
+<p>关于 writeback 主要可以通过/sys/vm/ 配置的参数列表</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/* The following parameters are exported via /proc/sys/vm */</span>
+
+<span class="cm">/*
+ * Start background writeback (via writeback threads) at this percentage
+ */</span>
+<span class="kt">int</span> <span class="n">dirty_background_ratio</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>
+
+<span class="cm">/*
+ * dirty_background_bytes starts at 0 (disabled) so that it is a function of
+ * dirty_background_ratio * the amount of dirtyable memory
+ */</span>
+<span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">dirty_background_bytes</span><span class="p">;</span>
+
+<span class="o">/</span> <span class="o">*</span> 
+  <span class="o">*</span> <span class="err">这里</span><span class="n">dirty_background_bytes</span> <span class="err">和</span> <span class="n">dirty_background_ratio</span> <span class="err">的关系就是下面的这个几行代码</span><span class="p">,</span> <span class="err">如果设置了</span> <span class="n">dirty_background_bytes</span> <span class="err">就是用</span><span class="n">dirty_background_bytes</span><span class="p">,</span> <span class="err">否则就用</span><span class="n">dirty_background_ratio</span> <span class="o">*</span> <span class="n">available_memory</span><span class="p">,</span> <span class="err">所以默认</span><span class="n">dirty_background_bytes</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="o">*</span> <span class="o">/</span>
+    
+<span class="k">if</span> <span class="p">(</span><span class="n">dirty_background_bytes</span><span class="p">)</span>
+	<span class="n">background</span> <span class="o">=</span> <span class="n">DIV_ROUND_UP</span><span class="p">(</span><span class="n">dirty_background_bytes</span><span class="p">,</span> <span class="n">PAGE_SIZE</span><span class="p">);</span>
+<span class="k">else</span>
+	<span class="n">background</span> <span class="o">=</span> <span class="p">(</span><span class="n">dirty_background_ratio</span> <span class="o">*</span> <span class="n">available_memory</span><span class="p">)</span> <span class="o">/</span> <span class="mi">100</span><span class="p">;</span>
+
+
+<span class="cm">/*
+ * free highmem will not be subtracted from the total free memory
+ * for calculating free ratios if vm_highmem_is_dirtyable is true
+ */</span>
+<span class="kt">int</span> <span class="n">vm_highmem_is_dirtyable</span><span class="p">;</span>
+
+<span class="cm">/*
+ * The generator of dirty data starts writeback at this percentage
+ */</span>
+<span class="kt">int</span> <span class="n">vm_dirty_ratio</span> <span class="o">=</span> <span class="mi">20</span><span class="p">;</span>
+
+<span class="cm">/*
+ * vm_dirty_bytes starts at 0 (disabled) so that it is a function of
+ * vm_dirty_ratio * the amount of dirtyable memory
+ * 同样 vm_dirty_bytes 和 vm_dirty_ratio 的关系是如果设置了 vm_dirty_bytes 就是用 vm_dirty_bytes, 否则就是用 vm_dirty_ratio
+ if (vm_dirty_bytes)
+	dirty_total = vm_dirty_bytes / PAGE_SIZE;
+else
+	dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
+			100;
+ 
+ */</span>
+<span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">vm_dirty_bytes</span><span class="p">;</span>
+
+<span class="cm">/*
+ * The interval between `kupdate'-style writebacks
+ * 启动后台flush 线程的时间, 后台默认是5 秒
+ */</span>
+<span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">dirty_writeback_interval</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">*</span> <span class="mi">100</span><span class="p">;</span> <span class="cm">/* centiseconds */</span>
+
+<span class="cm">/*
+ * The longest time for which data is allowed to remain dirty
+ * 这里就是脏数据能在内存中呆的最长的时间, 默认是 30s, 在进行wb_writeback 函数周期性的刷盘的时候判断这个数据是否是旧数据, 超过这个时间的数据才进行刷盘操作
+ */</span>
+<span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">dirty_expire_interval</span> <span class="o">=</span> <span class="mi">30</span> <span class="o">*</span> <span class="mi">100</span><span class="p">;</span> <span class="cm">/* centiseconds */</span>
+
+<span class="cm">/*
+ * Flag that makes the machine dump writes/reads and block dirtyings.
+ */</span>
+<span class="kt">int</span> <span class="n">block_dump</span><span class="p">;</span>
+
+<span class="cm">/*
+ * Flag that puts the machine in "laptop mode". Doubles as a timeout in jiffies:
+ * a full sync is triggered after this time elapses without any disk activity.
+ */</span>
+<span class="kt">int</span> <span class="n">laptop_mode</span><span class="p">;</span>
+
+<span class="n">EXPORT_SYMBOL</span><span class="p">(</span><span class="n">laptop_mode</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p><strong>dirty_background_ratio 和 dirty_ratio 的关系?</strong></p>
+
+<p>dirty_background_ratio 是当系统里面的dirty page 超过这个百分比以后, 系统开始启动flush 进程将dirty page  flush 到磁盘</p>
+
+<p>dirty_ratio 是当系统里面的dirty page 超过这个百分比以后, 有写磁盘操作的进程会被阻塞, 等待将dirty page flush到磁盘以后再写入</p>
+
+<p>通过dd 修改不同的 dirty_ratio 来测试性能来看,  dirty_ratio 如果设置的比较小, 那么就很容易阻塞进程的写入所以性能比较低</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>┌─[chenzongzhi@bada05] - [/data5]
+└─[$] sudo sh -c 'echo 0 &gt;/proc/sys/vm/dirty_ratio'
+┌─[chenzongzhi@bada05] - [/data5]
+└─[$] cat /proc/sys/vm/dirty_ratio
+0
+┌─[chenzongzhi@bada05] - [/data5]
+└─[$] dd if=/dev/zero of=file-abc bs=1M count=30000
+^C828+0 records in
+828+0 records out
+868220928 bytes (868 MB) copied, 158.016 s, 5.5 MB/s
+</code></pre></div></div>
+
+<p>如果把dirty_ratio 调整的比较大, 那么dd 的速度就会快很多, 基本上能够达到磁盘写的性能</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>┌─[chenzongzhi@bada05] - [/data5]
+└─[$] sudo sh -c 'echo 100 &gt;/proc/sys/vm/dirty_ratio'
+┌─[chenzongzhi@bada05] - [/data5]
+└─[$] sudo sh -c 'echo 3 &gt;/proc/sys/vm/drop_caches'
+┌─[chenzongzhi@bada05] - [/data5]
+└─[$] dd if=/dev/zero of=file-abc bs=1M count=30000
+dd: warning: partial read (339968 bytes); suggest iflag=fullblock
+29999+1 records in
+29999+1 records out
+31456571392 bytes (31 GB) copied, 104.62 s, 301 MB/s
+</code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>THE PROBLEM
+~~~~~~~~~~~
+
+Each block device has corresponding "flusher" thread, which is usually seen as "flusher-x:y" in your 'ps' output. Flusher threads are responsible for
+background write-back and are used in various kernel code paths like memory
+reclamation as well as the periodic background write-out.
+
+The flusher threads wake up every 5 seconds and check whether they have to
+write anything back or not. In idle systems with good dynamic power-management this means that they force the system to wake up from deep sleep, find out that there is nothing to do, and waste power. This hurts small battery-powered
+devices, e.g., linux-based phones.
+
+Idle bdi thread wake-ups do not last forever: the threads kill themselves if
+nothing useful has been done for 5 minutes.
+
+However, there is the bdi forker thread, seen as 'bdi-default' in your 'ps'
+output. This thread also wakes up every 5 seconds and checks whether it has to fork a bdi flusher thread, in case there is dirty data on the bdi, but bdi
+thread was killed. This thread never kills itself, and disturbs the system all the time. Again, this is bad for battery-powered devices.
+</code></pre></div></div>
+
+<p>到3.10.0 版本以后, 这个bdi-default 线程, flush 线程什么也都没有了, 都变成kworker, 然后把需要flush 的任务丢到这个kworker 队列里面就可以了</p>
+
+<p>3.10.0 里面</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">bdi_wq</span> <span class="o">=</span> <span class="n">alloc_workqueue</span><span class="p">(</span><span class="s">"writeback"</span><span class="p">,</span> <span class="n">WQ_MEM_RECLAIM</span> <span class="o">|</span> <span class="n">WQ_FREEZABLE</span> <span class="o">|</span>
+				      <span class="n">WQ_UNBOUND</span> <span class="o">|</span> <span class="n">WQ_SYSFS</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>所以新版本的内核里面是看不到这些bdi, pdflush 等等. 这样做的好处也是很明显的, 不需要为了专门做flush 这个事情, 专门搞一个线程, 而且还需要经常去唤醒</p>
+
+<h3 id="practices">Practices</h3>
+
+<ol>
+  <li>减少内存使用</li>
+</ol>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>vm.dirty_background_ratio = 5
+vm.dirty_ratio = 10
+</code></pre></div></div>
+
+<ol>
+  <li>最大化的使用内存</li>
+</ol>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>vm.dirty_background_ratio = 50
+vm.dirty_ratio = 80
+</code></pre></div></div>
+
+<ol>
+  <li>优化写入性能, 可以使用内存, 但是等到空闲的时候希望内存被回收, 比较经常用在应对突然有峰值的这种情况</li>
+</ol>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>vm.dirty_background_ratio = 5
+vm.dirty_ratio = 80
+</code></pre></div></div>
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/2017/03/02/data-to-disk';
+    var disqus_title      = 'linux write 落盘问题';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

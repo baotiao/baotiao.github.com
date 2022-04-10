@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>event + 线程池模型的 server 类似 Memcache线程池模型 &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="做有积累的事情">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="tech">
+    <link rel="canonical" href="http://localhost:4000/tech/2012/02/04/event-like-memcache/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?202204110303" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="event + 线程池模型的 server 类似 Memcache线程池模型">
+    <meta property="og:description" content="event, memcache">
+    <meta property="og:url" content="http://localhost:4000/tech/2012/02/04/event-like-memcache/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="event + 线程池模型的 server 类似 Memcache线程池模型" />
+    <meta name="twitter:description" content="做有积累的事情" />
+    <meta name="twitter:url" content="http://localhost:4000/tech/2012/02/04/event-like-memcache/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://localhost:4000" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>event + 线程池模型的 server 类似 Memcache线程池模型</h1>
+  <span class="post-meta">Feb 4 2012</span><br>
+  
+  <span class="post-meta small">
+  
+    2 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/*
+    main.h
+    定义了三个数据结构 conn_queue_item,work_thread,dispatch_thread.
+    conn_queue_item 只是存dispatch_thread accept 以后的描述符,然后
+    dispatch_thread 将conn_queue_item 存入某一个work_thread.
+    work_thread 真正负责work的thread.
+    dispatch_thread 监听9877端口,并且将accept后的fd传给work_thread.
+*/
+#ifndef MAINH
+#define MAINH
+
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;event.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;netinet/in.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;string.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;pthread.h&gt;
+#include &lt;errno.h&gt;
+
+typedef struct conn_queue_item CQ;
+
+struct conn_queue_item {
+    int sfd;
+};
+
+struct WORK_THREAD {
+    pthread_t thread_id;
+    struct event_base *base;
+    struct event notify_event;
+    int notify_receive_fd;
+    int notify_send_fd;
+    struct conn_queue_item cq;
+};
+typedef struct WORK_THREAD wk_thread;
+
+struct DISPATCH_THREAD {
+    pthread_t thread_id;
+    struct event_base *base;
+};
+typedef struct DISPATCH_THREAD dh_thread;
+
+#endif
+
+主要的执行函数main.c
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;event.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;netinet/in.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;string.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;pthread.h&gt;
+#include &lt;errno.h&gt;
+#include "main.h"
+
+static struct event_base *main_base;
+
+void call_accept(int fd, short event, void *arg)
+{
+    fputs("a socket has come\n", stdout);
+    struct sockaddr_in cliaddr;
+    socklen_t clilen;
+    int connfd;
+    connfd = accept(fd, (struct sockaddr *) &amp;cliaddr, &amp;clilen);
+    dispatch_new_thread(connfd);
+}
+
+
+
+int main()
+{
+
+    int listenfd, connfd;
+    struct sockaddr_in cliaddr, servaddr;
+    socklen_t clilen;
+
+    listenfd = socket(AF_INET, SOCK_STREAM, 0);
+    memset(&amp;servaddr, 0, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servaddr.sin_port = htons(9877);
+    bind(listenfd, (struct sockaddr *) &amp;servaddr, sizeof(servaddr));
+    listen(listenfd, 10);
+
+    struct event_base *mb;
+    struct event ev;
+    mb = event_init();
+    event_set(&amp;ev, listenfd, EV_READ | EV_PERSIST, call_accept, &amp;ev);
+    //event_base_set(main_base, &amp;ev);
+    event_add(&amp;ev, NULL);
+    printf("add the event\n");
+
+    thread_init(10, mb);
+
+    printf("block before accept\n");
+    event_base_loop(mb, 0);
+
+    return 0;
+}
+
+线程池模型. 每一个work_thread监听自己的notify_receive_fd READ 事件,然后dispatch_thread 往notify_receive_fd 写入一字节的数据.接着 work_thread
+就处理从dispatch_thread 传送过来的fd 的请求
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;event.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;netinet/in.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;string.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;pthread.h&gt;
+#include &lt;errno.h&gt;
+#include "main.h"
+
+
+static dh_thread dispatch_thread;
+
+static wk_thread *threads;
+
+static int last_thread = -1;
+
+void dispatch_new_thread(int fd)
+{
+    int tid = (last_thread + 1) % 10;
+    wk_thread *thread = threads + tid;
+
+    thread-&gt;cq.sfd = fd;
+    write(thread-&gt;notify_send_fd, "", 1);
+}
+
+
+void thread_libevent_process(int fd, short which, void *arg)
+{
+    wk_thread *work_thread = arg;
+    char unuse[1];
+    if (read(fd, unuse, 1) != 1) {
+        fprintf(stderr, "Can't read from libevent\n");
+    }
+    char buf[100];
+    int n;
+    n = read(work_thread-&gt;cq.sfd, buf, 100);
+    write(work_thread-&gt;cq.sfd, buf, n);
+}
+
+void setup_thread(wk_thread *work_thread)
+{   
+    work_thread-&gt;base = event_init();
+    if (!work_thread-&gt;base) {
+        fprintf(stdout, "Can't allocate event base\n");
+        exit(1);
+    }
+
+    event_set(&amp;work_thread-&gt;notify_event, work_thread-&gt;notify_receive_fd, EV_READ | EV_PERSIST, thread_libevent_process, work_thread);
+    event_base_set(work_thread-&gt;base, &amp;work_thread-&gt;notify_event);
+    if (event_add(&amp;work_thread-&gt;notify_event, 0) == -1) {
+        fprintf(stdout, "Can't add libevent notify pipe\n");
+        exit(1);
+    }
+}
+
+void worker_libevent(void *arg)
+{
+    wk_thread *work_thread = arg;
+    event_base_loop(work_thread-&gt;base, 0);
+}
+
+void create_worker(void *(*func)(void *), void *arg)
+{
+    pthread_t thread;
+    pthread_attr_t attr;
+    int ret;
+    pthread_attr_init(&amp;attr);
+
+    if ((ret = pthread_create(&amp;thread, &amp;attr, func, arg)) != 0) {
+        fprintf(stdout, "Can't create thread: %s\n", strerror(ret));
+        exit(1);
+    }
+}
+
+
+void thread_init(int t_num, struct event_base *main_base)
+{
+    dispatch_thread.base = main_base;
+    dispatch_thread.thread_id = pthread_self();
+    int i;
+    threads = calloc(t_num, sizeof(wk_thread));
+    if (!threads) {
+        perror("Can't alloc so many thread\n");
+        exit(1);
+    }
+
+    for (i = 0; i &lt; t_num; i++) {
+        int fds[2];
+        if (pipe(fds)) {
+            perror("can't pipe\n");
+            exit(1);
+        }
+        threads[i].notify_receive_fd = fds[0];
+        threads[i].notify_send_fd = fds[1];
+
+        setup_thread(&amp;threads[i]);
+    }
+
+    for (i = 0; i &lt; t_num; i++) {
+        create_worker(worker_libevent, &amp;threads[i]);
+    }
+
+}
+</code></pre></div></div>
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/tech/2012/02/04/event-like-memcache';
+    var disqus_title      = 'event + 线程池模型的 server 类似 Memcache线程池模型';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

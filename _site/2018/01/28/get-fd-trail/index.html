@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>linux get fd trail &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="linux get fd trail">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://localhost:4000/2018/01/28/get-fd-trail/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?202204110303" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="linux get fd trail">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://localhost:4000/2018/01/28/get-fd-trail/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="linux get fd trail" />
+    <meta name="twitter:description" content="linux get fd trail" />
+    <meta name="twitter:url" content="http://localhost:4000/2018/01/28/get-fd-trail/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://localhost:4000" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>linux get fd trail</h1>
+  <span class="post-meta">Jan 28 2018</span><br>
+  
+  <span class="post-meta small">
+  
+    2 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <p>我们知道在我们使用open() 系统调用打开一个文件以后, 会返回一个具体的fd, 我们知道0, 1, 2是默认的标准输入, 标准输出以及错误输出的fd, 那么这个fd 号是如何获得, 以及关闭以后如何使用的呢?</p>
+
+<p><strong>数据结构</strong></p>
+
+<p>首先进程打开一个文件相关的操作都保存在 files_struct 这个结构体里, 变量名是files, 每一个进程有自己的 files_struct, files_struct 中包含fdtable 结构体</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/*
+ * Open file table structure
+ */</span>
+<span class="k">struct</span> <span class="n">files_struct</span> <span class="p">{</span>
+  <span class="cm">/*
+   * read mostly part
+   */</span>
+	<span class="n">atomic_t</span> <span class="n">count</span><span class="p">;</span>
+	<span class="k">struct</span> <span class="n">fdtable</span> <span class="o">*</span><span class="n">fdt</span><span class="p">;</span>
+	<span class="k">struct</span> <span class="n">fdtable</span> <span class="n">fdtab</span><span class="p">;</span>
+  <span class="cm">/*
+   * written part on a separate cache line in SMP
+   * 操作 fdt 的时候一般都会锁住 file_lock
+   * 比如在 open 需要往fdt 增加fd 的过程, 以及在close 需要往fdt 中减东西的过程
+   * 这个就是保证了有多个线程在一个进程中都在申请open, socket() 等等操作的时候fd 
+   * 不会冲突的保证
+   */</span>
+	<span class="n">spinlock_t</span> <span class="n">file_lock</span> <span class="n">____cacheline_aligned_in_smp</span><span class="p">;</span>  
+	<span class="kt">int</span> <span class="n">next_fd</span><span class="p">;</span>
+	<span class="k">struct</span> <span class="n">embedded_fd_set</span> <span class="n">close_on_exec_init</span><span class="p">;</span>
+	<span class="k">struct</span> <span class="n">embedded_fd_set</span> <span class="n">open_fds_init</span><span class="p">;</span>
+	<span class="k">struct</span> <span class="n">file</span> <span class="o">*</span> <span class="n">fd_array</span><span class="p">[</span><span class="n">NR_OPEN_DEFAULT</span><span class="p">];</span>
+<span class="p">};</span>
+
+<span class="k">struct</span> <span class="n">fdtable</span> <span class="p">{</span>
+	<span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">max_fds</span><span class="p">;</span>
+  <span class="cm">/*
+   * 这里这个fd 保存的就是fd 与 vfs 中的file 的对应关系, 
+   * 所以知道一个进程打开的fd 以后, 在这里根据fd 的号码对应的数组
+   * 的位置就可以获得这个file 结构了
+   * 比如: 这里就是fdtable 根据fd 或者对应file* 的操作
+   * filp = fdt-&gt;fd[fd];
+   * 将一个fd 关联到file* 的方法是
+	 * fd_install(fd, f);
+   */</span>
+	<span class="k">struct</span> <span class="n">file</span> <span class="o">**</span> <span class="n">fd</span><span class="p">;</span>      <span class="cm">/* current fd array */</span>
+	<span class="n">fd_set</span> <span class="o">*</span><span class="n">close_on_exec</span><span class="p">;</span>
+	<span class="n">fd_set</span> <span class="o">*</span><span class="n">open_fds</span><span class="p">;</span>
+	<span class="k">struct</span> <span class="n">rcu_head</span> <span class="n">rcu</span><span class="p">;</span>
+	<span class="k">struct</span> <span class="n">fdtable</span> <span class="o">*</span><span class="n">next</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// 其中fd_set 的定义是这样</span>
+<span class="cp">#define __NFDBITS	(8 * sizeof(unsigned long))
+#define __FD_SETSIZE	1024
+#define __FDSET_LONGS	(__FD_SETSIZE/__NFDBITS)
+</span><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+	<span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">fds_bits</span> <span class="p">[</span><span class="n">__FDSET_LONGS</span><span class="p">];</span>
+<span class="p">}</span> <span class="n">__kernel_fd_set</span><span class="p">;</span>
+<span class="k">typedef</span> <span class="n">__kernel_fd_set</span>		<span class="n">fd_set</span><span class="p">;</span>
+
+
+</code></pre></div></div>
+
+<p>所以进程打开的fd 是保存在每一个fd_set *open_fds 中, 每一个打开的进程是一个bit 位</p>
+
+<p><strong>方法</strong></p>
+
+<p>申请fd 的过程是</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">SYSCALL_DEFINE3</span><span class="p">(</span><span class="n">open</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="n">__user</span> <span class="o">*</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="kt">int</span><span class="p">,</span> <span class="n">flags</span><span class="p">,</span> <span class="kt">int</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+<span class="p">{</span>
+	<span class="n">ret</span> <span class="o">=</span> <span class="n">do_sys_open</span><span class="p">(</span><span class="n">AT_FDCWD</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">flags</span><span class="p">,</span> <span class="n">mode</span><span class="p">);</span>
+
+ <span class="o">=&gt;</span>
+<span class="kt">long</span> <span class="n">do_sys_open</span><span class="p">(</span><span class="kt">int</span> <span class="n">dfd</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="n">__user</span> <span class="o">*</span><span class="n">filename</span><span class="p">,</span> <span class="kt">int</span> <span class="n">flags</span><span class="p">,</span> <span class="kt">int</span> <span class="n">mode</span><span class="p">)</span>
+<span class="p">{</span>
+
+    <span class="cm">/*
+     * 获得当前这个进程里面空闲的fd
+     * 注意下面的调用里面会用到current 这个变量, 这个变量指的是当前的进程
+     */</span>
+		<span class="n">fd</span> <span class="o">=</span> <span class="n">get_unused_fd_flags</span><span class="p">(</span><span class="n">flags</span><span class="p">);</span>
+	<span class="p">...</span>
+      <span class="cm">/*
+       * 这里是打开file * 指针的操作
+       */</span>
+	<span class="k">struct</span> <span class="n">file</span> <span class="o">*</span><span class="n">f</span> <span class="o">=</span> <span class="n">do_filp_open</span><span class="p">(</span><span class="n">dfd</span><span class="p">,</span> <span class="n">tmp</span><span class="p">,</span> <span class="n">flags</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+
+	<span class="p">...</span>
+		<span class="n">fsnotify_open</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">f_path</span><span class="p">.</span><span class="n">dentry</span><span class="p">);</span>
+        <span class="cm">/*
+         * 将fd 和 file* 关联起来
+         * 主要做的事情就是设置这个fdtable 中的fd[fd] = f;
+         * 那么下一次就可以根据fd 号获得 file* 这个指针
+         */</span>
+		<span class="n">fd_install</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="n">f</span><span class="p">);</span>
+
+<span class="o">=&gt;</span>
+<span class="cp">#define get_unused_fd_flags(flags) alloc_fd(0, (flags))
+</span>
+<span class="kt">int</span> <span class="n">alloc_fd</span><span class="p">(</span><span class="kt">unsigned</span> <span class="n">start</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="n">flags</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="p">...</span>
+  <span class="c1">// 在操作fdt 之前都会加 file_lock 这个锁</span>
+	<span class="n">spin_lock</span><span class="p">(</span><span class="o">&amp;</span><span class="n">files</span><span class="o">-&gt;</span><span class="n">file_lock</span><span class="p">);</span>
+  <span class="c1">// 找出在open_fds-&gt;fds_bits 中空闲的bit, 如果不够了, 同时扩展这个fds_bits</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">fd</span> <span class="o">&lt;</span> <span class="n">fdt</span><span class="o">-&gt;</span><span class="n">max_fds</span><span class="p">)</span>
+		<span class="n">fd</span> <span class="o">=</span> <span class="n">find_next_zero_bit</span><span class="p">(</span><span class="n">fdt</span><span class="o">-&gt;</span><span class="n">open_fds</span><span class="o">-&gt;</span><span class="n">fds_bits</span><span class="p">,</span>
+					   <span class="n">fdt</span><span class="o">-&gt;</span><span class="n">max_fds</span><span class="p">,</span> <span class="n">fd</span><span class="p">);</span>
+  <span class="cm">/*
+   * 在expand_files 里面, 会进行检查是否达到这个进程的resource limit
+   * 以及ulimit -a 中的打开文件句柄数限制
+   * 如果fdtable 的空间不够, 就进行翻倍扩展
+   */</span>
+	<span class="n">error</span> <span class="o">=</span> <span class="n">expand_files</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="n">fd</span><span class="p">);</span>
+
+
+</code></pre></div></div>
+
+<p>tips</p>
+
+<p>从代码的实现里面可以看出, 所有对于fdtable 的操作都会添加file_lock锁, 所以肯定不会出现一个fd 对应多个打开的文件的情况, 之前线上出现一个fd 对应多个打开文件, 我们还怀疑过, 估计当时的现象应该是打开了了一个文件以后, 已经被关闭, 这个时候打开了一个新的文件使用的还是这个fd 号, 因为从下面close 的策略可以看出, 是一旦有fd 释放, 马上就会去使用这个fd 的</p>
+
+<p>close的过程</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">SYSCALL_DEFINE1</span><span class="p">(</span><span class="n">close</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="n">fd</span><span class="p">)</span>
+<span class="p">{</span>
+	<span class="n">spin_lock</span><span class="p">(</span><span class="o">&amp;</span><span class="n">files</span><span class="o">-&gt;</span><span class="n">file_lock</span><span class="p">);</span>
+  <span class="cm">/*
+   * 保存在fdtable 中, 通过fd 就可以直接找到对应的file* 指针
+   */</span>
+	<span class="n">filp</span> <span class="o">=</span> <span class="n">fdt</span><span class="o">-&gt;</span><span class="n">fd</span><span class="p">[</span><span class="n">fd</span><span class="p">];</span>
+
+	<span class="n">__put_unused_fd</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="n">fd</span><span class="p">);</span>
+	<span class="n">spin_unlock</span><span class="p">(</span><span class="o">&amp;</span><span class="n">files</span><span class="o">-&gt;</span><span class="n">file_lock</span><span class="p">);</span>
+
+<span class="p">...</span>
+
+<span class="k">static</span> <span class="kt">void</span> <span class="n">__put_unused_fd</span><span class="p">(</span><span class="k">struct</span> <span class="n">files_struct</span> <span class="o">*</span><span class="n">files</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">fd</span><span class="p">)</span>
+<span class="p">{</span>
+	<span class="k">struct</span> <span class="n">fdtable</span> <span class="o">*</span><span class="n">fdt</span> <span class="o">=</span> <span class="n">files_fdtable</span><span class="p">(</span><span class="n">files</span><span class="p">);</span>
+	<span class="n">__FD_CLR</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="n">fdt</span><span class="o">-&gt;</span><span class="n">open_fds</span><span class="p">);</span>
+  <span class="cm">/*
+   * 从这个设置next_fd 的操作可以看出
+   * 对于fd 的操作是close 一个fd 以后, 下一次的open 操作申请的
+   * 就是这个释放的fd
+   * 所以这里是循环利用这个fd的
+   */</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">fd</span> <span class="o">&lt;</span> <span class="n">files</span><span class="o">-&gt;</span><span class="n">next_fd</span><span class="p">)</span>
+		<span class="n">files</span><span class="o">-&gt;</span><span class="n">next_fd</span> <span class="o">=</span> <span class="n">fd</span><span class="p">;</span>
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/2018/01/28/get-fd-trail';
+    var disqus_title      = 'linux get fd trail';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

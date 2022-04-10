@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>state machine replication vs primary backup system &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="state machine replication vs primary backup system">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://localhost:4000/2017/11/08/state-machine-vs-primary-backup/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?202204110303" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="state machine replication vs primary backup system">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://localhost:4000/2017/11/08/state-machine-vs-primary-backup/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="state machine replication vs primary backup system" />
+    <meta name="twitter:description" content="state machine replication vs primary backup system" />
+    <meta name="twitter:url" content="http://localhost:4000/2017/11/08/state-machine-vs-primary-backup/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://localhost:4000" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>state machine replication vs primary backup system</h1>
+  <span class="post-meta">Nov 8 2017</span><br>
+  
+  <span class="post-meta small">
+  
+    1 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <p>最近在看zab, vr, raft, paxos 这些一致性协议的对比, 想找出共同点. 然后zab, vr 经常提到他们的一个primary backup system, 与replicate state machine 还是有不同的. 虽然他们都有state machine, consensus  module, log.</p>
+
+<p>这里的对比主要来自 raft 作者的phd 论文里面的观点:</p>
+
+<p><img src="https://i.imgur.com/u3fWIjm.jpg" alt="Imgur" /></p>
+
+<p>从这个图可以看出primary backup system 的做法是, 当有client 请求到达的时候, primary 会立刻将这个请求apply 到自己的 state machine, 然后将这个结果发送给自己的backup, 而不是这个client 的请求(比如这里就是将y=2 发送给backup, 而不是发送y++ 这个操作), 然后这里发送给自己多个backups 的时候是通过一致性协议来进行发送.</p>
+
+<p>然而这里还是有几个不同点</p>
+
+<ol>
+  <li>
+    <p>在primary backup system 里面,  primary 在接收到client 的请求以后, 会立刻apply 到自己的state machine, 然后计算出这个结果, 写到自己的log, 以及发送给所有的backups. 而在state machine replication 系统里面, 是直接将这个操作发送给各个replication的. 那么带来的两个结果</p>
+
+    <ul>
+      <li>如果某一个操作最后并没有提交, 那么这个state machine 必须将这次的操作给回滚掉</li>
+      <li>如果一个新的节点成为primary, 那么旧的primary 的state machine 必须将最近的未提交的操作给回滚掉</li>
+    </ul>
+
+    <p>可以看出zab 怎么解决这个问题的呢? zab 的解决方法就是当recovery 的时候, 将leader 上面的所有日志都拉去过来, 然后丢弃自己state machine 的内容, 直接使用新leader state machine 的内容</p>
+  </li>
+  <li>
+    <p>primary backup system 里面, log只需要保存对state machine 有修改的操作, 而state machine replication 需要记录所有的操作. 比如如果某一次操作set y = 2, 而其实y 在DB 里面就是2, 那么在primary backup system 里面, 就不会给replication 发送这个操作. 而在state machine replication 里面则会发送这个操作, 这样带来的影响是可能state machine replication 会有较多的log, 但是通过log compaction 其实带来的影响可以忽略</p>
+  </li>
+  <li>
+    <p>state machine replication 需要保证每一个操作都是确定性的, 因为每一个server 都必须保证apply 这一系列的client 操作以后, 所有server 的结果必须是一样的. 因此想比如跟时间, random 相关的这些不确定性操作在这里就无法实现, 而在primary back system 里面, 这些不确定性的操作会通过apply 到 state machine 转化成确定性的操作, 所以不会有这个问题. 因此常见的state machine replication 会将这些不确定性的操作给拒绝来解决这个问题. 也就是client 请求的时候就必须保证这些操作是确定性的</p>
+  </li>
+</ol>
+
+<p>在 “Vive La Diffe ́rence:Paxos vs. Viewstamped Replication vs. Zab” 这个论文里面, state machine replication 也称作active replication, 而primary-backup system 也称作passive replication, 这样更加的形象, 也就是 state machine replication 是主动去同步数据, 通过达成一致性协议来返回给client, 而primary-backup system 是primary 做了所有了事情, 只是通过一致性协议把数据保存在backups 里面</p>
+
+<p><img src="https://i.imgur.com/bbWksIz.jpg" alt="Imgur" /></p>
+
+<p>在zookeeper 的wiki 上面同样有state machine replication 和 primary backup system 的对比, 不过我感觉他主要想表达的是通过multi-paxos 实现的state machine replication 是无法满足有序提交这个问题的, 但是其实在raft 实现的state machine replication 里面是可以满足这个条件的. 所以是否满足有序提交这个问题更多的如上图所示是支持不支持primary-order 的问题</p>
+
+<p>https://cwiki.apache.org/confluence/display/ZOOKEEPER/Zab+vs.+Paxos</p>
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/2017/11/08/state-machine-vs-primary-backup';
+    var disqus_title      = 'state machine replication vs primary backup system';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

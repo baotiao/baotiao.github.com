@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Leveldb write  &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="做有积累的事情">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="tech">
+    <link rel="canonical" href="http://localhost:4000/tech/2014/02/12/leveldb-write/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?202204110303" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Leveldb write ">
+    <meta property="og:description" content="Leveldb write">
+    <meta property="og:url" content="http://localhost:4000/tech/2014/02/12/leveldb-write/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="Leveldb write " />
+    <meta name="twitter:description" content="做有积累的事情" />
+    <meta name="twitter:url" content="http://localhost:4000/tech/2014/02/12/leveldb-write/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://localhost:4000" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>Leveldb write </h1>
+  <span class="post-meta">Feb 12 2014</span><br>
+  
+  <span class="post-meta small">
+  
+    2 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <p>年前分享了LevelDB的时候遗留了一个问题
+就是在LevelDB Write操作的时候, 如何做到线程安全的, 以及在代码里面为什么要同时通知这么多个的线程</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">Writer</span><span class="o">*</span> <span class="n">ready</span> <span class="o">=</span> <span class="n">writers_</span><span class="p">.</span><span class="n">front</span><span class="p">();</span>
+  <span class="n">writers_</span><span class="p">.</span><span class="n">pop_front</span><span class="p">();</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">ready</span> <span class="o">!=</span> <span class="o">&amp;</span><span class="n">w</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">ready</span><span class="o">-&gt;</span><span class="n">status</span> <span class="o">=</span> <span class="n">status</span><span class="p">;</span>
+    <span class="n">ready</span><span class="o">-&gt;</span><span class="n">done</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+    <span class="n">ready</span><span class="o">-&gt;</span><span class="n">cv</span><span class="p">.</span><span class="n">Signal</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">ready</span> <span class="o">==</span> <span class="n">last_writer</span><span class="p">)</span> <span class="k">break</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>重新看了一下代码应该是这个样子的</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Status</span> <span class="n">DBImpl</span><span class="o">::</span><span class="n">Write</span><span class="p">(</span><span class="k">const</span> <span class="n">WriteOptions</span><span class="o">&amp;</span> <span class="n">options</span><span class="p">,</span> <span class="n">WriteBatch</span><span class="o">*</span> <span class="n">my_batch</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// 这里用到的就是标准的 condition variable 配合 mutex 使用的例子,</span>
+  <span class="c1">// 这里在这个while 里面添加的 w != writes_.front() 同时又保证了只有一个写</span>
+  <span class="n">Writer</span> <span class="n">w</span><span class="p">(</span><span class="o">&amp;</span><span class="n">mutex_</span><span class="p">);</span> <span class="c1">// 这个w锁是一个条件变量, 传入的mutex_是交给条件变量里面的mu_的</span>
+  <span class="n">w</span><span class="p">.</span><span class="n">batch</span> <span class="o">=</span> <span class="n">my_batch</span><span class="p">;</span>
+  <span class="n">w</span><span class="p">.</span><span class="n">sync</span> <span class="o">=</span> <span class="n">options</span><span class="p">.</span><span class="n">sync</span><span class="p">;</span>
+  <span class="n">w</span><span class="p">.</span><span class="n">done</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+
+  <span class="c1">// NICE</span>
+  <span class="c1">// 这里写的也很精妙, 之所以用MutexLock 来实现, 是因为这样只要在中途退出就会自动</span>
+  <span class="c1">// 触发这个MutexLock的析构函数, 析构函数里面写了unLock这个锁的操作, 那么就可以不用在</span>
+  <span class="c1">// 每个中间的return 前面都加上这个l-&gt;unLock()操作</span>
+  <span class="n">MutexLock</span> <span class="n">l</span><span class="p">(</span><span class="o">&amp;</span><span class="n">mutex_</span><span class="p">);</span> <span class="c1">// 这里的操作是在做pthread_cond_wait之前把mutex_锁住的操作, 这样保证pthread_cond_wait的时候不会死锁</span>
+  <span class="n">writers_</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="o">&amp;</span><span class="n">w</span><span class="p">);</span>
+  <span class="c1">//这里用一个队列, 并且只有在队列最头部的那个writeBatch才会被写. 所以进入到下面Write的过程只会有一个线程</span>
+  <span class="k">while</span> <span class="p">(</span><span class="o">!</span><span class="n">w</span><span class="p">.</span><span class="n">done</span> <span class="o">&amp;&amp;</span> <span class="o">&amp;</span><span class="n">w</span> <span class="o">!=</span> <span class="n">writers_</span><span class="p">.</span><span class="n">front</span><span class="p">())</span> <span class="p">{</span>
+    <span class="n">w</span><span class="p">.</span><span class="n">cv</span><span class="p">.</span><span class="n">Wait</span><span class="p">();</span> <span class="c1">//这里是condition varaible, 这里wait 的时候会同时把mu_这个锁放开</span>
+  <span class="p">}</span>
+  <span class="cm">/* 之前解释说这里w.done 是写代码写的很小心, 是错误的, 具体解释见下面 */</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">w</span><span class="p">.</span><span class="n">done</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">w</span><span class="p">.</span><span class="n">status</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="c1">// 接下来处理的就是这个writers_ 里面最头的那个的信息</span>
+
+  <span class="c1">// May temporarily unlock and wait.</span>
+  <span class="c1">// 这里是检查memtable有没有空间可以写入, 如果没有就换一个buffer 和 compaction等操作</span>
+  <span class="n">Status</span> <span class="n">status</span> <span class="o">=</span> <span class="n">MakeRoomForWrite</span><span class="p">(</span><span class="n">my_batch</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">);</span>
+  <span class="kt">uint64_t</span> <span class="n">last_sequence</span> <span class="o">=</span> <span class="n">versions_</span><span class="o">-&gt;</span><span class="n">LastSequence</span><span class="p">();</span>
+  <span class="n">Writer</span><span class="o">*</span> <span class="n">last_writer</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">w</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">status</span><span class="p">.</span><span class="n">ok</span><span class="p">()</span> <span class="o">&amp;&amp;</span> <span class="n">my_batch</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>  <span class="c1">// NULL batch is for compactions</span>
+
+    <span class="cm">/*  主要的地方就是这个BuildBatchGroup 函数, 这个函数做的是将这个队列里面前几个的Writer, 合并成一个Batch.
+        这么做的原因我想主要也是为了性能考虑, 因为这里我们每一次的Put, 都是一个batch, 所以这里会将多个的batch
+        合并成一个Batch来进行处理, 主要是为了减少写log 的时候写磁盘的次数,
+        因此比较这次write 里面磁盘IO 是占用最大的.
+        所以这里将队列的前几个Batch合并成了一个Batch, 由当前的Batch处理了. 所以刚才上面那个代码会判断一下当前的这个
+        Write 是否已经被处理好了
+
+        代码见下面
+     */</span>
+
+    <span class="n">WriteBatch</span><span class="o">*</span> <span class="n">updates</span> <span class="o">=</span> <span class="n">BuildBatchGroup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">last_writer</span><span class="p">);</span>
+
+    <span class="n">WriteBatchInternal</span><span class="o">::</span><span class="n">SetSequence</span><span class="p">(</span><span class="n">updates</span><span class="p">,</span> <span class="n">last_sequence</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="n">last_sequence</span> <span class="o">+=</span> <span class="n">WriteBatchInternal</span><span class="o">::</span><span class="n">Count</span><span class="p">(</span><span class="n">updates</span><span class="p">);</span>
+
+    <span class="c1">// Add to log and apply to memtable.  We can release the lock</span>
+    <span class="c1">// during this phase since &amp;w is currently responsible for logging</span>
+    <span class="c1">// and protects against concurrent loggers and concurrent writes</span>
+    <span class="c1">// into mem_.</span>
+    <span class="p">{</span>
+      <span class="c1">//因为到这里的时候 只有一个writers_里面的一个能到达这里. 所以这里可以保证这有一个线程到了可以AddRecord这一步了.</span>
+      <span class="c1">//所以这里把锁release掉</span>
+
+      <span class="n">mutex_</span><span class="p">.</span><span class="n">Unlock</span><span class="p">();</span>
+      <span class="n">status</span> <span class="o">=</span> <span class="n">log_</span><span class="o">-&gt;</span><span class="n">AddRecord</span><span class="p">(</span><span class="n">WriteBatchInternal</span><span class="o">::</span><span class="n">Contents</span><span class="p">(</span><span class="n">updates</span><span class="p">));</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">status</span><span class="p">.</span><span class="n">ok</span><span class="p">()</span> <span class="o">&amp;&amp;</span> <span class="n">options</span><span class="p">.</span><span class="n">sync</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">logfile_</span><span class="o">-&gt;</span><span class="n">Sync</span><span class="p">();</span>
+      <span class="p">}</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">status</span><span class="p">.</span><span class="n">ok</span><span class="p">())</span> <span class="p">{</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">WriteBatchInternal</span><span class="o">::</span><span class="n">InsertInto</span><span class="p">(</span><span class="n">updates</span><span class="p">,</span> <span class="n">mem_</span><span class="p">);</span>
+      <span class="p">}</span>
+      <span class="n">mutex_</span><span class="p">.</span><span class="n">Lock</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">updates</span> <span class="o">==</span> <span class="n">tmp_batch_</span><span class="p">)</span> <span class="n">tmp_batch_</span><span class="o">-&gt;</span><span class="n">Clear</span><span class="p">();</span>
+
+    <span class="n">versions_</span><span class="o">-&gt;</span><span class="n">SetLastSequence</span><span class="p">(</span><span class="n">last_sequence</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="cm">/*  这里循环判断已经被处理掉的batch, 设置done = true, 并从队列里面取出, 并Pop()掉, 可以看出
+      这里都是因为上面做了Batch合并, 同时处理了多个Batch. 所以这里可以直接将这个done = true. 并
+      触发这个线程, 然后线程进入刚才的Wait()判断成功. 然后
+      if (w.done) {
+      return w.status;
+      }
+      就直接退出了
+      就相当于队里头部的这个线程, 完成多其他线程的几个的写操作
+   */</span>
+
+  <span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">Writer</span><span class="o">*</span> <span class="n">ready</span> <span class="o">=</span> <span class="n">writers_</span><span class="p">.</span><span class="n">front</span><span class="p">();</span>
+    <span class="n">writers_</span><span class="p">.</span><span class="n">pop_front</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">ready</span> <span class="o">!=</span> <span class="o">&amp;</span><span class="n">w</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">ready</span><span class="o">-&gt;</span><span class="n">status</span> <span class="o">=</span> <span class="n">status</span><span class="p">;</span>
+      <span class="n">ready</span><span class="o">-&gt;</span><span class="n">done</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+      <span class="n">ready</span><span class="o">-&gt;</span><span class="n">cv</span><span class="p">.</span><span class="n">Signal</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">ready</span> <span class="o">==</span> <span class="n">last_writer</span><span class="p">)</span> <span class="k">break</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="c1">// 这里之前已经把合并一起的Batch都处理完了, 并且已经处理的Batch都从队列里面Pop()出去了, 然后现在就</span>
+  <span class="c1">// 唤醒当前队列最前面的线程</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">writers_</span><span class="p">.</span><span class="n">empty</span><span class="p">())</span> <span class="p">{</span>
+    <span class="n">writers_</span><span class="p">.</span><span class="n">front</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">cv</span><span class="p">.</span><span class="n">Signal</span><span class="p">();</span>
+  <span class="p">}</span>
+
+  <span class="k">return</span> <span class="n">status</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">WriteBatch</span><span class="o">*</span> <span class="n">DBImpl</span><span class="o">::</span><span class="n">BuildBatchGroup</span><span class="p">(</span><span class="n">Writer</span><span class="o">**</span> <span class="n">last_writer</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">assert</span><span class="p">(</span><span class="o">!</span><span class="n">writers_</span><span class="p">.</span><span class="n">empty</span><span class="p">());</span>
+  <span class="n">Writer</span><span class="o">*</span> <span class="n">first</span> <span class="o">=</span> <span class="n">writers_</span><span class="p">.</span><span class="n">front</span><span class="p">();</span>
+  <span class="n">WriteBatch</span><span class="o">*</span> <span class="n">result</span> <span class="o">=</span> <span class="n">first</span><span class="o">-&gt;</span><span class="n">batch</span><span class="p">;</span>
+  <span class="n">assert</span><span class="p">(</span><span class="n">result</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">);</span>
+
+  <span class="kt">size_t</span> <span class="n">size</span> <span class="o">=</span> <span class="n">WriteBatchInternal</span><span class="o">::</span><span class="n">ByteSize</span><span class="p">(</span><span class="n">first</span><span class="o">-&gt;</span><span class="n">batch</span><span class="p">);</span>
+
+  <span class="c1">// Allow the group to grow up to a maximum size, but if the</span>
+  <span class="c1">// original write is small, limit the growth so we do not slow</span>
+  <span class="c1">// down the small write too much.</span>
+  <span class="kt">size_t</span> <span class="n">max_size</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">20</span><span class="p">;</span> <span class="c1">// 这个size 是设置合并的WriteBatch 的大小</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">size</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="mi">128</span><span class="o">&lt;&lt;</span><span class="mi">10</span><span class="p">))</span> <span class="p">{</span>
+    <span class="n">max_size</span> <span class="o">=</span> <span class="n">size</span> <span class="o">+</span> <span class="p">(</span><span class="mi">128</span><span class="o">&lt;&lt;</span><span class="mi">10</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="o">*</span><span class="n">last_writer</span> <span class="o">=</span> <span class="n">first</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">deque</span><span class="o">&lt;</span><span class="n">Writer</span><span class="o">*&gt;::</span><span class="n">iterator</span> <span class="n">iter</span> <span class="o">=</span> <span class="n">writers_</span><span class="p">.</span><span class="n">begin</span><span class="p">();</span>
+  <span class="o">++</span><span class="n">iter</span><span class="p">;</span>  <span class="c1">// Advance past "first"</span>
+  <span class="k">for</span> <span class="p">(;</span> <span class="n">iter</span> <span class="o">!=</span> <span class="n">writers_</span><span class="p">.</span><span class="n">end</span><span class="p">();</span> <span class="o">++</span><span class="n">iter</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">Writer</span><span class="o">*</span> <span class="n">w</span> <span class="o">=</span> <span class="o">*</span><span class="n">iter</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">w</span><span class="o">-&gt;</span><span class="n">sync</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="n">first</span><span class="o">-&gt;</span><span class="n">sync</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">// Do not include a sync write into a batch handled by a non-sync write.</span>
+      <span class="k">break</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">w</span><span class="o">-&gt;</span><span class="n">batch</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">size</span> <span class="o">+=</span> <span class="n">WriteBatchInternal</span><span class="o">::</span><span class="n">ByteSize</span><span class="p">(</span><span class="n">w</span><span class="o">-&gt;</span><span class="n">batch</span><span class="p">);</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">size</span> <span class="o">&gt;</span> <span class="n">max_size</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c1">// Do not make batch too big</span>
+        <span class="k">break</span><span class="p">;</span>
+      <span class="p">}</span>
+
+      <span class="c1">// Append to *reuslt</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">result</span> <span class="o">==</span> <span class="n">first</span><span class="o">-&gt;</span><span class="n">batch</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c1">// Switch to temporary batch instead of disturbing caller's batch</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">tmp_batch_</span><span class="p">;</span>
+        <span class="n">assert</span><span class="p">(</span><span class="n">WriteBatchInternal</span><span class="o">::</span><span class="n">Count</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">);</span>
+        <span class="n">WriteBatchInternal</span><span class="o">::</span><span class="n">Append</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">first</span><span class="o">-&gt;</span><span class="n">batch</span><span class="p">);</span>
+      <span class="p">}</span>
+      <span class="n">WriteBatchInternal</span><span class="o">::</span><span class="n">Append</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">w</span><span class="o">-&gt;</span><span class="n">batch</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="o">*</span><span class="n">last_writer</span> <span class="o">=</span> <span class="n">w</span><span class="p">;</span>  <span class="c1">// 同时更新最后的last_writer 到队列里面最新的last_writer</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="n">result</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="总结">总结:</h3>
+
+<p>LevelDB Write 的线程安全是通过引擎的加锁保证, 如果有多个写的时候,
+有且只有一个线程可以进行数据的消费, 其他的线程都会阻塞</p>
+
+<p>和标准的队列的生产者消费者模型不一样的地方在于, leveldb
+这个队列消费的时候会把队列里面的多个对象合成一个大对象进行消费,
+主要是因此消费对象的时候需要进行AddRecord 操作, 需要进行磁盘IO,
+因此将多次小的磁盘IO 合成一个大的磁盘IO 能够有效的提高性能</p>
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/tech/2014/02/12/leveldb-write';
+    var disqus_title      = 'Leveldb write ';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

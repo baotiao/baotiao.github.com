@@ -1,0 +1,1755 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>baotiao</title>
+    <description>做有积累的事情</description>
+    <link>http://localhost:4000/</link>
+    <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml" />
+    
+      <item>
+        <title>Innodb Physiological Logging</title>
+        <description>&lt;p&gt;为什么InnoDB 的redo log 是&lt;strong&gt;Physiological logging&lt;/strong&gt;?&lt;/p&gt;
+
+&lt;p&gt;有一个存储的同学来问, 如果redo log 是纯physical log 的话, 那么就可以省去double write buffer 的开销, 保证每一次修改都是在4kb以内(由操作系统保证4kb以内的原子操作), 那么就不存在应用redo 到不新不旧的page 上的问题, 就不需要double write buffer.&lt;/p&gt;
+
+&lt;p&gt;目前主要有两种Logical logging and Physical logging.&lt;/p&gt;
+
+&lt;p&gt;Logical logging 像Binlog 这种, 记录的是操作, 跟物理格式无关, 所以通过binlog 可以对接不同的存储引擎.&lt;/p&gt;
+
+&lt;p&gt;Physical logging 是纯物理格式, byte for byte 的记录数据的改动, 比如 [start, end, ‘xxxxx’] 这样的格式内容改动.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Physical logging&lt;/strong&gt; 的优点是高效率, 并且可以直接修改物理格式, 任何操作都不需要重新遍历btree 到指定page.&lt;/p&gt;
+
+&lt;p&gt;但是缺点也很明显, 记录的内容非常冗余, 比如一次delete 操作, logical logging 只需要记录MLOG_COMP_REC_DELETE offset 就可以, 实际执行的过程中会修改prev record-&amp;gt;next_record, next_record-&amp;gt;prev_record, checksum, PAGE_DIR_SLOT_MIN_N_OWNED, 可能还需要更新dir slot 信息等等. 如果改成physical logging 那么这些信息涉及到的内容在page 不同位置, 那么需要记录的日志就非常多了.&lt;/p&gt;
+
+&lt;p&gt;另外在page reorgnize 或者 SMO 场景需要记录大量的无用日志, 比如当一个page 内部有过大量的删除, 有碎片需要整理的时候, 因为需要重新组织page结构, 如果physical logging 那么就需要一个一个record 重新insert 到当前page, offset 需要重新记录, 而logical logging 就只需要记录MLOG_PAGE_REORGANIZE 就可以了. 对比一下16kb 的page 只需要记录几个字节, 而physical logging 需要写差不多16kb 的内容了.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Logical logging&lt;/strong&gt; 的优点是记录非常高效, 如上面说的delete 操作, 只需要记录几个字节, 在SMO, page reorgnize 等场景更加明显.&lt;/p&gt;
+
+&lt;p&gt;但是最大的缺点也很明显, 因为记录的是record_id, 那么所有改动就需要重新遍历btree, 因为都需要对btree 进行修改, 那么就得走加index lock, 串行修改的逻辑. 而物理日志因为page 之前完全没有依赖, 那么就可以并行回放, 这样crash recovery 的效率最高的.&lt;/p&gt;
+
+&lt;p&gt;在&lt;a href=&quot;./https://cs.stanford.edu/people/chrismre/cs345/rl/aries.pdf&quot;&gt;ARIES&lt;/a&gt; 文章之后, 大部分的商业数据库选择的是”Physiological Logging”,  也就是”physical to a page, logical within a page.”, InnoDB 也是这样, 尽可能将Logocal logging 和 Physical logging 的优点结合在一起.&lt;/p&gt;
+
+&lt;p&gt;记录的redo log 的格式是操作类型, 有些操作类型需要修改record 的话会记录offset. 大量的操作是一些逻辑操作, 比如 MLOG_1BYTE/MLOG_2BYTE/MLOG_INIT_FILE_PAGE 等等.&lt;/p&gt;
+
+&lt;p&gt;对于insert/update/delete 等等操作可以保证到记录到page level, 那么在crash recovery 的时候, 就可以并行的回放日志不需要重新执行btree 遍历找到page逻辑, 从而加快crash recovery.&lt;/p&gt;
+
+&lt;p&gt;当然现在InnoDB 的日志还有一些冗余的地方, PolarDB 也做了一些改进, 比如增加了record 长度信息, 减少了连续mtr 里面page id 记录等等, MariaDB Marko 也一直在优化这块 &lt;a href=&quot;./https://jira.mariadb.org/browse/MDEV-12353&quot;&gt;MDEV-12353&lt;/a&gt;. 整体而言都是为了在page 内部的Logical redo 尽可能高效并且减少冗余.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Reference:&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;C. Mohan, Don Handerle&lt;strong&gt;.&lt;/strong&gt; ARIES: A Transaction Recovery Method Supporting Fine-Granularity Locking and Partial Rollbacks Using Write-Ahead Logging.&lt;/li&gt;
+  &lt;li&gt;C. Mohan, Frank Levine. ARIES/lM: An Efficient and High Concurrency index Management Method Using Write-Ahead Logging.&lt;/li&gt;
+&lt;/ol&gt;
+</description>
+        <pubDate>Sun, 10 Apr 2022 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2022/04/10/physiological-log/</link>
+        <guid isPermaLink="true">http://localhost:4000/2022/04/10/physiological-log/</guid>
+      </item>
+    
+      <item>
+        <title>MySQL InnoDB space file</title>
+        <description>&lt;p&gt;InnoDB 最后的数据都会落到文件中.&lt;/p&gt;
+
+&lt;p&gt;整体而言InnoDB 里面除了redo log 以外都使用统一的结构进行管理, 包括system tablespace(ibdata1), user tablespace(用户表空间), undo log, temp tablespace. 这个结构我们统称space file.&lt;/p&gt;
+
+&lt;p&gt;接下来会4篇文章介绍InnoDB 主要的从文件, page, index, record 在具体文件里面是如何分布的, 这里大量引用了Jeremy Cole 里面的图片和文章的内容.&lt;/p&gt;
+
+&lt;p&gt;同时介绍的过程会结合inno_space 工具直观的打印出文件的内部结构.&lt;/p&gt;
+
+&lt;p&gt;什么是inno_space?&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;./https://github.com/baotiao/inno_space&quot;&gt;inno_space &lt;/a&gt; 是一个可以直接访问InnoDB 内部文件的命令行工具,  可以打印出文件的内部结构.&lt;/p&gt;
+
+&lt;p&gt;Jeremy Cole 用ruby 写了一个类似的工具, 不过不支持MySQL 8.0, 并且ruby 编译以及改动起来特别麻烦, 所以用cpp 重写了一个. inno_space 做到不依赖任何外部文件, 只需要make, 就可以得到可执行文件, 做到开箱即用.&lt;/p&gt;
+
+&lt;p&gt;inno_space 除了支持打印出文件的具体结构之外, 同时还支持修复 corrupt page 功能, 如果遇到InnoDB 表文件中的page 损坏, 实例无法启动的情况, 如果损坏的只是leaf page, inno_space 可以将corrupt page 跳过, 从而保证实例能够启动, 并且将绝大部分的数据找回.&lt;/p&gt;
+
+&lt;p&gt;inno_space 还提供分析表文件中的数据情况, 是否有过多的free page, 从而给用户建议是否需要执行 optimize table 等等&lt;/p&gt;
+
+&lt;p&gt;具体可以看代码, 在github 上面开源: https://github.com/baotiao/inno_space/commits/main&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;InnoDB space file 也就是整个InnoDB 文件系统的管理, 介绍.ibd 文件的基础结构. &lt;a href=&quot;./InnoDB space file.md&quot;&gt;InnoDB space file&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;InnoDB page management  具体的在InnoDB file space 这些16kb 大小的page 是如何管理的 &lt;a href=&quot;./InnoDB page management.md&quot;&gt;Page management&lt;/a&gt;&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;InnoDB Index page 上面讲了这16kb 的page 如何管理, 那么我们细看一下最常见的page 类型, Index Page 存的是用户表空间的数据,  这些Index Page 是如何维护成一个table 的数据 &lt;a href=&quot;./InnoDB Index page.md&quot;&gt;Index page&lt;/a&gt;&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;InnoDB record 是具体在InnoDB page 里面, Mysql 里面的record 是如何保存在InnoDB page 里面的 &lt;a href=&quot;./InnoDB record.md&quot;&gt;InnoDB record&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;这篇文章只描述InnoDB file space, 接下来会有文章介绍InnoDB page management,  InnoDB page, InnoDB record&lt;/p&gt;
+
+&lt;h4 id=&quot;1-innodb-space-file-基本结构&quot;&gt;1. InnoDB space file 基本结构&lt;/h4&gt;
+
+&lt;p&gt;&lt;strong&gt;Page&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;在InnoDB 里面, 16kb 大小的page 是最小的原子单元&lt;/p&gt;
+
+&lt;p&gt;其他的大小都是在page 之上, 因此有:&lt;/p&gt;
+
+&lt;p&gt;1 page = 16kB = 16384 bytes&lt;/p&gt;
+
+&lt;p&gt;1 extent = 64 pages = 1 MB&lt;/p&gt;
+
+&lt;p&gt;FSP_HDR  page = 256 extents = 16384 pages = 256 MB&lt;/p&gt;
+
+&lt;p&gt;page 有最基础的38字节的 FIL Header, 8字节的FIL Trailer&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/NxR6eb3.jpg&quot; alt=&quot;Imgur&quot; style=&quot;zoom: 50%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;主要的内容包括:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;Checksum: 这个page 的checksum, 用来判断page 是否有corrupt&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Page Number: Page Number 可以计算出在文件上的偏移量, 一个page 是否初始化了, 也可以看这个page number 是否设置对了, 这个值其实是冗余的, 根据file offset 可以算出来, 所以这个值是否正确, 就可以知道这个page 是否被初始化了&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Previous Page/Next Page: 这个只有在Index page 的时候才有用, 而且只有leaf page 的时候才有用, non-leaf page 是没用的, 大部分类型的page 并没有使用这个字段.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;LSN for last page modification: 刷脏的时候, 写入这个page 的 newest_modification_lsn&lt;/p&gt;
+
+    &lt;p&gt;​	mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Page Type: 这个page 具体的类型, 比如是btree index leaf-page, undo log page,  btree index non-leaf page, insert buffer, fresh allocated page, 属于ibdata1 的system page 等等. Page Type 最重要, 决定这个page 的用途类型, 里面很多字段就不一样了&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Flush LSN:  保存的是已经flush 到磁盘的page 的最大lsn 信息. 只有在space 0 page 0 这个page 里面有用, 其他地方都没用.. 什么用途?什么时候写入? 什么时候读取?&lt;/p&gt;
+
+    &lt;p&gt;在进行shutdown 的时候, 或者执行force checkpoint的时候通过 fil_write_flushed_lsn_to_data_files 写入.&lt;/p&gt;
+
+    &lt;p&gt;用途是在启动的时候, 读取这个flush lsn, 可以确保这个lsn 之前的page 已经刷到磁盘了, 从这个flush lsn 之后的redo log 才是uncheckpoint redo log, 但是其实redo log 里面已经有了 checkpoint 的信息了, 为何还需要这个字段?&lt;/p&gt;
+
+    &lt;p&gt;logs_empty_and_mark_files_at_shutdown =&amp;gt;&lt;/p&gt;
+
+    &lt;p&gt;在实例启动的时候, innobase_start_or_create_for_mysql =&amp;gt; open_or_create_data_files =&amp;gt; fil_read_first_page&lt;/p&gt;
+
+    &lt;p&gt;fil_read_first_page 里面会读取出这个lsn 信息, 用于更新启动的时候的 min_flushed_lsn, max_flushed_lsn. 因为这个时候redo log 模块还没有初始化,  可以拿这个两个Lsn 做一些简单的判断&lt;/p&gt;
+
+    &lt;p&gt;整体来看, 这个字段目前已经没啥用了, 但是每一个page 都占用了8字节的空间, 还是比较浪费, 可以充分复用&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Space ID: 当前Page 所属space ID (8.0 里面已经将该字段删除了)&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;通过inno_space 可以看到相应的结构:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;./inno -f ~/git/primary/dbs2250/sbtest/sbtest1.ibd -p 10
+
+==========================block==========================
+FIL Header:
+CheckSum: 2065869235
+Page number: 10
+Previous Page: 9
+Next Page: 11
+Page LSN: 554513658770
+Page Type: 17855
+Flush LSN: 0
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;strong&gt;Space file&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;一个space file 就是2^32 个page 的合集, 连续64个page 叫做extent, 256个连续的extent 会有一个XDES(extent descriptor) 进行管理, 第一个XDES 又叫做FSP_HDR, 还有一些额外的信息.&lt;/p&gt;
+
+&lt;p&gt;下图就是这个基本文件组织结构的描述, 无论是undo space, system space, 用户的table space 都是这样结构&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../../../Library/Application Support/typora-user-images/image-20211118052832966.png&quot; alt=&quot;image-20211118052832966&quot; style=&quot;zoom:40%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;所有的space file 前3个page 都是一样.&lt;/p&gt;
+
+&lt;p&gt;page 0 是 FSP_HDR(file space header)&lt;/p&gt;
+
+&lt;p&gt;page 1 是 insert buffer bitmap&lt;/p&gt;
+
+&lt;p&gt;page 2 是 inode page, 下一节会介绍&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;The system space&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;system space 的space id = 0, 文件名叫 ibdata1, 也就是系统文件.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/l3UHMqR.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;page 0, 1, 2 这3个page 所有的space file 都一样&lt;/p&gt;
+
+&lt;p&gt;在system space 里面接下来的3, 4, 5 等等page 也都是有指定的用途&lt;/p&gt;
+
+&lt;p&gt;page 3 存放的是insert buffer 相关信息&lt;/p&gt;
+
+&lt;p&gt;page 4 存放的是insert buffer tree 的root page&lt;/p&gt;
+
+&lt;p&gt;page 5 存放的是trx_sys 模块相关信息, 比如最新的trx id, binlog 信息等等.&lt;/p&gt;
+
+&lt;p&gt;page 6 存放的是FSP_FIRST_RSEG_PAGE_NO, 也就是undo log rollback segment的header page. 其他的undo log rollback segment 都在不同的undo log 文件中&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/ScLs3Oj.jpg&quot; alt=&quot;Imgur&quot; style=&quot;zoom:40%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;page 7 存放的是 FSP_DICT_HDR_PAGE_NO, 存放的是DD 相关的信息&lt;/p&gt;
+
+&lt;p&gt;page 64-127 是first 64 个double write buffer 的位置&lt;/p&gt;
+
+&lt;p&gt;page 128-191 是second 64个double write buffer 的位置&lt;/p&gt;
+
+&lt;p&gt;剩下的其他page 就有可能被申请成Undo log page 等等了&lt;/p&gt;
+
+&lt;p&gt;通过inno_space 打开 ibdata1文件可以观察到如下的信息&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;File path /home/zongzhi.czz/git/primary/log2250/ibdata1 path
+File size 209715200
+start           end             count           type
+0               0               1               FSP HDR
+1               1               1               INSERT BUFFER BITMAP
+2               2               1               INDEX NODE PAGE
+3               3               1               SYSTEM PAGE
+4               4               1               INDEX PAGE
+5               5               1               TRX SYSTEM PAGE
+6               7               2               SYSTEM PAGE
+8               8               1               SDI INDEX PAGE
+9               12799           12790           FRESHLY ALLOCATED PAGE
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;打开一个普通的用户表空间, 可以看到如下的结构.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;└─[$] ./inno -f ~/git/primary/dbs2250/sbtest/sbtest1.ibd -c list-page-type
+File path /home/zongzhi.czz/git/primary/dbs2250/sbtest/sbtest1.ibd path, page num 0
+page num 0
+==========================space page type==========================
+File size 2604662784
+start           end             count           type
+0               0               1               FSP HDR
+1               1               1               INSERT BUFFER BITMAP
+2               2               1               INDEX NODE PAGE
+3               3               1               SDI INDEX PAGE
+4               16383           16380           INDEX PAGE
+16384           16384           1               XDES
+16385           16385           1               INSERT BUFFER BITMAP
+16386           31990           15605           INDEX PAGE
+31991           31999           9               FRESHLY ALLOCATED PAGE
+32000           32767           768             INDEX PAGE
+32768           32768           1               XDES
+32769           32769           1               INSERT BUFFER BITMAP
+32770           49151           16382           INDEX PAGE
+49152           49152           1               XDES
+49153           49153           1               INSERT BUFFER BITMAP
+49154           65535           16382           INDEX PAGE
+65536           65536           1               XDES
+65537           65537           1               INSERT BUFFER BITMAP
+65538           81919           16382           INDEX PAGE
+81920           81920           1               XDES
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;下一篇物理页管理我们会更详细的介绍.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;File Per Table&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;InnoDB 常见的file per table 模式下. 一个table 对应一个.ibd 文件.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/I2vFSGn.png&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;page 0, 1, 2 这3个page 所有的space file 都一样&lt;/p&gt;
+
+&lt;p&gt;page 3 一般是 primary index root page.&lt;/p&gt;
+
+&lt;p&gt;page 4 一般是 secondary index root page. 当然这里是create table 就指定的时候, 比如如下 page 4 一般是k_1 这个index 的root page&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-mysql&quot;&gt;Create Table: CREATE TABLE `sbtest1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `k` int(11) NOT NULL DEFAULT &apos;0&apos;,
+  `c` char(120) NOT NULL DEFAULT &apos;&apos;,
+  `pad` char(60) NOT NULL DEFAULT &apos;&apos;,
+  PRIMARY KEY (`id`),
+  KEY `k_1` (`k`)
+) ENGINE=InnoDB AUTO_INCREMENT=237723 DEFAULT CHARSET=latin1
+1 row in set (0.00 sec)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;如果后面运行过程中再加的新的 secondary index, 新的Index的root page 那就不会是连续着的, 而是分散在其他page 上了&lt;/p&gt;
+
+&lt;p&gt;alter table sbtest1 add index idx_c(c);&lt;/p&gt;
+
+&lt;p&gt;比如执行alter table 以后, 额外增加的一个index, 通过inno_space 工具可以看到每一个index 的root page 所在等等&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Example 2:
+./inno -f ~/git/primary/dbs2250/sbtest/sbtest1.ibd -c index-summary
+File path /home/zongzhi.czz/git/primary/dbs2250/sbtest/sbtest1.ibd path, page num 0
+==========================Space Header==========================
+Space ID: 15
+Highest Page number: 158976
+Free limit Page Number: 152256
+FREE_FRAG page number: 24
+Next Seg ID: 7
+File size 2604662784
+========Primary index========
+Primary index root page space_id 15 page_no 4
+Btree hight: 2
+&amp;lt;&amp;lt;&amp;lt;Leaf page segment&amp;gt;&amp;gt;&amp;gt;
+SEGMENT id 4, space id 15
+Extents information:
+FULL extent list size 2140
+FREE extent list size 0
+PARTIALLY FREE extent list size 1
+Pages information:
+Reserved page num: 137056
+Used page num: 137003
+Free page num: 53
+
+&amp;lt;&amp;lt;&amp;lt;Non-Leaf page segment&amp;gt;&amp;gt;&amp;gt;
+SEGMENT id 3, space id 15
+Extents information:
+FULL extent list size 1
+FREE extent list size 0
+PARTIALLY FREE extent list size 1
+Pages information:
+Reserved page num: 160
+Used page num: 116
+Free page num: 44
+
+========Secondary index========
+Secondary index root page space_id 15 page_no 31940
+Btree hight: 2
+&amp;lt;&amp;lt;&amp;lt;Leaf page segment&amp;gt;&amp;gt;&amp;gt;
+SEGMENT id 6, space id 15
+Extents information:
+FULL extent list size 7
+FREE extent list size 0
+PARTIALLY FREE extent list size 219
+Pages information:
+Reserved page num: 14465
+Used page num: 12160
+Free page num: 2305
+
+&amp;lt;&amp;lt;&amp;lt;Non-Leaf page segment&amp;gt;&amp;gt;&amp;gt;
+SEGMENT id 5, space id 15
+Extents information:
+FULL extent list size 0
+FREE extent list size 0
+PARTIALLY FREE extent list size 0
+Pages information:
+Reserved page num: 19
+Used page num: 19
+Free page num: 0
+
+**Suggestion**
+File size 2604662784, reserved but not used space 39354368, percentage 1.51%
+Optimize table will get new fie size 2565308416
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;这里tablespace id 是15&lt;/li&gt;
+  &lt;li&gt;Btree 的高度是3层&lt;/li&gt;
+  &lt;li&gt;secondary Index 由于只存索引, 所以primary index 占用的空间是secondary index 的10倍&lt;/li&gt;
+  &lt;li&gt;primary Index 上面大量的page 都是用满的状态, 而secondary 会20% 左右的空闲page&lt;/li&gt;
+  &lt;li&gt;整体而言, 空闲page 只占了文件的1.51% 左右, 所以不需要做optimize table 操作的&lt;/li&gt;
+&lt;/ol&gt;
+
+</description>
+        <pubDate>Mon, 29 Nov 2021 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2021/11/29/inno-space/</link>
+        <guid isPermaLink="true">http://localhost:4000/2021/11/29/inno-space/</guid>
+      </item>
+    
+      <item>
+        <title>MySQL Repeatable-Read 的一些误解</title>
+        <description>&lt;h5 id=&quot;背景&quot;&gt;背景&lt;/h5&gt;
+
+&lt;p&gt;首先1992 年发表的SQL Standard 对隔离级别进行的定义是根据几个异象(Dirty Read, Non-Repeatable Read, Phantom Read) , 当然这个定义非常模糊, 后面Jim Grey 也有文章说这个不合理, 然而此时MVCC, snapshot isolation 还没被发明. 等有snapshot isolation 以后发现snapshot isolation 能够规避Dirty Read, Non-Repeatable Read, 因此认为snapshot isolation 和 Repeatable-read 很像, 所以MySQL, Pg 把他们实现的snapshot isolation 就称为了Repeatable-read isolation.&lt;/p&gt;
+
+&lt;p&gt;另外snapshot isolation 其实也没有准确的定义, 因此MySQL 和 PG, Oracle 等等的实现也是有很大的区别的.&lt;/p&gt;
+
+&lt;p&gt;关于&lt;strong&gt;snapshot isolation&lt;/strong&gt; 的定义:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;A transaction running in Snapshot Isolation is never blocked attempting a read as long as the snapshot data from its Start-Timestamp can be maintained.The transaction’s writes (updates, inserts, and deletes) will also be reflected in this snapshot, to be read again if the transaction accesses (i.e., reads or updates) the data a second time.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;这里对于snapshot isolation 的定义不论对于读操作和写操作都是读取snapshot 的版本, 这也是pg, oracle 等等版本实现的, 但是InnoDB 不是这样的. InnoDB 只有读操作读取到的是snapshot 的版本, 但是DML 操作是读取当前已提交的最新版本.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;When the transaction T1 is ready to commit, it gets a &lt;em&gt;Commit-Timestamp,&lt;/em&gt; which is larger than any existing Start-Timestamp or Commit-Timestamp. The transaction successfully commits only if no other transaction T2 with a Commit-Timestamp in T1’s &lt;em&gt;execution interval&lt;/em&gt; [&lt;em&gt;Start- Timestamp&lt;/em&gt;, &lt;em&gt;Commit-Timestamp&lt;/em&gt;] wrote data that T1 also wrote. Otherwise, T1 will abort. This feature, called &lt;em&gt;First- committer-wins&lt;/em&gt; prevents lost updates (phenomenon P4).&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;对于 first-committer-wins 的定义, 在si 模式下, 如果在Start-Timestamp -&amp;gt; Commit-Timestamp 这之间如果有其他的trx2 修改了当前trx1 修改过的内容, 并且在trx1 提交的时候, trx2 已经提交了. 那么trx1 就会abort, 这个叫first-committer-wins.&lt;/p&gt;
+
+&lt;p&gt;但是InnoDB 也不是这样的. InnoDB 并不遵守这个规则, 在repeatable read 模式下, 如果trx1, trx2 都修改了同一行, trx2 是先提交的, 那么trx1 的提交会直接把trx2 覆盖. 而在类似PG, Oracle 实现的snapshot isolation 里面, 则是遵守first-committer-wins 的规则.&lt;/p&gt;
+
+&lt;p&gt;所以InnoDB 的snapshot isolation&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;仅仅Read 操作读的是历史版本&lt;/li&gt;
+  &lt;li&gt;
+    &lt;ol&gt;
+      &lt;li&gt;不遵守first-committer-wins 规则&lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;官方把这种实现叫做&lt;strong&gt;Write committed Repeatable Read&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;MySQL 开发者对于InnoDB repeatable-read 实现的介绍:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;But when InnoDB Repeatable Read transactions modify the database, it is possible to get phantom reads added into the static view of the database, just as the ANSI description allows.  Moreover, InnoDB relaxes the ANSI description for Repeatable Read isolation in that it will also allow non-repeatable reads during an UPDATE or DELETE.  Specifically, it will write to newly committed records within its read view.  And because of gap locking, it will actually wait on other transactions that have pending records that may become committed within its read view.  So not only is an UPDATE or DELETE affected by pending or newly committed records that satisfy the predicate, but also ‘SELECT … LOCK IN SHARE MODE’ and ‘SELECT … FOR UPDATE’.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;This WRITE COMMITTED implementation of REPEATABLE READ is not typical of any other database that I am aware of.  But it has some real advantages over a standard ‘Snapshot’ isolation.  When an update conflict would occur in other database engines that implement a snapshot isolation for Repeatable Read, an error message would typically say that you need to restart your transaction in order to see the current data. So the normal activity would be to restart the entire transaction and do the same changes over again.  But InnoDB allows you to just keep going with the current transaction by waiting on other records which might join your view of the data and including them on the fly when the UPDATE or DELETE is done.  This WRITE COMMITTED implementation combined with implicit record and gap locking actually adds a serializable component to Repeatable Read isolation.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;PG 社区对于repeatable-read 实现的介绍:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;UPDATE&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;DELETE&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SELECT FOR UPDATE&lt;/code&gt;, and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SELECT FOR SHARE&lt;/code&gt; commands behave the same as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SELECT&lt;/code&gt; in terms of searching for target rows: they will only find target rows that were committed as of the transaction start time. However, such a target row might have already been updated (or deleted or locked) by another concurrent transaction by the time it is found. In this case, the repeatable read transaction will wait for the first updating transaction to commit or roll back (if it is still in progress). If the first updater rolls back, then its effects are negated and the repeatable read transaction can proceed with updating the originally found row. But if the first updater commits (and actually updated or deleted the row, not just locked it) then the repeatable read transaction will be rolled back with the message&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;https://www.postgresql.org/docs/13/transaction-iso.html#XACT-READ-COMMITTED&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;所以这里我们看一下MySQL repeatable-read 的具体行为, 也了解MySQL社区为什么要做这样的实现.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-mysql&quot;&gt;mysql&amp;gt; create table checking (name char(20) key, balance int) engine InnoDB;
+Query OK, 0 rows affected (0.03 sec)
+
+mysql&amp;gt; insert into checking values (&quot;Tom&quot;, 1000), (&quot;Dick&quot;, 2000), (&quot;John&quot;, 1500);
+Query OK, 3 rows affected (0.00 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+Client #1                               Client #2
+=====================================   =====================================
+mysql&amp;gt; begin;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&amp;gt; select * from checking;
++------+---------+
+| name | balance |
++------+---------+
+| Dick |    2000 |
+| John |    1500 |
+| Tom  |    1000 |
++------+---------+
+3 rows in set (0.00 sec)
+
+mysql&amp;gt; begin;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&amp;gt; update checking
+   set balance = balance - 250
+   where name = &quot;Dick&quot;;
+Query OK, 1 row affected (0.00 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql&amp;gt; update checking
+   set balance = balance + 250
+   where name = &quot;Tom&quot;;
+Query OK, 1 row affected (0.00 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql&amp;gt; select * from checking;
++------+---------+
+| name | balance |
++------+---------+
+| Dick |    1750 |
+| John |    1500 |
+| Tom  |    1250 |
++------+---------+
+3 rows in set (0.02 sec)
+                                        mysql&amp;gt; begin;
+                                        Query OK, 0 rows affected (0.00 sec)
+
+                                        mysql&amp;gt; select * from checking;
+                                        +------+---------+
+                                        | name | balance |
+                                        +------+---------+
+                                        | Dick |    2000 |
+                                        | John |    1500 |
+                                        | Tom  |    1000 |
+                                        +------+---------+
+                                        3 rows in set (0.00 sec)
+																				
+                                        mysql&amp;gt; update checking
+                                           set balance = balance - 200
+                                           where name = &quot;John&quot;;
+                                        Query OK, 1 row affected (0.00 sec)
+                                        Rows matched: 1  Changed: 1  Warnings: 0
+																				
+                                        mysql&amp;gt; update checking
+                                           set balance = balance + 200
+                                           where name = &quot;Tom&quot;;
+
+                                        ### Client 2 waits on the locked record
+mysql&amp;gt; commit;
+Query OK, 0 rows affected (0.00 sec)
+                                        Query OK, 1 row affected (19.34 sec)
+                                        Rows matched: 1  Changed: 1  Warnings: 0
+mysql&amp;gt; select * from checking;
++------+---------+
+| name | balance |
++------+---------+
+| Dick |    1750 |
+| John |    1500 |
+| Tom  |    1250 |
++------+---------+
+3 rows in set (0.00 sec)
+                                        mysql&amp;gt; select * from checking;
+                                        +------+---------+
+                                        | name | balance |
+                                        +------+---------+
+                                        | Dick |    2000 |
+                                        | John |    1300 | 
+                                        | Tom  |    1450 |
+                                        +------+---------+
+                                        3 rows in set (0.00 sec)
+
+                                      # 这里可以看到Tom = 1450, 而不是从上面 1000 + 200 = 1200, 
+                                      # 因为update 的时候, InnoDB 实现的是write-committed repeatable, 
+                                      # 不是基于场景的snapshot isolation的实现, 
+                                      # write 操作是直接读取的已提交的最新版本的数据1250, 
+                                      # 而不是snapshot 中的数据1000.
+																				
+                                        mysql&amp;gt; commit;
+                                        Query OK, 0 rows affected (0.00 sec)
+
+mysql&amp;gt; select * from checking;
++------+---------+
+| name | balance |
++------+---------+
+| Dick |    1750 |
+| John |    1300 |
+| Tom  |    1450 |
++------+---------+
+3 rows in set (0.02 sec)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;这里可以看到Tom = 1450, 而不是从上面 1000 + 200 = 1200, 因为update 的时候, InnoDB 实现的是write-committed repeatable, 不是基于场景的snapshot isolation的实现, write 操作是直接读取的已提交的最新版本的数据1250, 而不是snapshot 中的数据1000.&lt;/p&gt;
+
+&lt;p&gt;对比在PG里面, 由于PG是使用常见的 snapshot isolation 实现repeatable-read, 那么trx2 在修改Tom 的时候, 同样必须等待trx1 commit or rollback, 因为PG 读取和修改基于trx 开始时候的snapshot 的record. 因此如果trx1 rollback, 那么trx2 则会基于开始snapshot 时候的值进行修改, 也就是Tom = 1200, 如果trx1 commit, 那么trx2 只能rollback, 并且会返回&lt;/p&gt;
+
+&lt;p&gt;ERROR:  could not serialize access due to concurrent update&lt;/p&gt;
+
+&lt;p&gt;也就是在上面的场景下 trx2 是会rollback.&lt;/p&gt;
+
+&lt;p&gt;那么MySQL 为什么要这么做呢?&lt;/p&gt;
+
+&lt;p&gt;MySQL 社区的观点是在常见的通过snapshot isolation 来实现repeatable Read 的方案里面, 经常会出现如果两个事务修改了同一个record, 那么就需要后提交的事务重试这个流程. 这种在小事务场景是可以接受的, 但是如果后提交的事务是大事务, 比如trx1 修改了1个record rec1并先提交了, 但是trx2 修改了100 行, 正好包含了rec1, 那么常见的snapshot isolation 的实现就需要trx2 返回错误, 然后重新执行这个事务. 这样对冲突多的场景是特别不友好的.&lt;/p&gt;
+
+&lt;p&gt;但是Innodb 的实现则在修改rec1 的时候, 如果trx1 已经提交了, 那么直接读取trx1 committed 的结果, 这样就可以避免了让trx2 重试的过程了. 也可以达到几乎一样的效果.&lt;/p&gt;
+
+&lt;p&gt;当然这个仅仅MySQL InnoDB 是这样的实现, 其他的数据库都不会这样.&lt;/p&gt;
+
+&lt;p&gt;两种方案都有优缺点吧, 基于常见SI(snapshot isolation) 实现会存在更多的事务回滚, 一旦两个事务修改了同一个row, 那么必然有一个事务需要回滚, 但是InnoDB 的行为可以允许和其他trx 修改同一个record, 并且可以在其他trx 修改后的结果上进行更新, 不需要进行事务回滚, 效率会更高一些, 但是基于常见的snapshot isolation 的实现更符合直观感受.&lt;/p&gt;
+</description>
+        <pubDate>Fri, 20 Aug 2021 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2021/08/20/innodb-snapshot-isolation/</link>
+        <guid isPermaLink="true">http://localhost:4000/2021/08/20/innodb-snapshot-isolation/</guid>
+      </item>
+    
+      <item>
+        <title>路在脚下, 从BTree 到Polar Index</title>
+        <description>&lt;p&gt;上一篇文章&lt;a href=&quot;https://zhuanlan.zhihu.com/p/151397269&quot;&gt;InnoDB BTree latch 优化历程&lt;/a&gt; 介绍了 InnoDB 的BTree latch 的优化历程, 我们知道在InnoDB 里面, 依然有一个全局的index latch, 由于全局的index latch 存在会导致同一时刻在Btree 中只有一个SMO 能够发生, index latch 依然会成为全局的瓶颈点, 导致在大批量插入场景, 比如TPCC 的场景中, 性能无法提高. 在MySQL 的官方性能测试人员Dimitrick 的&lt;a href=&quot;http://dimitrik.free.fr/blog/posts/mysql-80-tpcc-mystery.html&quot;&gt;MySQL Performance : TPCC “Mystery” [SOLVED]&lt;/a&gt; 中也可以看到, index lock contention 是最大的瓶颈点.&lt;/p&gt;
+
+&lt;p&gt;在这之前, 我们进行了大量的探索和验证, 在这个&lt;a href=&quot;./https://zhuanlan.zhihu.com/p/50112182&quot;&gt;POLARDB · B+树并发控制机制的前世今生&lt;/a&gt; 和 &lt;a href=&quot;https://zhuanlan.zhihu.com/p/50630867&quot;&gt;POLARDB · 敢问路在何方 — 论B+树索引的演进方向&lt;/a&gt; 中,  我们对比了blink-tree, bw-tree, masstree 等等, 其实学术界更多的探索在简单的场景中进行lock free, 多线程, 针对硬件相关的优化, 但是在实际工程中, MySQL 的索引结构已经不是一个简单的Btree, 它是和MySQL 的事务锁模块强绑定, 同时他还需要支持不仅仅是前序遍历, 还需要支持 modify_prev/search_prev, 需要对non-leaf node 进行加锁操作. 因此在MySQL 中的Btree 的修改就不仅仅是涉及到btree 子模块, 还需要涉及undo log, 事务子模块等等.&lt;/p&gt;
+
+&lt;p&gt;因此PolarDB 提出来High Performance Polar Index 解决这个问题, 从而在我们某一个线上业务的实际场景中, 性能能够有3倍的提升, 在TPCC 场景下更是能够有有11倍的性能提升..&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/img/20210521014602.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;那Polar Index 的本质是什么, 如何实现的呢?&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;首先再来回顾一下InnoDB SMO的加锁流程（简化起见，假设本次SMO只需分裂leaf page）：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;对全局index-&amp;gt;lock加SX锁&lt;/li&gt;
+  &lt;li&gt;从root page开始，以不加锁的方式向下遍历non-leaf pages至level 2&lt;/li&gt;
+  &lt;li&gt;对level 1的non-leaf page加X锁&lt;/li&gt;
+  &lt;li&gt;对level 0的leaf page及其left、right page加X锁，完成leaf page的SMO&lt;/li&gt;
+  &lt;li&gt;从root page开始，以不加锁的方式向下遍历至leaf page的parent&lt;/li&gt;
+  &lt;li&gt;向parent page插入SMO中对应指向new page的nodeptr&lt;/li&gt;
+  &lt;li&gt;释放所有锁，SMO结束&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;这里可以看到有下面2个瓶颈点：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;对于单个SMO来说，参与SMO的leaf pages及其parent page的X锁会从一开始加着直到SMO结束，这样的加锁粒度有些大，其实SMO也是分层、从下到上依次操作的，如上面流程中：步骤4先在level 0对leaf page做分裂，然后再在步骤5向parent page插入指向new page的nodeptr，但其实在做步骤4的时候没必要先加着parent page X锁，同样再步骤5中也没必要还占着leaf pages X锁，这个问题在级联SMO场景（leaf page分裂引发其路径上多个non-leaf pages分裂）更为明显，这样在读写混合场景下，SMO路径上的读性能会受影响&lt;/li&gt;
+  &lt;li&gt;虽然SMO对index-&amp;gt;lock加了SX锁，可以允许其他非SMO操作并发进来，但SX之间还是互斥的，也就是说多个SMO并不能并发，即使它们之间完全没有page交集，这样在高并发大写入压力下（剧烈触发SMO）性能不理想&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;这些瓶颈点在Polar Index是如何解决的?&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;原先BTree 之所以需要持有Index latch 的原因是正常的搜索顺序是保证严格的自上而下, 自左向右, 但是SMO 操作由于需要保持对BTree 修改的原子性, 不能让其他线程访问到BTree 的中间状态, 因此需要持有叶子加点去加父节点的latch, 因此SMO 操作出现了自下而上的加锁操作, 在编程实现中, 一旦出现了多个线程无法遵守同一严格的加锁顺序, 那么死锁就无法避免, 为了避免这样的冲突InnoDB 通过将整个BTree index latch, 从而SMO 的时候, 不会有搜索操作进行.&lt;/p&gt;
+
+&lt;p&gt;Polar Index 的核心想法是把 SMO 操作分成了两个阶段.&lt;/p&gt;
+
+&lt;p&gt;在Polar Index 中每一个node 包含有一个link page 指针, 指向他的node.  以及fence key 记录的是link page 的最小值.&lt;/p&gt;
+
+&lt;p&gt;比如split 阶段&lt;/p&gt;
+
+&lt;p&gt;阶段1: 将一个page 进行split 操作,  然后建立一个link 连接在两个page 之间. 下图Polar Index 就是这样的状态&lt;/p&gt;
+
+&lt;p&gt;阶段2: 给父节点添加一个指针, 从父节点指向新创建的page.&lt;/p&gt;
+
+&lt;p&gt;当然还可以有一个阶段3 将两个page 之间的link 指针去掉.&lt;/p&gt;
+
+&lt;p&gt;在Polar Index 中, 阶段1 和阶段2 的中间状态我们也认为是合理状态, 如果这个阶段实例crash, 那么在crash recovery 阶段可以识别当前page 有Link page, 那么会将SMO 的下一个阶段继续完成, 从而保证BTree 的完整性.&lt;/p&gt;
+
+&lt;p&gt;这样带来的优点是在SMO 的过程中, 由于允许中间状态是合法状态, 那么就不需要为了防止出现中间状态的出现而需要持有叶子节点加父节点latch 的过程. 因此就避免的自下而上的加锁操作, 从而就不需要Index latch.&lt;/p&gt;
+
+&lt;p&gt;如下图对比BTree 和 Polar Index.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/img/20210521014742.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;在去掉Index latch 之后, 通过latch coupling 从而保证每一次的修改都只需要在btree 的某一层加latch, 从而最大的减少了latch 的粒度.&lt;/p&gt;
+
+&lt;p&gt;如下是具体执行right split 的过程:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/img/20210521014719.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;带来的收益是:&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;降低SMO的page加锁粒度，当前修改哪一层，就只对这一层相关的page加X锁，并且修改完之后立刻放锁再去修改其他层，这样读写并发就上来了。这样的做法要解决的问题就是：&lt;/p&gt;
+
+    &lt;blockquote&gt;
+      &lt;p&gt;对leaf page做完分裂之后，放锁放锁去修改parent，那么已经迁移到new page上的数据怎么被其他线程访问到呢？&lt;/p&gt;
+    &lt;/blockquote&gt;
+
+    &lt;p&gt;这里Polar Index采用了类似Blink tree的做法，给分裂的leaf page设置一个high key，这个值为new page上最小的rec，这样如果leaf page放X锁之后，从parent下来的其他读操作检测到这个high key之后，就知道如果要查找的目标rec在当前leaf page没找到并且大于等于high key的话，就去next page（也就是new page）上查找。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;去掉全局index-&amp;gt;lock，正常的读写及SMO不对index-&amp;gt;lock加任何锁，这样写并发就能上来了。不过在具体实现中，不是简单的删掉代码那么容易，要解决去掉它之后各种各样的问题：&lt;/p&gt;
+
+    &lt;blockquote&gt;
+      &lt;p&gt;遍历BTree的加锁方式&lt;/p&gt;
+    &lt;/blockquote&gt;
+
+    &lt;p&gt;InnoDB在普通读、写操作时遍历BTree的方式：是从root page开始，将路径上所有non-leaf pages加S锁，然后占着S锁去加目标leaf page的X锁，加到之后释放non-leaf pages的S锁；在SMO是遍历BTree的方式是前面流程中的步骤2。当我们去掉index-&amp;gt;lock，允许多个SMO并发起来，显然SMO的遍历方式是有问题的，因为在第一遍以无锁方式遍历BTree找到所有需要加X锁的page到第二遍遍历真正对这些page加锁之间，可能其他SMO已经修改了BTree结构。所以我们将遍历方式统一改成lock coupling，同时最多占2层page锁，这样做的好处是不管是普通读、写还是SMO操作，在遍历BTree时对non-leaf pages的加锁区间都很小，进一步提高并发&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;除此之外，在具体实现中，还要解决大量问题，比如：&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;ol&gt;
+    &lt;li&gt;多个SMO之间有重叠的pages，如何解决冲突，避免死锁&lt;/li&gt;
+    &lt;li&gt;对于左分裂、左合并这种右-&amp;gt;左的加锁，如何避免死锁&lt;/li&gt;
+    &lt;li&gt;对于non-leaf page删除leftmost rec而触发其parent的级联删除如何处理&lt;/li&gt;
+    &lt;li&gt;… …&lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;strong&gt;总结&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;在InnoDB 里面, 依然有一个全局的Index latch, 由于全局的Index latch 存在会导致同一时刻在Btree 中只有一个SMO 能够发生, 从而导致性能无法提升.&lt;/p&gt;
+
+&lt;p&gt;Polar Index 通过将SMO 操作分成两个阶段, 并保证中间状态的合理性, 从而避免了Index latch. 从而保证任意时刻在BTree 中只会持有一层latch, 从而实现性能极大提升.&lt;/p&gt;
+</description>
+        <pubDate>Fri, 21 May 2021 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2021/05/21/polar-index/</link>
+        <guid isPermaLink="true">http://localhost:4000/2021/05/21/polar-index/</guid>
+      </item>
+    
+      <item>
+        <title>WorkLog InnoDB Faster truncate/drop table space</title>
+        <description>&lt;p&gt;&lt;strong&gt;问题&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;在InnoDB 现有的版本里面, 如果一个table space 被truncated 或者 drop 的时候, 比如有一个连接创建了临时表, 连接断开以后, 对应的临时表都需要进行drop 操作.&lt;/p&gt;
+
+&lt;p&gt;InnoDB 是需要将该tablespace 对应的所有的page 从LRU/FLUSH list 中删除, 如果没有这个操作, 新的table 的table spaceid 如果重复的话, 那么就可能访问到脏数据.&lt;/p&gt;
+
+&lt;p&gt;为了将这些page 删除, 那么就需要全部遍历LRU/FLUSH list, 当bp 特别大的时候, 这样遍历的开销是很大的, 并且无论这个要删除的table 有多大, 都需要将这些LRU/FLUSH list 全部遍历..&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;解决方法&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;解决方法和之前解决undo ACID DDL 的方法类似, 核心思想就是&lt;strong&gt;通过引用计数的方法, 对table_space 加reference, 然后后续lazy delete&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;bp 上的每一个page 都有自己对应的version, 当table space 被drop/rename 的时候, 只需要对fil_space 的version + 1, 那么bp 中该fil_space 对应的page 就因为version &amp;lt; fil_space.current_version 而变得无效.&lt;/p&gt;
+
+&lt;p&gt;原先由drop/rename tablespace 触发的space_delete 操作就变的非常的轻量. 后续定期的将这些stable page 删除或者复用即可&lt;/p&gt;
+
+&lt;p&gt;不过带来的额外开销就是, 每一次访问bp 中的一个page 就需要确认当前page 是否过期.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;具体实现&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;buf_page_t 增加 m_space, m_version.&lt;/p&gt;
+
+&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;Additions&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;to&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf_page_t&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+ &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+ &lt;span class=&quot;c1&quot;&gt;// 指向对应的fil_space_t&lt;/span&gt;
+ &lt;span class=&quot;n&quot;&gt;fil_space_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;m_space&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{};&lt;/span&gt;
+
+ &lt;span class=&quot;c1&quot;&gt;// Version number of the page to check for stale pages. This value is&lt;/span&gt;
+ &lt;span class=&quot;c1&quot;&gt;// &quot;inherited&quot; from the m_space-&amp;gt;m_version when we init a page.&lt;/span&gt;
+ &lt;span class=&quot;c1&quot;&gt;// page 的version number, 在page_init 的时候设置成m_space-&amp;gt;m_version&lt;/span&gt;
+ &lt;span class=&quot;kt&quot;&gt;uint32_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;m_version&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{};&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;fil_space_t 增加m_version,  m_n_ref_count.&lt;/p&gt;
+
+&lt;p&gt;m_version 就是当前fil_space_t 的版本号, 每次delete/truncate 就会 + 1&lt;/p&gt;
+
+&lt;p&gt;m_n_ref_count: bp 每增加一个page , m_n_ref_count + 1, 只能等到m_n_ref_count == 0 的时候, 改fil_space 才能被删除, 否则bp 里面的m_space 指针就会指向空&lt;/p&gt;
+
+&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;Additions&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;to&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;fil_space_t&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+ &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+ &lt;span class=&quot;c1&quot;&gt;// Version number of the instance, not persistent. Every time we truncate&lt;/span&gt;
+ &lt;span class=&quot;c1&quot;&gt;// or delete we bump up the version number.&lt;/span&gt;
+ &lt;span class=&quot;n&quot;&gt;lsn_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;m_version&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{};&lt;/span&gt;
+
+ &lt;span class=&quot;c1&quot;&gt;// Reference count of how many pages point to this instance. An instance cannot&lt;/span&gt;
+ &lt;span class=&quot;c1&quot;&gt;// be deleted if the reference count is greater than zero. The only exception&lt;/span&gt;
+ &lt;span class=&quot;c1&quot;&gt;// is shutdown.&lt;/span&gt;
+ &lt;span class=&quot;n&quot;&gt;std&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;atomic_int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;m_n_ref_count&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{};&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;增加了lazy delete fil_space 以后, 那么什么时候将内存中的fil_space_t 删除呢?&lt;/p&gt;
+
+&lt;p&gt;最后的删除操作在 master_thread 会定期执行, 将之前已经标记删除, 放入到m_deleted_spaces 中的space 一起删除&lt;/p&gt;
+
+&lt;p&gt;/* Purge any deleted tablespace pages. */
+fil_purge();  =&amp;gt; fil_shard.purge()&lt;/p&gt;
+
+&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;purge&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;mutex_acquire&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;auto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;it&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;m_deleted_spaces&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;begin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;it&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;m_deleted_spaces&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;auto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;space&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;it&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;second&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+      &lt;span class=&quot;c1&quot;&gt;// has_no_references() 说明该fil_space 对应的bp 已经都删除了, 那么该space 就可以删除&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;space&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;has_no_references&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;ut_a&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;space&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;files&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;front&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n_pending&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;space_free_low&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;space&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;it&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;m_deleted_spaces&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;erase&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;it&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+		&lt;span class=&quot;p&quot;&gt;...&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;mutex_release&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;strong&gt;drop/rename tablespace&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;执行drop/rename tablespace 的时候需要执行 row_drop_tablespace =&amp;gt; fil_delete_tablespace =&amp;gt; space_delete(space_id, buf_remove)&lt;/p&gt;
+
+&lt;p&gt;新增加 buf_remove_t 类型: BUF_REMOVE_NONE. 不需要移除该tablespace 的所有bp.&lt;/p&gt;
+
+&lt;p&gt;8.0.23 drop table 的时候, 执行 row_drop_tablespace =&amp;gt; fil_delete_tablespace,  之前delete tablespace 的时候, 传入的是 BUF_REMOVE_ALL_NO_WRITE, 需要将该space 对应的bp 都清理才可以完成操作.&lt;/p&gt;
+
+&lt;p&gt;传入 BUF_REMOVE_NONE 就只需要将tablespace 标记删除, 放入到 m_deleted_spaces 中, 不需要清理bp, 然后将对应的物理文件删除即可. 该tablespace 对应bp 中的数据就变成 stale page, 后续会有操作将这些stale page 删除或者复用.&lt;/p&gt;
+
+&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;enum&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf_remove_t&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;cm&quot;&gt;/** Don&apos;t remove any pages. */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;BUF_REMOVE_NONE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;cm&quot;&gt;/** Remove all pages from the buffer pool, don&apos;t write or sync to disk */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;BUF_REMOVE_ALL_NO_WRITE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;cm&quot;&gt;/** Remove only from the flush list, don&apos;t write or sync to disk */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;BUF_REMOVE_FLUSH_NO_WRITE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;cm&quot;&gt;/** Flush dirty pages to disk only don&apos;t remove from the buffer pool */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;BUF_REMOVE_FLUSH_WRITE&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;BUF_REMOVE_ALL_NO_WRITE:&lt;/p&gt;
+
+&lt;p&gt;从flush list 和 LRU list 上面都删除, 数据不需要, 并且也不需要刷盘. 从LRU list 上面也都删除开销是比较大的, 因此更多的时候是使用BUF_REMOVE_FLUSH_NO_WRITE, 只删flush list, 不删LRU&lt;/p&gt;
+
+&lt;p&gt;一般来说truncate table 的时候是执行这个.  在5.6/5.7 里面, 由于truncate table 了以后, space id 是不会变的, 那么就必须把这些space 对应的page 都删除, 否则如果新的table 的space id 和老的space id 一致, 那就访问到脏数据了.&lt;/p&gt;
+
+&lt;p&gt;BUF_REMOVE_FLUSH_NO_WRITE:&lt;/p&gt;
+
+&lt;p&gt;从flush list 删除删除, 并且不需要刷盘, 直接丢弃掉. 和BUF_REMOVE_ALL_NO_WRITE 相比, 把从LRU list 上面删除的操作放到了后台来做, 因为lru list 的大小是远远大于flush list, 删除lru list 的成本是很大的, 因此放在后来执行&lt;/p&gt;
+
+&lt;p&gt;一般drop table 是执行这个操作, 让后台慢慢从lru list 里面把要drop 的tablespace 删除&lt;/p&gt;
+
+&lt;p&gt;BUF_REMOVE_FLUSH_WRITE:&lt;/p&gt;
+
+&lt;p&gt;从flush list 上删除, 并且刷脏, 那么就不需要从LRU list 上删除, 因为LRU list 上也是最新的&lt;/p&gt;
+
+&lt;p&gt;常用场景, 执行DDL 以后,  DDL 只需要确保这个DDL 产生的page 必须进行刷脏. 执行刷脏逻辑&lt;/p&gt;
+
+&lt;p&gt;BUF_REMOVE_NONE:&lt;/p&gt;
+
+&lt;p&gt;只需要将tablespace 标记删除, 不需要清理bp, 该tablespace 对应bp 中的数据就变成 stale page, 后续会有操作将这些stale page 删除或者复用.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;那么什么时候会将这些 stale page 删除呢?&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;总共有多个场景:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;在正常从bp 中读取page 的时候, 如果读取到的page 是 stale, 那么通过执行 buf_page_free_stale() 将该page 进行删除操作&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;在从double write buffer Double_write::write_pages() 到磁盘的时候, 如果这个时候改page 的space file 已经被删除, 那么这个时候通过 buf_page_free_stale_during_write() 进行删除&lt;/li&gt;
+  &lt;li&gt;在刷脏操作buf_flush_batch()的时候, 从LRU_list 或者 flush_list 拿取page, 如果发现该page 是stale, 并且没有io 操作在这个page 上面, 那么通过 buf_page_free_stale() 进行删除操作&lt;/li&gt;
+  &lt;li&gt;在single page flush 的时候, 同样判断该page 是stale, 那么通过buf_page_free_stale() 进行删除&lt;/li&gt;
+&lt;/ol&gt;
+</description>
+        <pubDate>Mon, 08 Feb 2021 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2021/02/08/faster-truncate-drop/</link>
+        <guid isPermaLink="true">http://localhost:4000/2021/02/08/faster-truncate-drop/</guid>
+      </item>
+    
+      <item>
+        <title>InnoDB page management</title>
+        <description>&lt;p&gt;这个图片可以看到InnoDB 里面涉及的文件:&lt;/p&gt;
+
+&lt;p&gt;从 tablespace =&amp;gt; segment =&amp;gt; extent =&amp;gt; page=&amp;gt;row&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/U8lbbM5.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;在一个tablespace 里面, 每一个segment 也是有一个唯一的id 的标识的&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Tablespace&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;一个唯一的Tablespace 会由这个file space 的第一个Page来描述&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/K5HswIh.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;这里主要有几个重要的list&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;维护Inode 的FULL_INODE, FREE_INODE list, 和维护 extent 的 FREE List, FREE_FRAG List, FULL_FRAG List 都在FSP Header里面, 我们可以理解成这两个资源是这个file space 的meta信息&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Tablespace =&amp;gt; segment&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;一个tablespace 里面包含了多个segment, 特别是tablespace 0, sys tablespace, 里面还包含了rollback segment,  用户创建的table 所对应的table space 里面, 一般有segment, left node segment 和 non-leaf node segment. 如果用户创建了索引, 又会增加两个新的segment.&lt;/p&gt;
+
+&lt;p&gt;tablespace 是如何找到segment 的呢?  这些segment 的描述信息在哪里呢?&lt;/p&gt;
+
+&lt;p&gt;一个Inode Entry 用来描述一个 segment,  然后所有的这些Inode Entry 都在一个Inode page 里面, 默认这个Inode page 在tablespace 的第2个page. 如果这个tablespace 里面有过多的segment 了, 那么就创建更多的Inode page, 这些Inode page 通过FSP header 里面的FULL_INODE list 和 FREE_INODE list 连接在一起&lt;/p&gt;
+
+&lt;p&gt;所以tablespace 通过Inode Page 找到所有的segment.&lt;/p&gt;
+
+&lt;p&gt;底下这个图是Inode Page 结构&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/bE5NM0m.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;一个Inode Page 里面包含84个Inode Entry&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;segment=&amp;gt;extent&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;一个segment 里面包含了多个extent,  所以每一个extent 都有一个属于的segment id.&lt;/p&gt;
+
+&lt;p&gt;那么segment 如何找到属于它的extent, 这些extent 的描述信息在哪里呢?&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/ofrhlCX.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;在Inode Entry 里面, 也就是每一个segment 的描述结构里面, 有3个List, NOT_FULL List, Free List, NOT_FULL List,  这3个List 就把对应的 extent 连在一起了.&lt;/p&gt;
+
+&lt;p&gt;所以通过遍历Inode Entry 里面的3个List, 就可以找到这个Segment 的所有的 extent了, 然后extent 对应的描述符就是XDES Entry.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Extent =&amp;gt; Page&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;一个extent 里面包含了64 个page,  只有一个index 的root page, 也就是根节点这个page, 会记录该page 所对应的两个segment 的Inode Entry 在Inode page 里面的具体位置.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/hQqvXoP.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;那么一个extent 是如果管理这64个page 是否空闲呢? 是也通过InnoDB List 么?&lt;/p&gt;
+
+&lt;p&gt;不是的, 和一个segment 对应一个Inode Entry 类似, 一个extent 也对应一个XDES Entry.&lt;/p&gt;
+
+&lt;p&gt;类似有一个Inode Page 存储了所有的Inode Entry, XDES Entry 也存在XDES page 里面(如果这个XDES page 是这个file space 的第一个XDES, 这个XDES 又叫做FSP_HDR, 一个file space 只会有一个FSP_HDR). 类似Inode Page 存在第2个Page, 这个XDES Entry 存在256MB XDES 的第一个page 上.&lt;/p&gt;
+
+&lt;p&gt;对应的XDES Entry 的结构:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/KkDOOCy.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;这里标记了 XDES对应的extent 属于的File Segment ID. XDES List 就把一个segment 对应的多个extent 连成一个链表, 然后State 标记这个extent 是FREE, FREE_FRAG, FREE_FULL, 然后在FSP_HDR 里面有FREE_LIST, FREE_FRAG, FREE_FULL list 把这些extent 也连在一起了.&lt;/p&gt;
+
+&lt;p&gt;在一个XDES Entry 里面包含了 Page State Bitmap=16 字节 = 128 byte. 每两个byte 用来描述1个page. 所以一个XDES 可以描述连续的61 个page, 这也是为什么extent = 64page 的原因.&lt;/p&gt;
+
+&lt;p&gt;所以Extent 通过Page State Bitmap 来管理64 个空闲page&lt;/p&gt;
+
+&lt;p&gt;对应的XDES Page 的结构:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/ebBjQW3.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;一个XDES Page 里面保存了 256 个XDES Entry.&lt;/p&gt;
+
+&lt;p&gt;这里与Inode page 不一样的地方, 因为每256M 的第一个page 都是XDES page. 所以不需要动态的分配XDES Page.&lt;/p&gt;
+
+&lt;p&gt;这里可以看出对于 Extent, FSP_Header 里面有3个List 可能把它连在一起 FREE_FRAG, FULL_FRAG, FREE. Inode Entry 里面同样有3个List FREE, NOT_FULL, FULL.&lt;/p&gt;
+
+&lt;p&gt;当一个extent 完全被某一个segment 使用的时候, 就会连在Inode Entry 里面, 如果这个extent 完全空的, 就连在FREE. 一般被这个segment 使用, 连在NOT_FULL, 全部连在FULL.&lt;/p&gt;
+
+&lt;p&gt;如果一个extent 被多个segment 混用, 这里面还没满, 就连在FREE_FRAG, 被混用满了, 就连在FULL_FRAG, 这个extent 完全空闲, 有可能后续被分配给某一个segment 连在Inode Entry里面的FREE, 也有可能分配给 FREE_FRAG 使用&lt;/p&gt;
+
+&lt;p&gt;所以当我需要新的segment 的时候, 就从Inode Page 上面去找一个空闲的Inode Entry, 如果没有, FSP 就会分配一个新的Inode Page, 然后从这个新的Inode Page 去找新的Inode Entry&lt;/p&gt;
+
+&lt;p&gt;当我需要新的extent的时候, 就从XDES Page/FSP_HDR 上去找, XDES Page 有每一个XDES Entry 的状态, 如果没有, 就从下一个256M 的 XDES Page 上去找&lt;/p&gt;
+
+&lt;p&gt;当我需要新的page 的时候, 就从XDES Entry 上面找, XDES 里面的Page State Bitmaps 记录着里面是否有空闲page, 如果没有空闲page, 就申请一个新的 extent.这个新的extent 是从XDES Page 上去申请.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;问题&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;由于一个用户创建的table 对应一个file space, 那么这个file space 里面就只会有两个segment, left page segment, non-leaf page segment, 那么这个这个file space 对应的Inode page 就只有两个Inode entry 是有用的吧&lt;/p&gt;
+
+&lt;p&gt;但是如果给这个table 建立一个索引, 就会增加两个segment, 所以最多给这个表建立42个索引以后, 这个Inode page 里面的Inode entry 就会用用满了, 然后这个file space 里面所对应的FSP_HEADER 里面就会去创建一个新的Inode page, 所以在file space 这个level, 也有两个InnoDB list, FREE_INODES, FULL_INODES, 记录在FSP header 这个结构体, 所以我们也可以看到Inode page 里面也有12 字节的InnoDB LIst 结构体&lt;/p&gt;
+
+&lt;p&gt;虽然大部分情况下一个Inode page 都是用不满的&lt;/p&gt;
+
+&lt;p&gt;可以这么理解, 只有redo log 是脱离Innode page management 这一套, undo log 里面的rollback segment page, undolog segment page, undolog normal page 都是走的Inode page management 这一套的&lt;/p&gt;
+
+</description>
+        <pubDate>Tue, 08 Sep 2020 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2020/09/08/innodb-page-management/</link>
+        <guid isPermaLink="true">http://localhost:4000/2020/09/08/innodb-page-management/</guid>
+      </item>
+    
+      <item>
+        <title>InnoDB btree latch 优化历程</title>
+        <description>&lt;p&gt;(一般在数据库里面latch 指的是物理Lock, Lock 指的是事务的逻辑lock, 这里混用)&lt;/p&gt;
+
+&lt;p&gt;在InnoDB 的实现中, btree 主要有两种lock: index lock 和 page lock&lt;/p&gt;
+
+&lt;p&gt;index lock 就是整个Index 的lock, 具体在代码里面就是 dict_index-&amp;gt;lock&lt;/p&gt;
+
+&lt;p&gt;page lock 就是我们在btree 里面每一个page 的变量里面都会有的 lock&lt;/p&gt;
+
+&lt;p&gt;当我们说btree lock的时候, 一般同时包含 index lock 和 page lock 来一起实现&lt;/p&gt;
+
+&lt;p&gt;在5.6 的实现里面比较简单,btree latch 大概是这样的流程&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;如果是一个查询请求
+    &lt;ul&gt;
+      &lt;li&gt;
+        &lt;p&gt;那么首先把btree index-&amp;gt;lock  S LOCK&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;然后直到找到 leaf node 以后, 对leaft node 也是 S LOCK, 然后把index-&amp;gt; lock 放开&lt;/p&gt;
+
+        &lt;p&gt;&lt;img src=&quot;https://i.imgur.com/7AouKrR.png&quot; alt=&quot;Imgur&quot; style=&quot;zoom:50%;&quot; /&gt;&lt;/p&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;如果是一个修改leaf page 请求
+    &lt;ul&gt;
+      &lt;li&gt;同样把btree index-&amp;gt; lock  S LOCK&lt;/li&gt;
+      &lt;li&gt;然后直到找到leaf node 以后, 对leaf node 执行 X LOCK, 因为需要修改这个page. 然后把index-&amp;gt;lock 放开.   到这里又分两种场景了, 对于这个page 的修改是否会引起 btree 的变化
+        &lt;ul&gt;
+          &lt;li&gt;
+            &lt;p&gt;如果不会, 那么很好, 对leaf node 执行了X LOCK 以后, 修改完数据返回就可以&lt;/p&gt;
+          &lt;/li&gt;
+          &lt;li&gt;
+            &lt;p&gt;如果会, 那么需要执行悲观插入操作, 重新遍历btree.&lt;/p&gt;
+
+            &lt;p&gt;对btree inex 加X LOCK, 执行btr_cur_search_to_nth_level 到指定的page.&lt;/p&gt;
+
+            &lt;p&gt;因为leaft node 修改, 可能导致整个沿着leaf node 到root node 的btree 都会随着修改, 因此必须让其他的线程不能访问到, 因此需要整个btree 加X LOCK, 那么其他任何的查询请求都不能访问了, 并且加了index X LOCK 以后, 进行record 插入到page, 甚至可能导致上一个Level 的page 也需要改变, 这里需要从磁盘中读取数据, 因此可能有磁盘IO, 这就导致了加X LOCK 可能需要很长一段时间, 这段时间sread 相关的操作就都不可访问了&lt;/p&gt;
+
+            &lt;p&gt;这里具体的代码在 row_ins_clust_index_entry&lt;/p&gt;
+
+            &lt;p&gt;首先尝试乐观的插入操作&lt;/p&gt;
+
+            &lt;p&gt;err = row_ins_clust_index_entry_low(
+	0, BTR_MODIFY_LEAF, index, n_uniq, entry, n_ext, thr,
+	&amp;amp;page_no, &amp;amp;modify_clock);&lt;/p&gt;
+
+            &lt;p&gt;然后这里如果插入失败, 再尝试悲观的插入操作,&lt;/p&gt;
+
+            &lt;p&gt;return(row_ins_clust_index_entry_low(
+		0, BTR_MODIFY_TREE, index, n_uniq, entry, n_ext, thr,
+		&amp;amp;page_no, &amp;amp;modify_clock));&lt;/p&gt;
+
+            &lt;p&gt;从这里可以看到, 唯一的区别在于这里latch_mode = BTR_MODIFY_LEAF 或者 BTR_MODIFY_TREE. 并且由于btr_cur_search_to_nth_level 是在函数 row_ins_clust_index_entry_low 执行, 那么也就是尝试了乐观操作失败以后, 重新进行悲观插入的时候, 需要重新遍历btree&lt;/p&gt;
+
+            &lt;p&gt;&lt;img src=&quot;https://i.imgur.com/MZrRVA6.png&quot; alt=&quot;Imgur&quot; style=&quot;zoom:50%;&quot; /&gt;&lt;/p&gt;
+          &lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;从上面可以看到, 5.6 里面只有对整个btree  的index lock,  以及在btree 上面的leaf node page 会有lock, 但是btree 上面non-leaf node 并没有 lock.&lt;/p&gt;
+
+&lt;p&gt;这样的实现带来的好处是代码实现非常简单, 但是缺点也很明显由于在SMO 操作的过程中, 读取操作也是无法进行的, 并且SMO 操作过程可能有IO 操作, 带来的性能抖动非常明显, 我们在线上也经常观察到这样的现象.&lt;/p&gt;
+
+&lt;p&gt;所以有了官方的改动, 其实这些改动在5.7 就引入, 我们这里以8.0 为例子:&lt;/p&gt;
+
+&lt;p&gt;主要有这两个改动&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;引入了sx lock&lt;/li&gt;
+  &lt;li&gt;引入了non-leaf page lock&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;引入SX Lock 以后&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;首先介绍一下 SX Lock,  SX Lock 在index lock 和 page lock 的时候都可能用到.&lt;/p&gt;
+
+&lt;p&gt;SX Lock 是和 S LOCK 不冲突, 但是和 X LOCK 冲突的, SX LOCK 和 SX LOCK 之间是冲突的.&lt;/p&gt;
+
+&lt;p&gt;SX LOCK 的意思我有意向要修改这个保护的范围, 但是现在还没开始修改, 所以还可以继续访问, 但是要修改以后, 就无法访问了.  因为我有意向要修改, 因此不能允许其他的改动发生, 因此和 X LOCK 是冲突的.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;目前主要用途因为index SX lock 和 S LOCK 不冲突, 因此悲观insert 改成index SX LOCK 以后, 可以允许用户的read/乐观写入&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;SX LOCK 的引入由这个 WL 加入 &lt;a href=&quot;https://dev.mysql.com/worklog/task/?id=6363&quot;&gt;WL#6363&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;可以认为 SX LOCK 的引入是为了对读操作更加的优化,  SX lock 是和 X lock 冲突, 但是是和 S lock 不冲突的, 将以前需要加X lock 的地方改成了SX lock, 因此对读取更加友好了&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;引入non-leaf page lock&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;其实这也是大部分商业数据库都是这样, 除了leaf page 有page lock, non-leaf page 也有page lock.&lt;/p&gt;
+
+&lt;p&gt;主要的想法还是 Latch coupling, 在从上到下遍历btree 的过程中, 持有了子节点的page lock 以后, 再把父节点的page lock 放开, 这样就可以尽可能的减少latch 的范围. 这样的实现就必须保证non-leaf page 也必须持有page lock.&lt;/p&gt;
+
+&lt;p&gt;不过这里InnoDB 并未把index-&amp;gt;lock 完全去掉, 这就导致了现在InnoDB 同一时刻仍然只有同时有一个 BTR_MODIFY_TREE 操作在进行, 从而在激烈并发修改btree 结构的时候, 性能下降明显.&lt;/p&gt;
+
+&lt;p&gt;回到5.6 的问题&lt;/p&gt;
+
+&lt;p&gt;可以看到在5.6 里面, 最差的情况是如果要修改一个btree leaf page, 这个btree leaf page 可能会触发btree 结构的改变, 那么这个时候就需要加一整个index X LOCK, 但是其实我们知道有可能这个改动只影响当前以及上一个level 的btree page, 如果我们能够缩小LOCK 的范围, 那么肯定对并发是有帮助的.&lt;/p&gt;
+
+&lt;p&gt;那么到了8.0&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;如果是一个查询请求&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;
+        &lt;p&gt;那么首先把btree index-&amp;gt;lock  S LOCK&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;然后沿着搜索btree 路径, 遇到的non-leaf node page 都加 S LOCK&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;然后直到找到 leaf node 以后, 对leaft node page 也是 S LOCK, 然后把index-&amp;gt; lock 放开&lt;/p&gt;
+
+        &lt;p&gt;&lt;img src=&quot;https://i.imgur.com/AGN3ghS.png&quot; alt=&quot;Imgur&quot; style=&quot;zoom:50%;&quot; /&gt;&lt;/p&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;如果是一个修改leaf page 请求&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;
+        &lt;p&gt;同样把btree index-&amp;gt; lock  S LOCK, 通过对non-leaf node page 都加S LOCK&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;然后直到找到leaf node 以后, 对leaf node 执行 X LOCK, 因为需要修改这个page. 然后把index-&amp;gt;lock 放开.   到这里又分两种场景了, 对于这个page 的修改是否会引起 btree 的变化&lt;/p&gt;
+
+        &lt;ul&gt;
+          &lt;li&gt;
+            &lt;p&gt;如果不会, 那么很好, 对leaf node 执行了X LOCK 以后, 修改完数据返回就可以&lt;/p&gt;
+          &lt;/li&gt;
+          &lt;li&gt;
+            &lt;p&gt;如果会, 那么需要执行悲观插入操作, 重新遍历btree. 这时候给index-&amp;gt;lock 是加 SX LOCK&lt;/p&gt;
+
+            &lt;p&gt;**因为已经给btree 加上sx lock, 那么搜索路径上的btree 的page 都不需要加 lock, 但是需要把搜索过程中的page 保存下来, 最后阶段给搜索路径上有可能发生结构变化的page  加x lock. **&lt;/p&gt;
+
+            &lt;p&gt;这样就保证了在搜索的过程中,  对于read 操作的影响降到最低.&lt;/p&gt;
+
+            &lt;p&gt;只有在最后阶段确定了本次修改btree 结构的范围, 对可能发生结构变化的page 加X lock 以后, 才会有影响.&lt;/p&gt;
+          &lt;/li&gt;
+          &lt;li&gt;
+            &lt;p&gt;8.0 里面, SMO 操作过程中, 拿着sx lock 的持续时间是&lt;/p&gt;
+
+            &lt;p&gt;持有sx lock 的时间:&lt;/p&gt;
+
+            &lt;p&gt;第一次btr_cur_optimistic_insert insert 失败以后, 在 row_ins_clust_index_entry 会调用&lt;/p&gt;
+
+            &lt;p&gt;row_ins_clust_index_entry_low(flags, BTR_MODIFY_TREE …) 进行插入, 在 row_ins_clust_index_entry_low 里面,  在btr_cur_search_to_nth_level 函数里面加上 sx lock, 到这里btree 因为已经加了sx lock, 就已经无法进行smo 操作了, 然后接下来仍然会尝试先乐观插入,这个时候sx lock 依然持有, 失败的话, 再尝试悲观插入操作.&lt;/p&gt;
+
+            &lt;p&gt;释放sx lock 的时间:&lt;/p&gt;
+
+            &lt;p&gt;在悲观插入操作里面会一直持有sx lock, 直到在 btr_page_split_and_insert 内部, 将新的page2 已经产生, 同时page2 已经连接上father node 之后.  并且这次发生SMO 的page 还需要是leaf page, 否则一直持有sx lock, 直到SMO 操作完成, 并且insert 成功才会释放&lt;/p&gt;
+
+            &lt;p&gt;&lt;img src=&quot;https://i.imgur.com/ye4VVpc.png&quot; alt=&quot;Imgur&quot; style=&quot;zoom:50%;&quot; /&gt;&lt;/p&gt;
+
+            &lt;p&gt;具体执行SMO 操作并且insert 的函数是 btr_page_split_and_insert&lt;/p&gt;
+
+            &lt;p&gt;btr_page_split_and_insert 操作大概有8个流程:&lt;/p&gt;
+
+            &lt;ol&gt;
+              &lt;li&gt;
+                &lt;p&gt;从要分裂的page 中, 找到要split 的record, split 的时候要保证split 的位置是record 的边界&lt;/p&gt;
+              &lt;/li&gt;
+              &lt;li&gt;
+                &lt;p&gt;分配一个新的索引页&lt;/p&gt;
+              &lt;/li&gt;
+              &lt;li&gt;
+                &lt;p&gt;分别计算page, 和new_page 的边界record&lt;/p&gt;
+              &lt;/li&gt;
+              &lt;li&gt;
+                &lt;p&gt;在上一级索引页(父节点)添加新的索引页的索引项, 如果上一级没有足够的空间, 那么就触发父节点的分裂操作了&lt;/p&gt;
+              &lt;/li&gt;
+              &lt;li&gt;
+                &lt;p&gt;连接当前索引页, 当前索引页prev_page, next_page, father_page, 新创建的 page. 当前的连接顺序是先连接父节点, 然后是prev_page/next_page, 最后是 page 和 new_page  (在这一步结束之后就可以放开index-&amp;gt;sx lock)&lt;/p&gt;
+              &lt;/li&gt;
+              &lt;li&gt;
+                &lt;p&gt;将当前索引页上的部分Record 移动到新的索引页&lt;/p&gt;
+              &lt;/li&gt;
+              &lt;li&gt;
+                &lt;p&gt;SMO 操作已经结束, 计算本次insert 要插入的page 位置&lt;/p&gt;
+              &lt;/li&gt;
+              &lt;li&gt;
+                &lt;p&gt;进行insert 操作, 如果insert 失败, 通过reorgination page 重新尝试插入&lt;/p&gt;
+              &lt;/li&gt;
+            &lt;/ol&gt;
+
+            &lt;p&gt;​&lt;/p&gt;
+          &lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;现有代码里面只有一个场景会对index-&amp;gt;lock X lock. 也就是&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  if (lock_intention == BTR_INTENTION_DELETE &amp;amp;&amp;amp;
+      trx_sys-&amp;gt;rseg_history_len &amp;gt; BTR_CUR_FINE_HISTORY_LENGTH &amp;amp;&amp;amp;
+      buf_get_n_pending_read_ios()) { 如果这次lock_intention 是BTR_INTENTION_DELETE, 并且history list 过长, 才会对 index 加 x lock
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;strong&gt;总结:&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;8.0 比5.6 改进的地方&lt;/p&gt;
+
+&lt;p&gt;在5.6 里面, 写入的时候, 如果有SMO 在进行, 那么就需要把整个index-&amp;gt;lock x lock, 那么在SMO 期间所有的read 操作也是无法进行的.&lt;/p&gt;
+
+&lt;p&gt;在8.0 里面SMO 操作的过程中是允许有read 和 乐观写入操作的.&lt;/p&gt;
+
+&lt;p&gt;但是8.0 里面还有一个约束就是同一时刻只能有一个SMO 正在进行, 因为SMO 的时候需要拿 sx lock. sx lock 和 sx lock 是冲突的, 这也是目前8.0 主要问题.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;优化点&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;当然这里还是有优化点.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;依然有全局的index-&amp;gt;lock, 虽然是sx lock, 但是理论上按照8.0 的实现, 可以完全将index lock 放开, 当然很多细节需要处理&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;在执行具体的分裂操作过程中, btr_page_split_and_insert 里面的持有index lock 是否还可以优化?&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;
+        &lt;p&gt;比如按照一定的顺序的话, 是否将新创建page 连接到new_page 以后就可以放开index-&amp;gt;lock&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;还可以考虑发生SMO 的page 持有x lock 的时间.&lt;/p&gt;
+
+        &lt;p&gt;目前会持有整个路径上的page x lock 直到SMO 操作结束, 并且这次insert 完成, 同时需要一直持有fater_page, prev_page, next_page 的x lock, 是否可以减少持有page 的个数, 比如这个优化 &lt;a href=&quot;https://bugs.mysql.com/bug.php?id=99948&quot;&gt;BUG#99948&lt;/a&gt;&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;btr_attach_half_pages 中多次通过btr_cur_search_to_nth_level 遍历btree 操作是否可以避免?
+函数是将father link, prev link, next link 等建立好的操作
+在这里会重新执行一次 btr_page_get_father_block 对btree 进行遍历找到父节点, 在该函数里面有需要重新执行 btr_cur_search_to_nth_level 函数, 其实这一步操作是可以避免的. 
+因为这时index已经 sx lock 了,  father 肯定不会变了的, 那么可以将上次btr_cur_search_to_nth_level 的结果保留, 就可以获得&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;是否可以像b-link tree 类似, 给正在SMO 的page 标记状态, 这个状态是允许读取的, 只不过有可能存在要读取的record 不在当前的page, 那么就需要去该page-&amp;gt;next page 去尝试读取, 如果能读取到依然是可以的..&lt;/p&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;每次进行btr_cur_search_to_nth_level, 搜索路径中遇到的page 是否可以保留? 这样即使重复搜索, 只需要确定upper level page 的max trx_id, 则可以确定整个搜索路径都没有改变, 那么就不需要重新遍历.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;是否还需要保留先乐观insert 再悲观insert 的操作过程?&lt;/p&gt;
+
+    &lt;p&gt;我理解现有的流程是因为在5.6 的实现中, 悲观insert 操作的开销太大, 从而尽可能的避免悲观insert, 因此沿用到了目前的8.0 实现中.这种多次insert 需要多次遍历btree, 带来额外开销&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;talking&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;https://dom.as/2011/07/03/innodb-index-lock/&lt;/p&gt;
+
+&lt;p&gt;https://dev.mysql.com/worklog/task/?id=6326&lt;/p&gt;
+
+</description>
+        <pubDate>Sun, 28 Jun 2020 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2020/06/28/innodb-btree-latch/</link>
+        <guid isPermaLink="true">http://localhost:4000/2020/06/28/innodb-btree-latch/</guid>
+      </item>
+    
+      <item>
+        <title>Buffer pool 并发控制</title>
+        <description>&lt;h3 id=&quot;buffer-pool-并发控制&quot;&gt;Buffer pool 并发控制&lt;/h3&gt;
+
+&lt;p&gt;InnoDB 对buffer pool 的访问除了包含了用户线程会并发访问buffer pool 以外, 同时还有其他的后台线程也在访问buffer pool, 比如刷脏, purge, IO 模块等等, InnoDB 主要通过5个不同维度的mutex, rw_lock, io_fix 进行并发访问的控制&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;free/LRU/flush list Mutex&lt;/li&gt;
+  &lt;li&gt;hash_lock rw_lock (在5.6 之前, 只会有一个大的buffer pool Mutex)&lt;/li&gt;
+  &lt;li&gt;BPageMutex mutex&lt;/li&gt;
+  &lt;li&gt;io_fix, buf_fix_count&lt;/li&gt;
+  &lt;li&gt;BPageLock lock  rw_lock&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;free/LRU/flush list Mutex&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;所有的page 都在free list, LRU list, flush list 上, 所以大部分操作第一步如果需要操作这几个list, 需要首先获得这几个list mutex, 然后在进行IO 操作的过程, 是会把list Mutex 放开.&lt;/p&gt;
+
+&lt;p&gt;InnoDB 也是尽可能让持有LRU list, flush list 的时间尽可能短&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;hash_lock rw_lock&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;一个buffer pool instance 下面的buffer block 都存在一个hash table上&lt;/p&gt;
+
+&lt;p&gt;这个hash_lock 是这个hash_table 上面的slot/segment 的rw_lock, 也就是这个hash table 有多少个slot, 就有多少个这个hash_lock, 这个hash_lock 的引入也是为了尽可能的减少锁冲突, 这样可以做到需要写入的时候锁的只是这个hash_table 的slot/segment 级别&lt;/p&gt;
+
+&lt;p&gt;这里InnoDB 优化这个lock level 从整个hash table 到hash table slot 级别, 在5.6 之前的版本, 是一个整个hash table mutex.&lt;/p&gt;
+
+&lt;p&gt;从代码里面可以看到, 总是先拿 hash_lock, 然后才是 buffer block mutex 或者是 page frame mutex&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;BPageMutex mutex&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;我们也叫做buffer block mutex, 在buf_block_t 结构体里面.&lt;/p&gt;
+
+&lt;p&gt;BPageMutex mutex 保护的是io_fix, state, buf_fix_count, state 等等变量, 引入这个mutex 是为了减少早期版本直接使用buffer pool-&amp;gt;mutex 的开销
+可以理解BPageMutex 是保护buf_block_t 结构体, 而下面BPageLock 是为了保护page frame&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;io_fix, buf_fix_count&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;io_fix, buf_fix_count 受 pager block mutex的保护.&lt;/p&gt;
+
+&lt;p&gt;io_fix 表示当前的page frame 正在进行的IO 操作状态, 主要有 BUF_IO_READ, BUF_IO_WRITE, BUF_IO_PIN.&lt;/p&gt;
+
+&lt;p&gt;buf_fix_count 表示当前这个block 被引用了多少次, 每次访问一个page 的时候, 都会对buf_fix_count++, 最后在mtr:commit() 的最后资源释放阶段, 会对这个buf_fix_count–, 进行资源的释放.&lt;/p&gt;
+
+&lt;p&gt;比如: 在flush 一个page 的时候, 会检测一个page 是否可以被flush, 这里为了减少拿 page frame rw_lock, 直接通过判断 io_fix 即可&lt;/p&gt;
+
+&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;oldest_modification&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;buf_page_get_io_fix_unlocked&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUF_IO_NONE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;比如: 在检查一个block 能否被replace 的时候, 除了确定当前这个block io_fix == BUF_IO_NONE, 还需要确保当前没有其他的线程在引用这个block, 当然还需要保证当前block oldest_modification ==0.  来确定当前这个block 是否可以允许被replace&lt;/p&gt;
+
+&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;ibool&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;buf_flush_ready_for_replace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_page_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_page_in_file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;oldest_modification&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_fix_count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;buf_page_get_io_fix&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUF_IO_NONE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;可以理解, 引入io_fix, buf_fix_count 是为了减少调用page frame rw_lock 的开销, 因为page frame 的调用是在btree search 的核心路径&lt;/p&gt;
+
+&lt;p&gt;如果io_fix 处于BUF_IO_READ, BUF_IO_WRITE 那我们可以知道, 当前page 处于IO 状态, 如果要进行replace, flush 操作是不可以的, 这样就不需要去获得page frame rw_lock, 然后再检查当前page frame 是否允许这样的操作&lt;/p&gt;
+
+&lt;p&gt;所以代码里面我们会看到在设置了io_fix 的状态以后, 我们就可以把之前的几个mutex, rw_lock 都完全放开, 因为被设置了io_fix 状态的page 是不可以从list 上面删除或者replace, 需要等IO 操作完成以后, 将io_fix 设置成BUF_IO_NONE 才可以进行操作&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;BPageLock lock  rw_lock&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;如上所说, BPageMutex 是保护buf_block_t 结构体, 而BPageLock 是为了保护page frame.
+当需要对buffer pool page frame 内容进行读取/修改的时候, 就需要持有BPageLock.&lt;/p&gt;
+
+&lt;p&gt;比如最常见的我们要修改一个btree page 内容的时候,
+都需要通过btr_cur_search_to_nth_level() 把page 从磁盘读取到内存中, 然后修改.
+这里修改之前会对page 加 x lock. 如果是读取操作, 就需要加s lock.&lt;/p&gt;
+
+&lt;p&gt;同样后台进行刷脏操作的时候, 也需要对page 加x lock.&lt;/p&gt;
+
+&lt;p&gt;在InnoDB 访问btree 的过程中, btr_cur_search_to_nth_level() 函数里面, 会对btree index s lock, 如果只是修改leaf page, 那么在8.0 里面, 是沿着btree 的搜索路径, 给路径上的non-leaf page 都加上s lock, 最后给leaf page 加x lock. 具体看文章 InnoDB latch&lt;/p&gt;
+
+&lt;p&gt;但是后台操作比如刷脏, 或者当前page frame 不在buffer pool 中, 同样需要拿 page frame rw_lock, 那么是会对前台的page 访问有非常大的性能影响. 因此上述的io_fix, page block mutex 也是为了尽可能减少持有page frame rw_lock 的机会&lt;/p&gt;
+
+&lt;p&gt;我们看到官方做了很多优化, 比如尽可能减少访问btree 的时候, 拿着btree index lock, 在访问btree 的时候, 不会像在5.6 时候一样, 拿着整个btree index lock.&lt;/p&gt;
+
+&lt;p&gt;这里与5.6 对比, 5.6 在做SMO 的时候, 是所有的读操作也无法进行的, 因为读操作都需要加 index s lock..&lt;/p&gt;
+
+&lt;p&gt;在8.0 在做SMO 的时候, 因为index 加的是sx lock, 所以所有的读操作依然是可以进行的, 但是由于sx lock 和 sx lock 之间是互斥的, 因此同一时刻只能有一个smo 在进行.  但是这也比5.6 好很多,  至少在SMO 的过程, 读操作还可以进行的&lt;/p&gt;
+
+&lt;p&gt;但是8.0 里面还有一个约束就是同一时刻只能有一个SMO 正在进行, 因为SMO 的时候需要拿 sx lock. 这也是目前8.0 主要问题.&lt;/p&gt;
+
+&lt;p&gt;(其实引入sx lock 是对读取的优化, 对写入并没有优化. 因为持有sx lock 的时候, s lock 操作是可以进行的, 但是x lock 操作是不可以进行的. 跟原先需要修改就直接拿着x lock 对比, 允许更多的读取了, 但是x lock 和之前是一样的)&lt;/p&gt;
+
+&lt;p&gt;但是这些优化只是优化了用户访问路径上page frame rw_lock 的获取, 但是在后台的路径并没有过多的优化.&lt;/p&gt;
+
+&lt;p&gt;但是后台操作比如刷脏, 或者当前page frame 不在buffer pool 中, 同样需要拿 page frame rw_lock, 那么是会对前台的page 访问有非常大的性能影响. 因此上述的io_fix, page block mutex 也是为了尽可能减少持有page frame rw_lock 的机会&lt;/p&gt;
+
+&lt;p&gt;我们看到官方做了很多优化, 比如尽可能减少访问btree 的时候, 拿着btree index lock,  在访问btree 的时候, 不会像在5.6 时候一样, 拿着整个btree index lock, 尽可能的只拿着会引起树结构变化的子树. 比如引入sx lock, 在真正要修改的时候, 才会获得x lock 去修改btree. (其实引入sx lock 是对读取的优化, 对写入并没有优化. 因为持有sx lock 的时候, s lock 操作是可以进行的, 但是x lock 操作是不可以进行的. 跟原先需要修改就直接拿着x lock 对比, 允许更多的读取了, 但是x lock 和之前是一样的)&lt;/p&gt;
+
+&lt;p&gt;但是这些优化只是优化了用户访问路径上page frame rw_lock 的获取, 但是在后台的路径并没有过多的优化.&lt;/p&gt;
+
+&lt;p&gt;比如: page frame rw_lock 是在buf_page_io_complete 之后才会放开的&lt;/p&gt;
+
+&lt;p&gt;在page flush, read ahead 的时候, 在走simulated AIO 的时候, page 操作被放入队列即可, 但是并没有执行完成.&lt;/p&gt;
+
+&lt;p&gt;执行完成的通知是在simulated AIO fil_aio_wait:buf_page_io_complete() 里面完成, 在buf_page_io_complete() 操作里面, 会把page 上的rw_lock 给释放.&lt;/p&gt;
+
+&lt;p&gt;所以一个page 在进行IO 操作的时候, 是在调用simulated AIO 之前, 给page frame rw_lock 加 x/sx lock, 但是释放page frame rw_lock 需要等到IO 操作结束才可以完成, 而fio_io() 只是将IO 放到的队列中, 这个IO 并没有执行完成.  是在simulated io handler 的 fil_aio_wait() 函数里面, 这个操作才会完成, 然后调用buf_page_io_complete() 进行通知操作.&lt;/p&gt;
+
+&lt;p&gt;因此page frame 的rw_lock 的持有周期是整个异步IO 的周期, 直到IO 操作完成, 这个page frame 才会释放.&lt;/p&gt;
+
+&lt;p&gt;而page frame 的rw_lock 又是用户访问btree 路径上面的 btr_cur_search_to_nth_level() 必须要获得的lock, 因此就可能出现大量的page frame由于刷脏或者read ahead 的时候, 持有了page frame x lock/sx lock, 当用户的访问路径需要x/sx lock 的时候, 被堵塞住的情况.&lt;/p&gt;
+
+&lt;p&gt;这种堵塞住的情况, 如果是非leaf page 的时候, 影响会更明显, 而且目前InnoDB simulated AIO 的队列长度是*(n_read_thread + n_write_thread) * 256, 那么会可能出现大量的page 因为在IO 等待队列中等待, 造成更多的btree search 操作被堵住, 特别是如果底层存储IO latency 比较长的情况, 这里问题会更加的明显.&lt;/p&gt;
+
+&lt;p&gt;当然我们也通过simulated AIO 优化, copy page等等减少持有page frame 的时长.&lt;/p&gt;
+
+&lt;p&gt;buf_page_io_complete 主要做什么呢?&lt;/p&gt;
+
+&lt;p&gt;将page io_fix 设置成NONE, 表示这个page 的io 操作已经完成了&lt;/p&gt;
+
+&lt;p&gt;buf_page_set_io_fix(bpage, BUF_IO_NONE);&lt;/p&gt;
+
+&lt;p&gt;将page 上面的rw_lock 放开, 如果是read, 把 x lock 放开, 如果是write, 把sx lock 放开.&lt;/p&gt;
+
+&lt;p&gt;为什么是这样? 那么什么时候拿s lock?&lt;/p&gt;
+
+&lt;p&gt;读操作要拿 x lock 主要是为了避免多个线程同时去读这个page, 然后另外一个线程如果需要访问该page, 那么会通过buf_wait_for_read(block) 操作, 尝试给这个page frame 加s lock, 如果加成功, 这说明这个page 已经被获得了&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;总结:&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;free/LRU/flush List 相关mutex 主要是是否操作 list 时候持有.&lt;/p&gt;
+
+&lt;p&gt;而后面4个mutex 一般操作都是加hash_lock rw_lock, 然后获得buf block mutex, 放开hash_lock rw_lock, 然后修改 io_fix, buf_fix_count,然后放开 buf block mutex, 最后持有page frame rw_lock.&lt;/p&gt;
+
+&lt;p&gt;如上面所说寻找block 在hash table 的位置, 通过hash_lock slot 级别的Lock 来进行了优化, 减少了修改和查找hash table 的冲突&lt;/p&gt;
+
+&lt;p&gt;引入 buf block mutex, io_fix, buf_fix_count 将IO操作通过判断io_fix, buf_fix_count 避免不必要的获得page frame rw_lock 的开销.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;具体代码流程&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;buf_page_init_for_read&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;以 buf_read_page_low() =&amp;gt; buf_page_init_for_read() 来举例并发过程&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;// 根据page_id 返回对应的buf_pool instance
+buf_pool_t *buf_pool = buf_pool_get(page_id);&lt;/p&gt;
+
+    &lt;p&gt;// 先尝试从LRU list 获得一个free block
+block = buf_LRU_get_free_block(buf_pool);&lt;/p&gt;
+
+    &lt;p&gt;// 持有我们说的第一层 LRU_list_mutex
+mutex_enter(&amp;amp;buf_pool-&amp;gt;LRU_list_mutex);&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;// 然后持有我们说的第二层 hash_lock
+hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
+rw_lock_x_lock(hash_lock);&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;// 持有page block mutex
+buf_page_mutex_enter(block);&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;// 在持有page block mutex 的情况下, 会修改 block-&amp;gt;state, io_fix 等等&lt;/p&gt;
+
+    &lt;p&gt;buf_page_init(buf_pool, page_id, page_size, block);&lt;/p&gt;
+
+    &lt;p&gt;buf_page_set_io_fix(bpage, BUF_IO_READ);&lt;/p&gt;
+
+    &lt;p&gt;// 将当前Block 加入到LRU list 中&lt;/p&gt;
+
+    &lt;p&gt;buf_LRU_add_block(bpage, TRUE /* to old blocks */);&lt;/p&gt;
+
+    &lt;p&gt;// 释放 LRU list mutex, 这里持有LRU list mutex 到现在, 是因为要把page block 加入到LRU list中&lt;/p&gt;
+
+    &lt;p&gt;mutex_exit(&amp;amp;buf_pool-&amp;gt;LRU_list_mutex);&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;// 这里给page frame 加了rw_lock x lock,
+// 保证同一时刻只会有一个线程从磁盘去读取这个page&lt;/p&gt;
+
+    &lt;p&gt;rw_lock_x_lock_gen(&amp;amp;block-&amp;gt;lock, BUF_IO_READ);  &lt;br /&gt;
+// 依次放开hash_lock rw_lock
+rw_lock_x_unlock(hash_lock);
+// page block mutex
+buf_page_mutex_exit(block);&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;buf_page_try_get_func&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;比如在 buf_page_try_get_func() 函数里面, 也是这样顺序获得mutex 的操作.&lt;/p&gt;
+
+&lt;p&gt;// 1. 首先获得这个bp, 因此这里不涉及到各个list 相关操作, 因此没有list
+  // 相关Mutex
+  buf_pool_t *buf_pool = buf_pool_get(page_id);&lt;/p&gt;
+
+&lt;p&gt;// 2. 获得这个page 在hash table 上面的slot 上面的block, 
+  // 同时在这个函数里面, 已经把这个hash_lock 给s lock 了
+  block = buf_block_hash_get_s_locked(buf_pool, page_id, &amp;amp;hash_lock);&lt;/p&gt;
+
+&lt;p&gt;// 3. 或者这个page block block mutex, 同时将这里的hash_lock 给释放
+  buf_page_mutex_enter(block);
+  rw_lock_s_unlock(hash_lock);&lt;/p&gt;
+
+&lt;p&gt;// 4. 在持有page block mutex 之后, 给这个block buf_fix_count++, 同时把这个page block mutex 释放
+  // 这里设置了buf_fix_count 之后, 上述的mutex, rw_lock 都放开了, 因为这个page frame 在buf_fix_count != 0 的情况下, 是不能被replace 的, 会议在在buffer pool 里面, 因此后续的page frame s lock 操作可以放心操作&lt;/p&gt;
+
+&lt;p&gt;buf_block_buf_fix_inc(block, file, line);
+  buf_page_mutex_exit(block);&lt;/p&gt;
+
+&lt;p&gt;// 5. 获得这个page frame 的rw_lock
+  mtr_memo_type_t fix_type = MTR_MEMO_PAGE_S_FIX;
+  success = rw_lock_s_lock_nowait(&amp;amp;block-&amp;gt;lock, file, line);&lt;/p&gt;
+
+&lt;p&gt;在写入操作里面&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;buf_flush_page_and_try_neighbors&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;在执行刷脏的时候, 可能从LRU_list, flush_list 上面刷脏, 分别是&lt;/p&gt;
+
+&lt;p&gt;buf_do_LRU_batch, buf_do_flush_list_batch&lt;/p&gt;
+
+&lt;p&gt;这两个函数都会调用 buf_flush_page_and_try_neighbors 进行刷脏操作, 这里在进行具体page 刷脏操作过程中是会将 lru_list_mutex/flush_list_mutex 放开, 然后操作完成以后再持有&lt;/p&gt;
+
+&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;flush_type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUF_FLUSH_LRU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;mutex_exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_pool&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;LRU_list_mutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;flush_type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUF_FLUSH_LRU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;mutex_exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block_mutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;buf_flush_list_mutex_exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_pool&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;// 在进行具体flush 操作的时候, 是会将LRU_list_mutex/buf_flush_list mutex放开&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf_flush_try_neighbors&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;page_id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;flush_type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n_to_flush&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;flush_type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUF_FLUSH_LRU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+   &lt;span class=&quot;n&quot;&gt;mutex_enter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_pool&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;LRU_list_mutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+   &lt;span class=&quot;n&quot;&gt;buf_flush_list_mutex_enter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_pool&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;具体的page flush 操作&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;buf_flush_try_neighbors =&amp;gt; buf_flush_page&lt;/strong&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;
+&lt;span class=&quot;c1&quot;&gt;// 1. 首先获得 hash_lock rw_lock&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;/* We only want to flush pages from this buffer pool. */&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf_page_hash_get_s_locked&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_pool&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;cur_page_id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hash_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// 2. 然后是获得page header mutex, 同事释放hash_lock &lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;block_mutex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf_page_get_mutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;mutex_enter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block_mutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;rw_lock_s_unlock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hash_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// =&amp;gt; 进入buf_flush_page()&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// 3. 修改 io_fix 设置成 BUF_IO_WRITE&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;buf_page_set_io_fix&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUF_IO_WRITE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;// 4. 放开buf block mutex&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;// 因为已经修改了 io_fixed 和 oldest_modification&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;// 因此到这里已经不需要持有任何mutex 了&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;mutex_exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block_mutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;// 5. 获得这个page frame 的 rw_lock&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;rw_lock_sx_lock_gen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rw_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUF_IO_WRITE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;// 对这个page 进行flush 操作的时候, 不需要持有mutex&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;buf_flush_write_block_low&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;flush_type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sync&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+</description>
+        <pubDate>Mon, 13 Apr 2020 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2020/04/13/innodb-bp-coucurrency/</link>
+        <guid isPermaLink="true">http://localhost:4000/2020/04/13/innodb-bp-coucurrency/</guid>
+      </item>
+    
+      <item>
+        <title>InnoDB mutex 变化历程</title>
+        <description>&lt;p&gt;InnoDB 中的mutex 和 rw_lock 在早期的版本都是通过系统提供的cas, tas 语义自己进行实现, 并没有使用pthread_mutex_t, pthread_rwlock_t,  这样实现的好处在于便于统计, 以及为了性能考虑, 还有解决早期操作系统的一些限制.&lt;/p&gt;
+
+&lt;p&gt;大概原理是:&lt;/p&gt;
+
+&lt;p&gt;在mutex_enter 之后, 在spin 的次数超过 innodb_sync_spin_loops=30 每次最多 innodb_spin_wait_delay=6如果还没有拿到Mutex, 会主动yield() 这个线程, 然后wait 在自己实现的wait array 进行等待.&lt;/p&gt;
+
+&lt;p&gt;这里每次spin 时候, 等待的时候执行的是ut_delay, 在ut_delay 中是执行 “pause” 指定, 当innodb_spin_wait_delay = 6 的时候, 在当年100MHz Pentium cpu, 这个时间最大是1us.&lt;/p&gt;
+
+&lt;p&gt;wait array 也是InnoDB 实现的一种cond_wait 的实现, 为什么要自己实现?&lt;/p&gt;
+
+&lt;p&gt;早期的MySQL 需要wait array 是因为操作系统无法提供超过100000 event, 因此wait array 在用户态去进行这些event 维护, 但是到了MySQL 5.0.30 以后, 大部分操作系统已经能够处理100000 event, 那么现在之所以还需要 wait array, 主要是为了统计.&lt;/p&gt;
+
+&lt;p&gt;在wait array 的实现里面其实有一把大wait array mutex, 是一个pthread_mutex_t, 然后在wait array 里面的每一个wait cell 中, 包含了os_event_t, wait 的时候调用了os_event_wait_low(), 然后在 os_event_t 里面也包含了一个mutex,  因此在一次wait 里面就有可能调用了两次pthread_mutex_t 的wait.&lt;/p&gt;
+
+&lt;p&gt;并且在os_event_t 唤醒的机制中是直接通过pthread_cond_boradcast(), 当有大量线程等待在一个event 的时候, 会造成很多无谓的唤醒.&lt;/p&gt;
+
+&lt;p&gt;大致代码实现:&lt;/p&gt;
+
+&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;enter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;uint32_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;max_spins&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;uint32_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;max_delay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+             &lt;span class=&quot;kt&quot;&gt;uint32_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;UNIV_NOTHROW&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// 在try_lock 中通过 TAS 比较是否m_lock_word = LOCKED&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// TAS(&amp;amp;m_lock_word, MUTEX_STATE_LOCKED) == MUTEX_STATE_UNLOCKED&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// 在InnoDB 自己实现的mutex 中, 使用m_lock_word = 0, 1, 2 分别来比较unlock,&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// lock, wait 状态&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// 在InnoDB 自己实现的rw_lock 中, 同样使用 m_lock_word 来标记状态,&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// 不过rw_lock 记录的状态就不止lock, unlock, 需要记录有多少read 等待,&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// 多少write 等待等待, 不过大体都一样&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;try_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;c1&quot;&gt;// 如果try_lock 失败, 就进入spin 然后同时try_lock 的逻辑&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;spin_and_try_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;max_spins&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;max_delay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;err&quot;&gt;}&lt;/span&gt;
+
+  &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;spin_and_try_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;uint32_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;max_spins&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;uint32_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;max_delay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                         &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;uint32_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;UNIV_NOTHROW&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(;;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;cm&quot;&gt;/* If the lock was free then try and acquire it. */&lt;/span&gt;
+
+      &lt;span class=&quot;c1&quot;&gt;// is_free 的逻辑很简单, 每spin 一次, 就检查一下这个lock 是否可以获得,&lt;/span&gt;
+      &lt;span class=&quot;c1&quot;&gt;// 如果不可以获得, 那么就delay (0, max_delay] 的时间&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;is_free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;max_spins&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;max_delay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n_spins&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;......&lt;/span&gt;
+      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;c1&quot;&gt;// 如果尝试了max_spins 次, 那么就将当前cpu 时间片让出&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;os_thread_yield&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+      &lt;span class=&quot;c1&quot;&gt;// 最后进入到wait 逻辑, 这个wait 是基于InnoDB 自己实现的wait array 来实现&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wait&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;n_spins&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;2012 年的时候, Mark 在这边文章中说, 现有的mutex 实现会导致cpu 利用过高, 差不多比使用pthread mutex 高16%, 并且上下文切换也会更高&lt;/p&gt;
+
+&lt;p&gt;https://www.facebook.com/notes/mysql-at-facebook/green-mutexes/10151060544265933/&lt;/p&gt;
+
+&lt;p&gt;主要的原因是:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;因为Mutex 的唤醒在os_event 里面, os_event 实现中, 如果需要执行唤醒操作, 那么需要执行pthread_cond_boradcast() 操作, 需要把所有等待的pthread 都唤醒, 而不是只唤醒一个.&lt;/p&gt;
+
+    &lt;p&gt;Innam 在底下回复: 当然只唤醒一个也并不能完全解决问题, 如果使用 pthread_cond_signal, 那么等待的线程就是一个一个的被唤醒, 那么所有等待的线程执行的时间就是串行的&lt;/p&gt;
+
+    &lt;p&gt;在当前InnoDB 的实现中, 如果使用pthread_cond_boradcase 会让所有的线程都唤醒, 然后其中的一个线程获得mutex, 但是其他线程并不会因为拿不到mutex马上进入wait, 而是依然会通过spin 一段时间再进入wait,这样就可以减少一些无谓的wait.&lt;/p&gt;
+
+    &lt;p&gt;所以这里官方到现在一直也都没有改.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;在wait array 的实现中,  需要有一个全局的pthread_mutex_t 保护 sync array,&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;在默认的配置中, innodb_spin_wait_delay=6 是ut_delay 执行1us,  innodb_sync_spin_loops=30 会执行30次, 那么每次mutex 有可能都需要spin 30us, 这个太暴力了&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;然后 sunny 在这个文章里面回复,&lt;/p&gt;
+
+&lt;p&gt;https://www.facebook.com/notes/mysql-at-facebook/green-mutexes-part-2/10151061901390933&lt;/p&gt;
+
+&lt;p&gt;sunny 的回复很有意思:&lt;/p&gt;
+
+&lt;p&gt;It is indeed an interesting problem. I think different parts of the code have different requirements. Therefore, I’ve designed and implemented something that allows using the mutex type that best suits the sub-system. e.g., mutexes that are held very briefly like the page mutexes can be pure spin locks, this also makes them space efficient. I’ve also gotten rid of the distinction between OS “fast” mutexes and InnoDB mutexes. We can use any type of mutexes in any part of the code. We can also add new mutexe types. I’ve also been experimenting with Futexes, implemented a mutex type for Linux which uses Futexes to schedule the next thread instead of the sync array&lt;/p&gt;
+
+&lt;p&gt;这里主要核心观点有两个&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;不同场景需要的mutex 是不一样的, 比如buffer pool 上面的page 的mutex 希望的就是一直spin. 有些mutex 其实则是希望立刻就进入等待,  只用使用这些mutex 的使用者知道接下来哪一个策略更合适&lt;/strong&gt;&lt;/li&gt;
+  &lt;li&gt;操作系统提供了futex 可能比InnoDB 自己通过wait array 的实现方式, 对于通知机制而言会做的更好.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;所以就有了这个worklog:&lt;/p&gt;
+
+&lt;p&gt;worklog: https://dev.mysql.com/worklog/task/?id=6044&lt;/p&gt;
+
+&lt;p&gt;总结了现有的 mutex 实现存在的问题&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;只有自己实现的ib_mutex_t, 并没有支持futex 的实现&lt;/li&gt;
+  &lt;li&gt;所有的ib_mutex_t 的行为都是一样的, 通过两个变量 innodb_spin_wait_delay(控制在Test 失败以后, 最多会delay 的时间), innodb_sync_spin_loops(控制spin 的次数). 不可以对某一个单独的ib_mutex_t 设置单独的wait + loop 次数&lt;/li&gt;
+  &lt;li&gt;所有的ib_mutex_t 由两个全局的变量控制, 因为mutex 在尝试了innodb_sync_spin_loops 次以后, 会等待在一个wait array 里面的一个wait cell 上, 所有的wait cell 都会注册到一个叫wait array 的队列中进行等待, 然后等&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;最后到现在在 InnoDB 8.0 的代码中总共实现了4种mutex 的实现方式, 2种的策略&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;TTASFutexMutex 是spin + futex 的实现,  在mutex_enter 之后, 会首先spin 然后在futex 进行wait&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;TTASMutex 全spin 方式实现, 在spin 的次数超过 innodb_sync_spin_loops=30 每次最多 innodb_spin_wait_delay=6us 以后, 会主动yield() 这个线程, 然后通过TAS(test and set 进行判断) 是否可以获得&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;OSTrackMutex, 在系统自带的mutex 上进行封装, 增加统计计数等等&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;TTASEevntMutex, InnoDB 一直使用的自己实现的Mutex, 如上文所说使用spin + event 的实现.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;cp&quot;&gt;#ifdef HAVE_IB_LINUX_FUTEX
+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TTASFutexMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GenericPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FutexMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TTASFutexMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockMutexPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockFutexMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#endif &lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* HAVE_IB_LINUX_FUTEX */&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;
+&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TTASMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GenericPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SpinMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TTASMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockMutexPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockSpinMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OSTrackMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GenericPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SysMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OSTrackMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockMutexPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockSysMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TTASEventMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GenericPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SyncArrayMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TTASEventMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockMutexPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockSyncArrayMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;同时在8.0 的实现中定义了两种策略, GenericPolicy, BlockMutexPolicy. 这两种策略主要的区别在于在show engine innodb mutex 的时候不同的统计方式.&lt;/p&gt;
+
+&lt;p&gt;BlockMutexPolicy 用于统计所有buffer pool 使用的mutex, 因此该Mutex 特别多, 如果每一个bp 单独统计, 浪费大量的内存空间, 因此所有bp mutex 都在一起统计, 事实上buffer pool 的rw_lock 也是一样&lt;/p&gt;
+
+&lt;p&gt;GenericPolicy 用于除了buffer pool mutex 以外的其他地方&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;使用方式&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;目前InnoDB 里面都是使用 TTASEventMutex&lt;/p&gt;
+
+&lt;p&gt;只不过buffer pool 的mutex 使用的是 BlockMutexPolicy, 而且他的mutex 使用的是 GenericPolicy, 不过从目前的代码来看, 也只是统计的区别而已&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;问题&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;但是从目前来看, 并没有实现sunny 说的, 不同场景使用不同的mutex, Buffer pool 使用 TTASMutex 实现, 其他mutex 使用 TTASEventMutex, 
+并且新加入的 TTASFutexMutex, 也就是spin + futex 的实现方式其实也不是默认使用的
+而且wai array 的实现方式也并没有改动&lt;/p&gt;
+
+</description>
+        <pubDate>Sun, 29 Mar 2020 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2020/03/29/innodb-mutex/</link>
+        <guid isPermaLink="true">http://localhost:4000/2020/03/29/innodb-mutex/</guid>
+      </item>
+    
+      <item>
+        <title>InnoDB buffer pool flush 策略</title>
+        <description>&lt;h3 id=&quot;innodb-buffer-pool-flush-策略&quot;&gt;InnoDB buffer pool flush 策略&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;1. 刷脏整体策略&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;首先从整体上来说, 刷脏的coordinator_thread 会判断进入哪一种场景刷脏&lt;/p&gt;
+
+&lt;p&gt;在 buf_flush_page_coordinator_thread() 函数里面 刷脏主要有3个场景&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;如果 buf_flush_sync_lsn  &amp;gt; 0, 则因为redo log free space 不够了, 那么我们需要进入同步刷脏阶段了. 所以这个时候pc_request(ULINT_MAX, lsn_limit). 第一个参数直接是ULINT_MAX, 那么 slot-&amp;gt;n_pages_requested = ULINT_MAX; 这个时候每一个刷脏线程都尽可能的全部进行刷脏, 所以这个时候是可能超过io_capacity_max 的限制的, 因为并不去检查一个buffer pool 能刷多少脏页了&lt;/li&gt;
+  &lt;li&gt;最常见逻辑 srv_check_activity(last_activity),  也就是系统有正常活动, 这个时候会通过 page_cleaner_flush_pages_recommendation() 函数去合理的判断应该刷多少个page, 既不抖动, 也能够满足刷脏需求, 但是不会超过io_capacity 的限制&lt;/li&gt;
+  &lt;li&gt;ret_sleep == OS_SYNC_TIME_EXCEEDED  也就是如果系统没有活动, 那么就把srv_io_capacity 尽可能的用上, 100% 的全力去刷脏, 但是不会超过io_capacity_max 的限制.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;所以3个场景的刷脏速率依次是&lt;/p&gt;
+
+&lt;p&gt;2&amp;lt;3&amp;lt;1&lt;/p&gt;
+
+&lt;p&gt;限制的刷脏速率&lt;/p&gt;
+
+&lt;p&gt;io_capacity &amp;lt; io_capacity_max &amp;lt; 无限制&lt;/p&gt;
+
+&lt;p&gt;buf_flush_sync_lsn 这个是在什么时候设定的?&lt;/p&gt;
+
+&lt;p&gt;是在做checkpoint 的时候,  log_checkpointer 打checkpoint 之前, 都会检查一下, 是否需要做同步刷脏操作 =&amp;gt; log_consider_sync_flush&lt;/p&gt;
+
+&lt;p&gt;在第二种就是我们场景的处于adaptive flushing 中&lt;/p&gt;
+
+&lt;p&gt;这里内存占用百分比是多少的时候触发刷脏? 以及内存占用百分比是多少的时候触发更激进的刷脏策略?&lt;/p&gt;
+
+&lt;p&gt;主要在 coordinator_thread 里面的 page_cleaner_flush_pages_recommendation() 函数决定这次要flush 多少的page&lt;/p&gt;
+
+&lt;p&gt;pct_for_dirty = af_get_pct_for_dirty() 根据dirty page 的多少来决定是否要进行刷脏&lt;/p&gt;
+
+&lt;p&gt;buf_get_modified_ratio_pct() 计算得出脏页比.&lt;/p&gt;
+
+&lt;p&gt;如何计算脏页的百分比?&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;所以lru_list + free_list 代表了整个buffer pool page 的数量&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;ratio = static_cast&lt;double&gt;(100 * flush_list_len) / (1 + lru_len + free_len);&lt;/double&gt;&lt;/p&gt;
+
+&lt;p&gt;这里计算脏页的百分比就是 flush_list / (lru_list + free_list)&lt;/p&gt;
+
+&lt;p&gt;因为所有在flush_list 上面的page 都会在free_list 上, flush_list 上面的page 是 free_list 的一个子集而已, 所以可以这样计算&lt;/p&gt;
+
+&lt;p&gt;pct_for_lsn = af_get_pct_for_lsn() 根据redo log 产生的多少来决定是否要进行刷脏.&lt;/p&gt;
+
+&lt;p&gt;因为在upstream 里面, redo log 是循环使用的, 所以redo log 的大小也是有限的, 因此需要检查现在还有多少可以使用的redo log 空间, 如果太少了, 就需要进行刷脏了.&lt;/p&gt;
+
+&lt;p&gt;所以当没有开启adaptive flushing 的时候, 只有超过了 log.max_modified_age_async = 7/8 * (free redo log) 的时候, 会根据redo log 是否有空闲空间, 开始进行刷脏&lt;/p&gt;
+
+&lt;p&gt;当开启了 adaptive flushing, 如果超过了 srv_adaptive_flushing_lwm(默认10%) 的大小, 就开始进行刷脏了.  也就是会在达到redo log 没有空闲空间之前, 就触发了刷脏的流程&lt;/p&gt;
+
+&lt;p&gt;page_cleaner-&amp;gt;slot 和 page cleaner thread 并不会相等&lt;/p&gt;
+
+&lt;p&gt;而且page cleaner 去page_cleaner-&amp;gt;slot 里面去领任务, 比如我们有8个buffer pool 那么这个page_cleaner-&amp;gt;slot = 8.  我们配置了innodb_page_cleaner = 4, 那么一个thread 就需要flush 2 个buffer pool.&lt;/p&gt;
+
+&lt;p&gt;在POLARDB 里面, 因为没有的Redo log 的限制, 但是还是有checkpoint 的限制, 因此增加了 polar_log_max_checkpoint_files 这个参数&lt;/p&gt;
+
+&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;n_pages&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PCT_IO&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pct_total&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;avg_page_rate&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pages_for_lsn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;/&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;baotiao n_pages %d %d %d %d %d&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PCT_IO&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pct_total&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;avg_page_rate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;pages_for_lsn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;srv_io_capacity&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;srv_max_io_capacity&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n_pages&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;srv_max_io_capacity&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;n_pages&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;srv_max_io_capacity&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;  
+&lt;span class=&quot;c1&quot;&gt;// 打印出来是 baotiao n_pages 291 189 400 100 200&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;// 所以可以看到 pct_total 是可以超过100 的, 并且最后的这个n_pages 是经常会超过 srv_io_capacity 的, 只要avg_page_rate 足够快, 就很容易超过srv_io_capacity 限制.&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;// 但是最后这里会有判断如果n_pages &amp;gt; srv_max_io_capacity, 会把n_pages 设置成 srv_max_io_capacity&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;所谓的adaptive flushing 指的是什么?&lt;/p&gt;
+
+&lt;p&gt;所谓的 adaptive flushing 值得就是在脏页还没有达到一定需要刷脏的时候, 就提前开始刷脏, 避免等到内存不够的时候大量刷脏, 影响性能&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;2. 具体刷脏方法&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;**当free list 里面没有空闲page 的时候, 从LRU list 上面淘汰数据和从flush_list 上面刷脏, 这个策略是如何控制的呢? **&lt;/p&gt;
+
+&lt;p&gt;当需要获得一个free page 的时候, 是从LRU List 上去获得free page, 这里分两个阶段.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;找到一个page 可以被replace, 不需要执行page flush 操作, 因为page flush 操作的开销是比较大的&lt;/li&gt;
+  &lt;li&gt;在找不到一个可以被replace 的page以后, 那么需要找到一个可以被flush 的page&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;阶段1 找一个page 是否可以被 replace 在 buf_flush_ready_for_replace() 函数中, 主要&lt;/p&gt;
+
+&lt;p&gt;这里判断一个page 是否能够被replace, 也就是被释放的方法
+如果这个page 是被写过, 那么oldest_modification == 0, 表示这个page已经被flush 到磁盘了.
+bpage-&amp;gt;buf_fix_count 表示的是记录这个bpage 被引用次数, 每次访问bpage,都对引用计数buf_fix_count + 1, 释放的时候 -1. 也就是这个bpage 没有其他人访问以后,才可以被replace
+并且这个page 的io_fix 状态是 BUF_IO_NONE, 表示的是page 要从LRU list 中删除, 在page 用完以后, 都会设置成 BUF_IO_NON.如果是BUF_IO_READ, BUF_IO_WRITE 表示的是这个page 要从底下文件中读取或者写入, 肯定还在使用, 所以不能被replace&lt;/p&gt;
+
+&lt;p&gt;如果可以replace, 则执行 buf_LRU_free_page()&lt;/p&gt;
+
+&lt;p&gt;阶段2 判断page 是否可以被flush 在 buf_flush_ready_for_flush() 中, 主要&lt;/p&gt;
+
+&lt;p&gt;这个page 的oldest_modification != 0, 表示这个page 肯定已经被修改过了, 并且 io_fix == NONE, 不然这个page 可能正要被read/write&lt;/p&gt;
+
+&lt;p&gt;如果可以flush, 则执行 buf_flush_page()&lt;/p&gt;
+
+&lt;p&gt;为什么不直接从LRU list 上面拿出一个被modify 并且未执行flush 的page 执行flush 呢?&lt;/p&gt;
+
+&lt;p&gt;因为在LRU list 上是按照access_time 排序的, 所有有可能page 被修改以后, 又有读, 因为这个page 被排在了很前面. 但是有可能这个page 很早被修改, 但是一直没有读, 反而排在了后面了, 因此从flush_list 里面找page 进行flush 是更靠谱的, 保证flush 的是最早修改过的page&lt;/p&gt;
+
+&lt;p&gt;那么什么时候会从flush_list 上面去执行flush page 操作呢?&lt;/p&gt;
+
+&lt;p&gt;在系统正常运行的过程中, 就不断会有page clean 线程对page 执行 flush 操作, 这样可以触发用户从LRU list 里面找page 的时候, 只需要replace 操作, 不需要flush single page 操作, 因为flush single page 操作如果触发, 对用户的请求性能影响很大.&lt;/p&gt;
+
+&lt;p&gt;所以在page cleaner thread 执行flush 操作以后, 在写IO 完成以后, 是否会把page 同时从flush_list, LRU list 同时删除, 还是只是将oldest_modification lsn 设置成0 就可以了?&lt;/p&gt;
+
+&lt;p&gt;这里分两种场景考虑:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;如果这个page 是从flush_list 上面写IO 完成, 那么就不需要从flush_list上面删除, 因为从flush list 上面删除要完成的操作是刷脏,既然只是为了刷脏, 那么就没必要让他从lru list 上面删除, 有可能这个page 被刷脏了, 还是一个热page 是需要访问的&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;如果这个page 是从lru_list 上面写IO 完成, 那就需要从lru list 上面删除&lt;/p&gt;
+
+    &lt;p&gt;原因: 从lru_list 上面删除的page 肯定说明这个page 不是hot page 了,更大的原因可能是buffer pool 空间不够, 需要从lru list 上面淘汰一些page了, 既然这些page 是要从lru list 上面淘汰的, 那么肯定就需要从LRU list 上面移除&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;具体代码在buf_page_io_complete() 中&lt;/p&gt;
+</description>
+        <pubDate>Mon, 10 Feb 2020 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2020/02/10/innodb-bp-flush/</link>
+        <guid isPermaLink="true">http://localhost:4000/2020/02/10/innodb-bp-flush/</guid>
+      </item>
+    
+  </channel>
+</rss>

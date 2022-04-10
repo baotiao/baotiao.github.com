@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Innodb Physiological Logging &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Innodb Physiological Logging">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://localhost:4000/2022/04/10/physiological-log/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?202204110303" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Innodb Physiological Logging">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://localhost:4000/2022/04/10/physiological-log/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="Innodb Physiological Logging" />
+    <meta name="twitter:description" content="Innodb Physiological Logging" />
+    <meta name="twitter:url" content="http://localhost:4000/2022/04/10/physiological-log/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://localhost:4000" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>Innodb Physiological Logging</h1>
+  <span class="post-meta">Apr 10 2022</span><br>
+  
+  <span class="post-meta small">
+  
+    1 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <p>为什么InnoDB 的redo log 是<strong>Physiological logging</strong>?</p>
+
+<p>有一个存储的同学来问, 如果redo log 是纯physical log 的话, 那么就可以省去double write buffer 的开销, 保证每一次修改都是在4kb以内(由操作系统保证4kb以内的原子操作), 那么就不存在应用redo 到不新不旧的page 上的问题, 就不需要double write buffer.</p>
+
+<p>目前主要有两种Logical logging and Physical logging.</p>
+
+<p>Logical logging 像Binlog 这种, 记录的是操作, 跟物理格式无关, 所以通过binlog 可以对接不同的存储引擎.</p>
+
+<p>Physical logging 是纯物理格式, byte for byte 的记录数据的改动, 比如 [start, end, ‘xxxxx’] 这样的格式内容改动.</p>
+
+<p><strong>Physical logging</strong> 的优点是高效率, 并且可以直接修改物理格式, 任何操作都不需要重新遍历btree 到指定page.</p>
+
+<p>但是缺点也很明显, 记录的内容非常冗余, 比如一次delete 操作, logical logging 只需要记录MLOG_COMP_REC_DELETE offset 就可以, 实际执行的过程中会修改prev record-&gt;next_record, next_record-&gt;prev_record, checksum, PAGE_DIR_SLOT_MIN_N_OWNED, 可能还需要更新dir slot 信息等等. 如果改成physical logging 那么这些信息涉及到的内容在page 不同位置, 那么需要记录的日志就非常多了.</p>
+
+<p>另外在page reorgnize 或者 SMO 场景需要记录大量的无用日志, 比如当一个page 内部有过大量的删除, 有碎片需要整理的时候, 因为需要重新组织page结构, 如果physical logging 那么就需要一个一个record 重新insert 到当前page, offset 需要重新记录, 而logical logging 就只需要记录MLOG_PAGE_REORGANIZE 就可以了. 对比一下16kb 的page 只需要记录几个字节, 而physical logging 需要写差不多16kb 的内容了.</p>
+
+<p><strong>Logical logging</strong> 的优点是记录非常高效, 如上面说的delete 操作, 只需要记录几个字节, 在SMO, page reorgnize 等场景更加明显.</p>
+
+<p>但是最大的缺点也很明显, 因为记录的是record_id, 那么所有改动就需要重新遍历btree, 因为都需要对btree 进行修改, 那么就得走加index lock, 串行修改的逻辑. 而物理日志因为page 之前完全没有依赖, 那么就可以并行回放, 这样crash recovery 的效率最高的.</p>
+
+<p>在<a href="./https://cs.stanford.edu/people/chrismre/cs345/rl/aries.pdf">ARIES</a> 文章之后, 大部分的商业数据库选择的是”Physiological Logging”,  也就是”physical to a page, logical within a page.”, InnoDB 也是这样, 尽可能将Logocal logging 和 Physical logging 的优点结合在一起.</p>
+
+<p>记录的redo log 的格式是操作类型, 有些操作类型需要修改record 的话会记录offset. 大量的操作是一些逻辑操作, 比如 MLOG_1BYTE/MLOG_2BYTE/MLOG_INIT_FILE_PAGE 等等.</p>
+
+<p>对于insert/update/delete 等等操作可以保证到记录到page level, 那么在crash recovery 的时候, 就可以并行的回放日志不需要重新执行btree 遍历找到page逻辑, 从而加快crash recovery.</p>
+
+<p>当然现在InnoDB 的日志还有一些冗余的地方, PolarDB 也做了一些改进, 比如增加了record 长度信息, 减少了连续mtr 里面page id 记录等等, MariaDB Marko 也一直在优化这块 <a href="./https://jira.mariadb.org/browse/MDEV-12353">MDEV-12353</a>. 整体而言都是为了在page 内部的Logical redo 尽可能高效并且减少冗余.</p>
+
+<p><strong>Reference:</strong></p>
+
+<ol>
+  <li>C. Mohan, Don Handerle<strong>.</strong> ARIES: A Transaction Recovery Method Supporting Fine-Granularity Locking and Partial Rollbacks Using Write-Ahead Logging.</li>
+  <li>C. Mohan, Frank Levine. ARIES/lM: An Efficient and High Concurrency index Management Method Using Write-Ahead Logging.</li>
+</ol>
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/2022/04/10/physiological-log';
+    var disqus_title      = 'Innodb Physiological Logging';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

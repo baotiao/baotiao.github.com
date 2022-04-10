@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="做有积累的事情">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    
+    <link rel="canonical" href="http://localhost:4000/page9/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?202204110303" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="baotiao">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://localhost:4000/page9/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="baotiao" />
+    <meta name="twitter:description" content="做有积累的事情" />
+    <meta name="twitter:url" content="http://localhost:4000/page9/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://localhost:4000" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+<div class="home">
+  
+    <div class="posts">
+      
+        <div class="post py3">
+          <p class="post-meta">Sep 3 2013</p>
+          <a href="/2013/09/03/leverdb-thought/" class="post-link"><h3 class="h1 post-title">levelDB thought</h3></a>
+          <p class="post-summary">
+            
+              <ol>
+  <li>在ENV 里面可以把levelDB的结果从写入到本地 改成写入到 hdfs 来实现数据的备份, 复制等操作 具体的做法就是调用hdfs的写入这些库来实现.  这样实现levelDB的分布实话非常方便</li>
+  <li>levelDB的VersionSet 是管理者 version. 然后 每一个version 有一个列表, 这个列表是这个version 的对应的所有的SST文件.  所以你要查找某一个Version的数据的时候.  先会在这个VersionSet里面查找一遍包含这个当前快照的一个版本, 然后再从这个version 的这个list里面去具体的文件查找具体的内容</li>
+  <li>在一台机器上面getInstance()出来1000 levelDB的实例的话, 只会有一个compaction线程, 然后一个机器1000 个levelDB 实例和1个机器1个levelDB的实例的话 带来的好处是在机器挂掉得时候recovery的非常的快.  不过这样compaction起来就很费劲</li>
+  <li>在将本地文件写入到hdfs的节点中, 因为hdfs的写入性能比较慢.  所以在本地应该是writrBranch. 然后20ms向hdfs写一次. 这样比较适合.</li>
+  <li>levelDB 如何实现原子的getAndSet.  因为levelDB不是再内存层面实现这个对具体某一个key操作. 所以这个levelDB 的getAndSet操作不是通过汇编层面实现的.</li>
+</ol>
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Aug 22 2013</p>
+          <a href="/2013/08/22/leveldb-iterator/" class="post-link"><h3 class="h1 post-title">levelDB中用到的迭代器模型</h3></a>
+          <p class="post-summary">
+            
+              <h3 id="迭代器的设计模式是一种很常用的设计模式-leveldb的实现里面就用到了">迭代器的设计模式是一种很常用的设计模式. leveldb的实现里面就用到了.</h3>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Aug 22 2013</p>
+          <a href="/2013/08/22/leveldb-c++/" class="post-link"><h3 class="h1 post-title">learn c++ from levelDB</h3></a>
+          <p class="post-summary">
+            
+              <h3 id="leveldb是一个学习c很好的一个代码-里面有很多写代码的好习惯值得我们学习">LevelDB是一个学习c++很好的一个代码. 里面有很多写代码的好习惯值得我们学习.</h3>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Jul 18 2013</p>
+          <a href="/life/2013/07/18/add-ssd/" class="post-link"><h3 class="h1 post-title">Mac 换上SSD硬盘</h3></a>
+          <p class="post-summary">
+            
+              <p>给Mac换上的SSD硬盘步骤</p>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Jul 1 2013</p>
+          <a href="/tech/2013/07/01/test-markdown/" class="post-link"><h3 class="h1 post-title">test markdown</h3></a>
+          <p class="post-summary">
+            
+              <p>first time use in markdown</p>
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Nov 16 2012</p>
+          <a href="/2012/11/16/linux-kernel-process/" class="post-link"><h3 class="h1 post-title">Linux内核设计与实现-进程内存使用</h3></a>
+          <p class="post-summary">
+            
+              <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+  <span class="k">while</span> <span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+  <span class="p">};</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Oct 18 2012</p>
+          <a href="/2012/10/18/linux-kernel-io/" class="post-link"><h3 class="h1 post-title">Linux内核的设计与实现:块I/O层</h3></a>
+          <p class="post-summary">
+            
+              <h3 id="块设备">块设备</h3>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Sep 12 2012</p>
+          <a href="/2012/09/12/c++-constuct/" class="post-link"><h3 class="h1 post-title">c++对象模型 构造函数语义学</h3></a>
+          <p class="post-summary">
+            
+              <h3 id="1-c-不会为所有的class构造默认的constructor">1. C++ 不会为所有的class构造默认的constructor</h3>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Aug 25 2012</p>
+          <a href="/2012/08/25/c++-class/" class="post-link"><h3 class="h1 post-title">c++ 对象模型</h3></a>
+          <p class="post-summary">
+            
+              <ol>
+  <li>C++的对象模型里面,Nonstatic data members 配置于每一个class object之内, static data members 则被存放在所有的class object之外. static 和 non static function members 也被放在所有的所有的class object 之外. Virtual function 则以两个步骤支持</li>
+</ol>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Jul 29 2012</p>
+          <a href="/c++/tech/2012/07/29/c-inline/" class="post-link"><h3 class="h1 post-title">c++ inline</h3></a>
+          <p class="post-summary">
+            
+              <p>一个函数被定义成inline 函数. 那么就跟macro 宏一样, 在编译器编译的时候,如果编译器发现你的函数是inline类型的,就把你编译成inline code.</p>
+
+
+            
+          </p>
+        </div>
+      
+    </div>
+
+    <div class="pagination clearfix mb1 mt4">
+  <div class="left">
+    
+      
+        <a class="pagination-item" href="/page8">Newer</a>
+      
+    
+  </div>
+  <div class="right">
+    
+      <a class="pagination-item" href="/page10">Older</a>
+    
+  </div>
+</div>
+
+  
+</div>
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

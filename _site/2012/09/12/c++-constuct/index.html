@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>c++对象模型 构造函数语义学 &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="做有积累的事情">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://localhost:4000/2012/09/12/c++-constuct/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?202204110303" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="c++对象模型 构造函数语义学">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://localhost:4000/2012/09/12/c++-constuct/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="c++对象模型 构造函数语义学" />
+    <meta name="twitter:description" content="做有积累的事情" />
+    <meta name="twitter:url" content="http://localhost:4000/2012/09/12/c++-constuct/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://localhost:4000" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>c++对象模型 构造函数语义学</h1>
+  <span class="post-meta">Sep 12 2012</span><br>
+  
+  <span class="post-meta small">
+  
+    1 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <h3 id="1-c-不会为所有的class构造默认的constructor">1. C++ 不会为所有的class构造默认的constructor</h3>
+
+<p>(我们经常认为c++会为所有的class默认添加构造函数)</p>
+
+<p>只有满足4个条件之一会添加构造函数</p>
+
+<ol>
+  <li>包含带有默认构造函数的对象成员的类</li>
+  <li>继承自带有默认构造函数的基类的类</li>
+  <li>带有虚函数的类</li>
+  <li>带一个虚基类的类</li>
+</ol>
+
+<p>这4中情况会导致编译器必须为未申明构造函数的class, 生成一个默认的constructor. 更多情况下是不会去生成默认的构造函数的.</p>
+
+<h3 id="2-copy-constructor-构造语义学">2. copy constructor 构造语义学</h3>
+
+<p>C++并不是为所有的类都够着copy constructor.</p>
+
+<p>默认的情况是如果没有定义copy constructor, 那么一般情况下如果有copy constructor 操作, 默认的是执行bitwise copy semantics. 也就是位逐次拷贝.</p>
+
+<p>当然 bistwise copy 是有条件的,当不满足bitwise copy 的条件的时候,就不能进行bitwise copy. 那么C++就会为该类添加默认的copy constructor. ( 这里我感觉就是深拷贝和浅拷贝的区别,很明显bitwise 是浅拷贝,直接将一个对象的data member 拷贝给同一个类的另一个对象. 而如果这里不能直接内存拷贝,则需要深拷贝.就是需要构造一个copy constructor了)</p>
+
+<p>4种情况不满足bitwise copy. 也就是会调用构造函数</p>
+
+<ol>
+  <li>当一个class 内的一个member object,而这个object 声明了一个copy constructor时</li>
+  <li>当class 继承自一个bass class, 而这个bass class 有 copy constructor</li>
+  <li>当class申明了一个或多个 virtual functions 时</li>
+  <li>当class 派生自一个继承串链,其中一个或多个virtual base classes</li>
+</ol>
+
+<h3 id="copy-assign-constructor-构造语义学">copy assign constructor 构造语义学</h3>
+
+<p>跟上面的copy constructor 构造语义学一样, 如果能进行浅拷贝就浅拷贝, 不行的时候才会去生成assign operator</p>
+
+<h3 id="对象析构语义学">对象析构语义学.</h3>
+
+<p>只有在基类拥有析构函数,或者object member 拥有析构函数的时候,编译器在为类合成析构函数,否则都被视为不需要.</p>
+
+<p>这几个默认生成的函数都是在需要的时候才会被编译器生成出来, 默认情况下是不会生成这些函数的.所以如果class 当成一个存结构体使用, 效率是和C 的stuct 是一样的</p>
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/2012/09/12/c++-constuct';
+    var disqus_title      = 'c++对象模型 构造函数语义学';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

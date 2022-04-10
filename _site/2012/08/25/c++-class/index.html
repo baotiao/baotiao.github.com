@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>c++ 对象模型 &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="做有积累的事情">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://localhost:4000/2012/08/25/c++-class/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?202204110303" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="c++ 对象模型">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://localhost:4000/2012/08/25/c++-class/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="c++ 对象模型" />
+    <meta name="twitter:description" content="做有积累的事情" />
+    <meta name="twitter:url" content="http://localhost:4000/2012/08/25/c++-class/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://localhost:4000" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>c++ 对象模型</h1>
+  <span class="post-meta">Aug 25 2012</span><br>
+  
+  <span class="post-meta small">
+  
+    1 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <ol>
+  <li>C++的对象模型里面,Nonstatic data members 配置于每一个class object之内, static data members 则被存放在所有的class object之外. static 和 non static function members 也被放在所有的所有的class object 之外. Virtual function 则以两个步骤支持</li>
+</ol>
+
+<p>     1)每一个class 产生出一堆执行virtual functions 的指针,放在表格之中.这个表格被称为virtual table(vtbl)</p>
+
+<p>     2)每一个class object 被添加了一个指针,指向相关的virtual table, 通常这个指针被称为vptr. vptr的设定和重置都有每一个class的constructor, destructor 和copy assignment运算法自动完成. 如下图:(为什么采用这种模型是我们应该考虑的,是基于性能和空间的综合考虑.可以看一下简单对象模型和表格驱动对象模型)</p>
+
+<p> <img src="http://chenzongzhi.info/wp-content/uploads/2012/08/3e55c34139de2e6b58bc737a91b41905.gif" alt="3e55c34139de2e6b58bc737a91b41905" /></p>
+
+<p> </p>
+
+<p> </p>
+
+<ol>
+  <li>在继承的时候,对象的内存布局是这样的</li>
+</ol>
+
+<p>基类:</p>
+
+<p>class ZooAnimal {</p>
+
+<p>public:</p>
+
+<p>   ZooAnimal();</p>
+
+<p>   virtual ~ZooAnimal();</p>
+
+<p> </p>
+
+<p>   // …</p>
+
+<p> </p>
+
+<p>   virtual void rotate();</p>
+
+<p>protected:</p>
+
+<p>   int loc;</p>
+
+<p>   String name;</p>
+
+<p>};</p>
+
+<p><img src="http://chenzongzhi.info/wp-content/uploads/2012/08/ee21eaea173ebe93e1da4a422db9004e.gif" alt="Ee21eaea173ebe93e1da4a422db9004e" /></p>
+
+<p>子类:</p>
+
+<p>class Bear : public ZooAnimal {</p>
+
+<p>public:</p>
+
+<p>   Bear();</p>
+
+<p>   ~Bear();</p>
+
+<p>   // …</p>
+
+<p>   void rotate();</p>
+
+<p>   virtual void dance();</p>
+
+<p>   // …</p>
+
+<p>protected:</p>
+
+<p>   enum Dances { … };</p>
+
+<p> </p>
+
+<p>   Dances dances_known;</p>
+
+<p>   int cell_block;</p>
+
+<p>};</p>
+
+<p> </p>
+
+<p>Bear b( “Yogi” );</p>
+
+<p>Bear *pb = &amp;b;</p>
+
+<p>Bear &amp;rb = *pb;</p>
+
+<p><img src="http://chenzongzhi.info/wp-content/uploads/2012/08/c4613a1593002490b4ee517f61fcd5fc.gif" alt="C4613a1593002490b4ee517f61fcd5fc" /></p>
+
+<p>可以看到,子类是直接将基类的data member 空间直接拷贝过来的.</p>
+
+<p>然后在它的下面添加上自己的data menber</p>
+
+<p>3.一个类的对象的内存大小包括：  </p>
+
+<p>    1) 所有非静态数据成员的大小。</p>
+
+<p>    2) 由内存对齐而填补的内存大小。</p>
+
+<p>    3) 为了支持virtual有内部产生的额外负担,一个指针的大小.</p>
+
+<p><a href="http://erektilepillenonline.com/products/viagra.htm">viagra</a></p>
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/2012/08/25/c++-class';
+    var disqus_title      = 'c++ 对象模型';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>
