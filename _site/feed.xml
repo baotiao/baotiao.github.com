@@ -7,7 +7,7 @@
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml" />
     
       <item>
-        <title>Unique Key Check</title>
+        <title>MySQL unique key check 的问题</title>
         <description>&lt;p&gt;unique secondary index 是客户经常使用的场景, 用来保证index 上的record 的唯一性. 但是大量的客户在使用unique secondary index 以后会发现偶尔会有死锁或者不应该锁等待的时候却发生锁等待的情况. 也有很多客户来问我们这个问题. 理论上PolarDB 默认使用read-commit isolation level,  在rc 隔离级别下绝大部分场景不会使用GAP lock, 因此死锁的概率应该是比较低的. 这又是为什么呢?&lt;/p&gt;
 
 &lt;p&gt;关于InnoDB 事务锁介绍可以看这个&lt;a href=&quot;http://mysql.taobao.org/monthly/2016/01/01/&quot;&gt;InnoDB lock sys&lt;/a&gt;&lt;/p&gt;
