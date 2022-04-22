@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Unique Key Check &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="MySQL 历史悠久的unique check 问题, 官方一直没有解决的问题">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://localhost:4000/2022/04/22/unique-key-check/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?202204222047" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Unique Key Check">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://localhost:4000/2022/04/22/unique-key-check/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="Unique Key Check" />
+    <meta name="twitter:description" content="MySQL 历史悠久的unique check 问题, 官方一直没有解决的问题" />
+    <meta name="twitter:url" content="http://localhost:4000/2022/04/22/unique-key-check/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://localhost:4000" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>Unique Key Check</h1>
+  <span class="post-meta">Apr 22 2022</span><br>
+  
+  <span class="post-meta small">
+  
+    4 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <p>unique secondary index 是客户经常使用的场景, 用来保证index 上的record 的唯一性. 但是大量的客户在使用unique secondary index 以后会发现偶尔会有死锁或者不应该锁等待的时候却发生锁等待的情况. 也有很多客户来问我们这个问题. 理论上PolarDB 默认使用read-commit isolation level,  在rc 隔离级别下绝大部分场景不会使用GAP lock, 因此死锁的概率应该是比较低的. 这又是为什么呢?</p>
+
+<p>关于InnoDB 事务锁介绍可以看这个<a href="http://mysql.taobao.org/monthly/2016/01/01/">InnoDB lock sys</a></p>
+
+<p>其实这个问题是已经有十年历史的老问题, 也是官方一直没解决的问题.</p>
+
+<p>https://bugs.mysql.com/bug.php?id=68021</p>
+
+<p>我们用这个bug issue 里面的case 描述一下这个问题</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">-- Prepare test data</span>
+<span class="k">CREATE</span> <span class="k">TABLE</span> <span class="nv">`ti`</span> <span class="p">(</span>
+  <span class="nv">`session_ref_id`</span> <span class="nb">bigint</span><span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="k">NOT</span> <span class="k">NULL</span> <span class="n">AUTO_INCREMENT</span><span class="p">,</span>
+  <span class="nv">`customer_id`</span> <span class="nb">bigint</span><span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="k">DEFAULT</span> <span class="k">NULL</span><span class="p">,</span>
+  <span class="nv">`client_id`</span> <span class="nb">int</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="k">DEFAULT</span> <span class="s1">'7'</span><span class="p">,</span>
+  <span class="nv">`app_id`</span> <span class="nb">smallint</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="k">DEFAULT</span> <span class="k">NULL</span><span class="p">,</span>
+  <span class="k">PRIMARY</span> <span class="k">KEY</span> <span class="p">(</span><span class="nv">`session_ref_id`</span><span class="p">),</span>
+  <span class="k">UNIQUE</span> <span class="k">KEY</span> <span class="nv">`uk1`</span> <span class="p">(</span><span class="nv">`customer_id`</span><span class="p">,</span><span class="nv">`client_id`</span><span class="p">,</span><span class="nv">`app_id`</span><span class="p">)</span>
+<span class="p">)</span> <span class="n">ENGINE</span><span class="o">=</span><span class="n">InnoDB</span> <span class="k">DEFAULT</span> <span class="n">CHARSET</span><span class="o">=</span><span class="n">utf8</span><span class="p">;</span>
+
+<span class="k">INSERT</span> <span class="k">INTO</span> <span class="n">ti</span> <span class="p">(</span><span class="n">session_ref_id</span><span class="p">,</span> <span class="n">customer_id</span><span class="p">,</span> <span class="n">client_id</span><span class="p">,</span> <span class="n">app_id</span><span class="p">)</span> <span class="k">VALUES</span> <span class="p">(</span><span class="mi">4000</span><span class="p">,</span> <span class="mi">8000</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">);</span>
+<span class="k">INSERT</span> <span class="k">INTO</span> <span class="n">ti</span> <span class="p">(</span><span class="n">session_ref_id</span><span class="p">,</span> <span class="n">customer_id</span><span class="p">,</span> <span class="n">client_id</span><span class="p">,</span> <span class="n">app_id</span><span class="p">)</span> <span class="k">VALUES</span> <span class="p">(</span><span class="mi">4090</span><span class="p">,</span> <span class="mi">9000</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">);</span>
+<span class="k">INSERT</span> <span class="k">INTO</span> <span class="n">ti</span> <span class="p">(</span><span class="n">session_ref_id</span><span class="p">,</span> <span class="n">customer_id</span><span class="p">,</span> <span class="n">client_id</span><span class="p">,</span> <span class="n">app_id</span><span class="p">)</span> <span class="k">VALUES</span> <span class="p">(</span><span class="mi">6000</span><span class="p">,</span> <span class="mi">10000</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">);</span>
+<span class="k">INSERT</span> <span class="k">INTO</span> <span class="n">ti</span> <span class="p">(</span><span class="n">session_ref_id</span><span class="p">,</span> <span class="n">customer_id</span><span class="p">,</span> <span class="n">client_id</span><span class="p">,</span> <span class="n">app_id</span><span class="p">)</span> <span class="k">VALUES</span> <span class="p">(</span><span class="mi">7000</span><span class="p">,</span> <span class="mi">14000</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>session 1 删除这一行(4090, 9000, 10, 5); 然后再insert 一个二级索引一样的一行 (5000, 9000, 10, 5);</p>
+
+<pre><code class="language-mysql">-- session 1
+session1 &gt; start transaction;
+Query OK, 0 rows affected (0.00 sec)
+
+session1 &gt; DELETE FROM ti WHERE session_ref_id = 4090;
+Query OK, 1 row affected (0.00 sec)
+
+session1 &gt; INSERT INTO ti (session_ref_id, customer_id, client_id, app_id) VALUES (5000, 9000, 10, 5);
+Query OK, 1 row affected (0.00 sec)
+</code></pre>
+
+<p>接下来问题出现了.</p>
+
+<p>可以看到插入 (NULL, 8001, 10, 5) 这一行的时候出现了锁等待, 理论上不应该有锁等待的, 因为pk 是自增, 而二级索引(8001, 10, 5) 并没有和任何record 冲突, 为什么会这样呢?</p>
+
+<p>而插入 (NULL, 7999, 10, 5) 却没有问题, 二级索引(7999, 10, 5) 同样也没有和任何二级索引冲突</p>
+
+<pre><code class="language-mysql">-- session 2
+session2 &gt; set innodb_lock_wait_timeout=1;
+Query OK, 0 rows affected (0.00 sec)
+
+session2 &gt; start transaction;
+Query OK, 0 rows affected (0.00 sec)
+
+session2 &gt; INSERT INTO ti (session_ref_id, customer_id, client_id, app_id) VALUES (NULL, 8001, 10, 5);
+ERROR 1205 (HY000): Lock wait timeout exceeded; try restarting transaction
+
+session2 &gt; INSERT INTO ti (session_ref_id, customer_id, client_id, app_id) VALUES (NULL, 7999, 10, 5);
+Query OK, 1 row affected (0.00 sec)
+</code></pre>
+
+<p>查看事务锁信息可以看到</p>
+
+<pre><code class="language-mysql">mysql&gt; select ENGINE_TRANSACTION_ID, index_name, lock_type, lock_mode, LOCK_STATUS, lock_data  from performance_schema.data_locks;
++-----------------------+------------+-----------+------------------------+-------------+--------------+
+| ENGINE_TRANSACTION_ID | index_name | lock_type | lock_mode              | LOCK_STATUS | lock_data    |
++-----------------------+------------+-----------+------------------------+-------------+--------------+
+|              99537179 | NULL       | TABLE     | IX                     | GRANTED     | NULL         |
+|              99537179 | uk1        | RECORD    | X,GAP,INSERT_INTENTION | WAITING     | 9000, 10, 5  |
+|              99537176 | NULL       | TABLE     | IX                     | GRANTED     | NULL         |
+|              99537176 | PRIMARY    | RECORD    | X,REC_NOT_GAP          | GRANTED     | 4090         |
+|              99537176 | uk1        | RECORD    | X,REC_NOT_GAP          | GRANTED     | 9000, 10, 5  |
+|              99537176 | uk1        | RECORD    | S                      | GRANTED     | 9000, 10, 5  |
+|              99537176 | uk1        | RECORD    | S                      | GRANTED     | 10000, 10, 5 |
+|              99537176 | uk1        | RECORD    | S,GAP                  | GRANTED     | 9000, 10, 5  |
++-----------------------+------------+-----------+------------------------+-------------+--------------+
+</code></pre>
+
+<p>session1 在uk1 上持有(10000, 10, 5), (9000, 10, 5) 上面的next-key lock.</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>session2 插入(8001, 10, 5) 这一行记录的时候, 走的是正常的insert 逻辑, 最后在插入的时候需要申请insert record 的下一个key 上面的GAP</td>
+      <td>insert_intention lock.  和trx1 上面持有的(9000, 10, 5) next-key lock 冲突了, 所以需要等待.</td>
+    </tr>
+  </tbody>
+</table>
+
+<table>
+  <tbody>
+    <tr>
+      <td>而如果插入的记录是(7999, 10, 5) 需要申请的insert record 下一个key 是(8000, 10, 5) 的 GAP</td>
+      <td>insert_intention lock, 那么自然没有冲突, 那么就能够插入成功.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>那么为什么session1 需要持有 next-key lock, 看代码知道是在 unique check 的时候, row_ins_scan_sec_index_for_duplicate() 函数会给所有的相同的record 都加上next-key lock.</p>
+
+<p>如果把这个next-key lock 去掉会有什么问题?</p>
+
+<p>其实官方做过这个改动, 但是这个改动带来了严重的 <a href="https://bugs.mysql.com/bug.php?id=73170">bug#73170</a>, 会导致二级索引的唯一性约束有问题, 出现unique-index 上面出现了相同的record. 所以官方后来快速把这个fix 又revert掉了, 这个问题也就一直没解决了. 为什么会这样呢?</p>
+
+<p>我们简化一下上述的二级索引, 把(9000, 10, 5) 简化成9000, 因为(10, 5) 都是一样的. 下图是二级索引在page 上的一个简化结构.</p>
+
+<p>红色表示record 已经被删除, 蓝色表示未被删除.</p>
+
+<p>那么如果像官方一样把next-key lock 改成 record lock 以后, 如果这个时候插入两个record (99, 13000), (120, 13000).</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>第一个record 在unique check 的时候对 (13000, 100), (13000, 102), (13000, 108)..(13000, 112) 所有的二级索引加record S lock, insert 的时候对 (13000, 100) 加GAP</td>
+      <td>insert_intention lock.</td>
+    </tr>
+  </tbody>
+</table>
+
+<table>
+  <tbody>
+    <tr>
+      <td>第二个 record 在unique check 的时候对(13000, 100), (13000, 102), (13000, 108)..(13000, 112) 所有的二级索引加record S lock. insert 的时候对 (13000, 112)加 GAP</td>
+      <td>inser_intention lock.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>那么这时候这两个record 都可以同时插入成功, 就造成了unique key 约束失效了.</p>
+
+<p>具体的mtr case 可以看<a href="https://bugs.mysql.com/bug.php?id=68021">bug#68021</a> 上面我写的mtr.</p>
+
+<p><img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/%E6%9C%AA%E5%91%BD%E5%90%8D%E6%96%87%E4%BB%B6.png" alt="" /></p>
+
+<p>那么再拓展一下, primary key 也是unique key index, 为什么primary key 没有这个问题?</p>
+
+<p>本质原因是在secondary index 里面, 由于mvcc 的存在, 当删除了一个record 以后, 只是把对应的record marked, 在插入一个新的record 的时候, delete marked record 是保留的.</p>
+
+<p>在primary index 里面, 在delete 之后又insert 一个数据, 会将该record delete marked 标记改成non-delete marked, 然后记录一个delete marked 的record 在undo log 里面, 这样如果有历史版本的查询, 会通过mvcc 从undo log 中恢复该数据. 因此不会出现相同的delete mark record 跨多个page 的情况, 也就不会出现上述case 里面(13000, 100) 在page1, (13000, 112) 在page3. 那么在insert 的时候, 由于需要持有page 的物理X latch, 就可以保证两次的insert 不可能同时插入成功, 进而避免了这个问题.</p>
+
+<p><strong>结论:</strong></p>
+
+<p>在delete + insert, insert … on duplicate key update, replace into 等场景中, 由于在delete 之后, 在record 上还保留有next key lock, 那么在unique check 的时候会给所有的相同的record 和下一个record 加上next-key lock. 导致后续insert record 虽然没有冲突, 但是还是会被Block 住.</p>
+
+<p>我在 issue 里面也提出我的改法.</p>
+
+<p>在row_ins_scan_sec_index_for_duplicate() 函数里面将next_key lock 改成record lock, 然后在insert 阶段, 通过将 insert 时候申请的</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>LOCK_X</td>
+      <td>LOCK_GAP</td>
+      <td>LOCK_INSERT_INTENTION;  改成 =&gt;</td>
+    </tr>
+  </tbody>
+</table>
+
+<table>
+  <tbody>
+    <tr>
+      <td>LOCK_X</td>
+      <td>LOCK_ORDINARY</td>
+      <td>LOCK_INSERT_INTENTION;</td>
+    </tr>
+  </tbody>
+</table>
+
+<table>
+  <tbody>
+    <tr>
+      <td>那么就变成持有record lock, 等待LOCK_ORDINARY</td>
+      <td>LOCK_INSERT_INTENTION, 那么session2/session3 就会互相冲突, 那么就无法同时插入..</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>insert 的时候为什么要持有LOCK_GAP 而不是 LOCK_ORDINARY ?</strong></p>
+
+<p>比如原有record 1, 4, 10 需要插入record 6, 7</p>
+
+<p>那么trx 去抢的都是record 10 的lock, 因为此时6, 7 都还未在btree 中, record 10 是next record..如果加的是10 上面的 LOCK_ORDINARY, 那么两个非常简单的insert 6, 7 就会互相等待死锁了..</p>
+
+<p>因此只能加LOCK_GAP.</p>
+
+<p>但是这里对于有可能冲突的SK, 互相死锁则是想要的, 比如如果现有的record</p>
+
+<p>&lt;1, 1&gt;, &lt;4, 2&gt;, &lt;10(delete-mark), 3&gt;, &lt;10(d), 8&gt;, &lt;10(d), 11&gt;, &lt;10(d), 21&gt;, &lt;15, 9&gt;  需要插入</p>
+
+<p>trx1: &lt;10, 6&gt;,  trx2: &lt;10,7&gt;</p>
+
+<p>trx1 先插入成功, 然后是trx2.</p>
+
+<p>第一步的时候给 &lt;10, 3&gt;&lt;10,8&gt;&lt;10,11&gt;&lt;10,21&gt; 加record s lock.</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>插入的时候判断 插入的位置在&lt;10,3&gt;&lt;10,8&gt; 之间, 有10, 那么就可以申请的时候 &lt;10, 8&gt; 的 LOCK_X</td>
+      <td>LOCK_ORDINARY</td>
+      <td>insert_intention,   和已经持有record s lock 互相冲突, 已经是死锁了</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>如果插入&lt;10,6&gt;&lt;10,9&gt; 也一样</p>
+
+<p>第一步给所有&lt;10, x&gt; 都加record s lock</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>插入的时候,  trx1 申请&lt;10, 8&gt; LOCK_ORDINARY, 持有trx2 想要的&lt;10, 11&gt; record s lock, trx 申请&lt;10, 11&gt; LOCK_X</td>
+      <td>LOCK_ORDINARY, 持有trx1 想要的&lt;10, 8&gt; record s lock 因此也是互相死锁冲突的.</td>
+    </tr>
+  </tbody>
+</table>
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/2022/04/22/unique-key-check';
+    var disqus_title      = 'Unique Key Check';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>
