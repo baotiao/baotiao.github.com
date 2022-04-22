@@ -1,8 +1,11 @@
 ---
 layout: post
-title: MySQL unique key check 的问题
+title: MySQL unique key check issue
 summary: MySQL 历史悠久的unique check 问题, 官方一直没有解决的问题
 ---
+
+### InnoDB unique check 的问题
+
 
 
 unique secondary index 是客户经常使用的场景, 用来保证index 上的record 的唯一性. 但是大量的客户在使用unique secondary index 以后会发现偶尔会有死锁或者不应该锁等待的时候却发生锁等待的情况. 也有很多客户来问我们这个问题. 理论上PolarDB 默认使用read-commit isolation level,  在rc 隔离级别下绝大部分场景不会使用GAP lock, 因此死锁的概率应该是比较低的. 这又是为什么呢?
@@ -97,9 +100,9 @@ mysql> select ENGINE_TRANSACTION_ID, index_name, lock_type, lock_mode, LOCK_STAT
 
 session1 在uk1 上持有(10000, 10, 5), (9000, 10, 5) 上面的next-key lock.
 
-session2 插入(8001, 10, 5) 这一行记录的时候, 走的是正常的insert 逻辑, 最后在插入的时候需要申请insert record 的下一个key 上面的GAP | insert_intention lock.  和trx1 上面持有的(9000, 10, 5) next-key lock 冲突了, 所以需要等待.
+session2 插入(8001, 10, 5) 这一行记录的时候, 走的是正常的insert 逻辑, 最后在插入的时候需要申请insert record 的下一个key 上面的GAP\| insert_intention lock.  和trx1 上面持有的(9000, 10, 5) next-key lock 冲突了, 所以需要等待.
 
-而如果插入的记录是(7999, 10, 5) 需要申请的insert record 下一个key 是(8000, 10, 5) 的 GAP | insert_intention lock, 那么自然没有冲突, 那么就能够插入成功.
+而如果插入的记录是(7999, 10, 5) 需要申请的insert record 下一个key 是(8000, 10, 5) 的 GAP \| insert_intention lock, 那么自然没有冲突, 那么就能够插入成功.
 
 
 
@@ -117,9 +120,9 @@ session2 插入(8001, 10, 5) 这一行记录的时候, 走的是正常的insert 
 
 那么如果像官方一样把next-key lock 改成 record lock 以后, 如果这个时候插入两个record (99, 13000), (120, 13000). 
 
-第一个record 在unique check 的时候对 (13000, 100), (13000, 102), (13000, 108)..(13000, 112) 所有的二级索引加record S lock, insert 的时候对 (13000, 100) 加GAP | insert_intention lock.
+第一个record 在unique check 的时候对 (13000, 100), (13000, 102), (13000, 108)..(13000, 112) 所有的二级索引加record S lock, insert 的时候对 (13000, 100) 加GAP \| insert_intention lock.
 
-第二个 record 在unique check 的时候对(13000, 100), (13000, 102), (13000, 108)..(13000, 112) 所有的二级索引加record S lock. insert 的时候对 (13000, 112)加 GAP | inser_intention lock.
+第二个 record 在unique check 的时候对(13000, 100), (13000, 102), (13000, 108)..(13000, 112) 所有的二级索引加record S lock. insert 的时候对 (13000, 112)加 GAP \| inser_intention lock.
 
 那么这时候这两个record 都可以同时插入成功, 就造成了unique key 约束失效了.
 
@@ -151,11 +154,11 @@ session2 插入(8001, 10, 5) 这一行记录的时候, 走的是正常的insert 
 
 在row_ins_scan_sec_index_for_duplicate() 函数里面将next_key lock 改成record lock, 然后在insert 阶段, 通过将 insert 时候申请的
 
-LOCK_X | LOCK_GAP | LOCK_INSERT_INTENTION;  改成 => 
+LOCK_X \| LOCK_GAP \| LOCK_INSERT_INTENTION;  改成 => 
 
-LOCK_X | LOCK_ORDINARY | LOCK_INSERT_INTENTION;
+LOCK_X \| LOCK_ORDINARY \| LOCK_INSERT_INTENTION;
 
-那么就变成持有record lock, 等待LOCK_ORDINARY | LOCK_INSERT_INTENTION, 那么session2/session3 就会互相冲突, 那么就无法同时插入..
+那么就变成持有record lock, 等待LOCK_ORDINARY \| LOCK_INSERT_INTENTION, 那么session2/session3 就会互相冲突, 那么就无法同时插入..
 
 **insert 的时候为什么要持有LOCK_GAP 而不是 LOCK_ORDINARY ?**
 
@@ -177,7 +180,7 @@ trx1 先插入成功, 然后是trx2.
 
 第一步的时候给 <10, 3><10,8><10,11><10,21> 加record s lock.
 
-插入的时候判断 插入的位置在<10,3><10,8> 之间, 有10, 那么就可以申请的时候 <10, 8> 的 LOCK_X | LOCK_ORDINARY | insert_intention,   和已经持有record s lock 互相冲突, 已经是死锁了
+插入的时候判断 插入的位置在<10,3><10,8> 之间, 有10, 那么就可以申请的时候 <10, 8> 的 LOCK_X \| LOCK_ORDINARY \| insert_intention,   和已经持有record s lock 互相冲突, 已经是死锁了
 
 
 
@@ -185,4 +188,5 @@ trx1 先插入成功, 然后是trx2.
 
 第一步给所有<10, x> 都加record s lock
 
-插入的时候,  trx1 申请<10, 8> LOCK_ORDINARY, 持有trx2 想要的<10, 11> record s lock, trx 申请<10, 11> LOCK_X | LOCK_ORDINARY, 持有trx1 想要的<10, 8> record s lock 因此也是互相死锁冲突的.
+插入的时候,  trx1 申请<10, 8> LOCK_ORDINARY, 持有trx2 想要的<10, 11> record s lock, trx 申请<10, 11> LOCK_X \| LOCK_ORDINARY, 持有trx1 想要的<10, 8> record s lock 因此也是互相死锁冲突的.
+
