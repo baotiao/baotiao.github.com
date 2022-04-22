@@ -1,6 +1,6 @@
 ---
 layout: post
-title: #InterestingBug MySQL unique key check 的问题
+title: MySQL unique key check 的问题
 summary: MySQL 历史悠久的unique check 问题, 官方一直没有解决的问题
 ---
 
