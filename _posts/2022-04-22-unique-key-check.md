@@ -249,8 +249,8 @@ trx1 先插入成功, 然后是trx2.
 
 
 
+
 **结论:**
 
-在delete + insert, insert ... on duplicate key update, replace into 等场景中, 由于在delete 之后, 在record 上还保留有next key lock, 那么在unique check 的时候会给所有的相同的record 和下一个record 加上next-key lock. 导致后续insert record 虽然没有冲突, 但是还是会被Block 住.
-
+在delete + insert, insert ... on duplicate key update, replace into 等场景中, 为了实现判断插入记录与现有物理记录是否冲突和插入记录这两个阶段的原子, unique check 的时候会给所有的相同的record 和下一个record 加上next-key lock. 导致后续insert record 虽然没有冲突, 但是还是会被Block 住, 进而有可能造成死锁的问题.
 
