@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?202204240519" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?202207041525" type="text/css">
 
     <!-- Fonts -->
     
@@ -232,6 +232,18 @@
     <div class="posts">
       
         <div class="post py3">
+          <p class="post-meta">Feb 1 2012</p>
+          <a href="/tech/2012/02/01/memcached-thread-model/" class="post-link"><h3 class="h1 post-title">Memcache threads analysis</h3></a>
+          <p class="post-summary">
+            
+              <p>memcached 启动时线程处理流程</p>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
           <p class="post-meta">Jan 31 2012</p>
           <a href="/tech/2012/01/31/libevent-demo/" class="post-link"><h3 class="h1 post-title">libevent demo</h3></a>
           <p class="post-summary">
@@ -368,21 +380,6 @@ awk ‘BEGIN {while (( getline &lt; “f2” &gt; 0 )) { f2[lc] = $0 ;lc++;}} { 
           <p class="post-summary">
             
               <p>这个脚本碰到有些别字的中文的时候会报错,直接去文件里面该就可以了.iconv: 北京.csv:31:12: cannot convert</p>
-
-
-            
-          </p>
-        </div>
-      
-        <div class="post py3">
-          <p class="post-meta">Aug 7 2011</p>
-          <a href="/life/2011/08/07/vmware-centos-e5-ae-89-e8-a3-85/" class="post-link"><h3 class="h1 post-title">vmware centos 安装</h3></a>
-          <p class="post-summary">
-            
-              <p>分享一下今天在vmware 下 centos 的安装过程遇到的问题.
-centos 在vmware 里面安装的时候 不要选择简单安装.然后就会进入到centos标准安装界面.
-swap 就是linux下的虚拟内存分区,它的作用是在物理内存使用完之后,将磁盘空间(也就是SWAP分区)虚拟成内存来使用.
-需要注意的是他的速度比物理内存慢多了,因为他是从磁盘中读取的.如果想更快速度,swap是没用的然后看鸟哥的centos安装教程 在centos 里面安装好以后要 提示插入第二个盘 那么 选择 CD&amp;DVD 然后 勾上 Connected . 然后在Use disc image 选上那个镜像就可以了.</p>
 
 
             

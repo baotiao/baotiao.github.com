@@ -7,6 +7,145 @@
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml" />
     
       <item>
+        <title>PolarDB-CloudJump：优化基于云存储服务的云数据库(发表于VLDB 2022)</title>
+        <description>&lt;p&gt;云数据库实现计算存储分离，支持计算与存储的独立扩展，其用户还可以享受按量付费等特性。这使得基于云数据库的系统更加高效、灵活。因此，构建并使用云原生数据库的势头愈演愈烈。另一方面，云化存储服务已经是云的标准能力，存储侧提供兼容通用的文件接口，并且不对外暴露持久化、容错处理等复杂细节，其易用性和规模化带来的高性价比使得云存储成为了云上系统的第一选择。在通用云存储服务上构建云数据库，无疑是一种既能够享受规模化云存储红利，又能够通过可靠云存储服务实现降低维护成本、加速数据库开发周期的方案。&lt;/p&gt;
+
+&lt;p&gt;然而，考虑到云存储和本地存储之间的特性差异，在将本地数据库迁移到云上构建云数据库时，如何有效使用云存储面临了许多挑战。对此，我们在论文里分析了基于B-tree和LSM-tree的存储引擎在云存储上部署时面临的挑战，并提出了一个优化框架CloudJump，以希望能够帮助数据库开发人员在基于云存储构建数据库时使系统更为高效。我们以云原生数据库PolarDB为案例，展示了一系列针对性优化，并将部分工作扩展应用到基于云存储的RocksDB上，以此来演示CloudJump的可用性。&lt;/p&gt;
+
+&lt;h3 id=&quot;背景&quot;&gt;背景&lt;/h3&gt;
+
+&lt;p&gt;我们讨论的云存储主要基于弹性分布式块存储，云中其他类型的存储服务，例如基于对象的存储，不在本文的讨论范围内。共享云存储（如分布式块存储服务加分布式文件系统）可以作为多个计算节点的共享存储层，提供QoS（服务质量）保证、大容量、弹性和按量付费定价模型。对于大多数云厂商和云用户来说，拥有云存储服务比构建和维护裸机SSD集群更有吸引力。因此，与其为云本机数据库构建和优化专用存储服务，不如利用现有云存储服务构建云本机数据库，这是一种非常可行的选择。此外，随着云存储服务几乎实现了标准化，相应的开发、迁移变得更加快速。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/f1.png&quot; alt=&quot;f1&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;图1展示了本地数据库（不含备份）与shared-storage云原生数据库的系统结构，AWS Aurora首先引导了这种从本地数据库向shared-storage云原生数据库的迁移。它将数据库分为存储层和计算层，并可以独立扩展每一层。为了消除了传输数据页中产生的沉重的网络开销，它进一步定制了存储层，在数据页上应用重做日志，从而不再需要在两层之间传输数据页。无疑这种设计在云中提供了一种非标准存储服务，只能由Aurora的计算层使用。&lt;/p&gt;
+
+&lt;p&gt;另一种方案是依赖标准化接口的云存储服务迁移或构建获得云数据库，这也是本文的研究目标。前面已经提到过，这样做的优势主要在于的可以实现系统的快速开发、平滑迁移、收纳标准化规模化存储服务的原有优势等。此外，特别是在我们项目（PolarDB）的硬件环境、已有背景下，兼顾服务可靠性和开发迭代需求，针对进行云存储服务特性进行性能优化是最迫切的第一步。&lt;/p&gt;
+
+&lt;h3 id=&quot;挑战与分析&quot;&gt;挑战与分析&lt;/h3&gt;
+
+&lt;p&gt;云存储和本地SSD存储在带宽、延迟、弹性、容量等方面存在巨大差异，例如图2展示了在稳态条件下本地SSD与云存储I/O延时、带宽与工作线程关系，它们对数据库等设计有着巨大影响。此外，共享存储的架构特性也会对云存储带来影响，如多个节点之间的数据一致性增加了维护cache一致性开销&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/f2.png&quot; alt=&quot;f2&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;通过系统实验、总结分析等，我们发现CloudJump面临以下技术挑战：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;远程分布式存储集群的访问导致云存储服务的I/O延迟高；&lt;/li&gt;
+  &lt;li&gt;通常聚合I/O带宽未被充分利用；&lt;/li&gt;
+  &lt;li&gt;在具有本地存储的单机上运行良好但需要适应云存储而导致特性改变的传统设计，例如文件cache缓存；&lt;/li&gt;
+  &lt;li&gt;长链路导致各种数据库I/O操作之间的隔离度较低（例如，日志刷写与大量数据I/O的竞争）；&lt;/li&gt;
+  &lt;li&gt;云用户允许且可能使用非常大的单表文件（例如数十TB）而不进行数据切分，这加剧了I/O问题的影响。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;针对不同的数据存储引擎，如基于B-tree和LSM-tree的存储引擎，这些特性差异会带来不同的性能差异，表1归纳总结了这些挑战及其对数据库设计的影响。其中有共性问题，如WAL路径写入变慢、共享存储（分布式文件系统）cache一致性代价等；也有个性问题，如B-tree结构在独占资源情况下做远程I/O、远程加剧I/OLSM-tree读放大影响等。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/f3.png&quot; alt=&quot;f3&quot; /&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;优化原则&quot;&gt;优化原则&lt;/h3&gt;
+
+&lt;p&gt;CloudJump针对上述挑战，提出7条优化准则：&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Thread-level Parallelism&lt;/strong&gt;：例如依据I/O特性实验，采用（更）多线程的日志、数据I/O线程及异步I/O模型，将数据充分打散到多个存储节点上。&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Task-level Parallelism&lt;/strong&gt;：例如对集中Log buffer按Page Partition分片，实现并行写入并基于分片进行并行Recovery。&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Reduce remote read and Prefetching&lt;/strong&gt;：例如通过收集并聚合原分散meta至统一的superblock，将多个I/O合一实现fast validating；通过预读利用聚合读带宽、减少读任务延时；通过压缩、filter过滤减少读取数据量。与本地SSD上相比，这些技术在云存储上更能获得收益。&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Fine-grained Locking and Lock-free Data Structures&lt;/strong&gt;：云存储中较长的I/O延迟放大了同步开销，主要针对Update-in-place系统，实现无锁刷脏、无锁SMO等。&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Scattering among Distributed Nodes&lt;/strong&gt;：在云存储中，多个节点之间的分散访问可以利用更多的硬件资源，例如将单个大I/O并发分散至不同存储节点 ，充分利用聚合带宽。&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Bypassing Caches&lt;/strong&gt;：通过Bypassing Caches来避免分布式文件系统的cache coherence，并在DB层面优化I/O格式匹配存储最佳request格式。&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Scheduling Prioritized I/O Tasks&lt;/strong&gt;：由于访问链路更长（如路径中存在更多的排队情况），不填I/O请求间的隔离性相对本地存储更低，因此需要在DB层面对不同I/O进行打标、调度优先级，例：优先WAL、预读分级。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&quot;实践案例&quot;&gt;实践案例&lt;/h3&gt;
+&lt;h4 id=&quot;实践案例polardb&quot;&gt;实践案例：PolarDB&lt;/h4&gt;
+&lt;p&gt;PolarDB构建基于具有兼容Posix接口的分布式文件系统PolarFS，与Aurora一样采用计算存储分离架构，借助高速RDMA网络以及最新的块存储技术实现超低延迟和高可用能力能力。在PolarDB上，我们做了许多适配于分布式存储特性、符合CloudJump准则的性能优化，大幅提升了云原生数据库PolarDB的性能。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/f4.png&quot; alt=&quot;f4&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;1. WAL写入优化&lt;/strong&gt;
+WAL（Write ahead log）写入是用于一致性和持久性的关键路径，事务的写入性能对log I/O的延迟非常敏感。原生InnoDB以MTR（Mini-Transaction）的粒度组织日志，并保有一个全局redo日志缓冲区。 当一个MTR被提交时，它缓存的所有日志记录被追加到全局日志缓冲区，然后集中的顺序刷盘以保证持久化特性。这一传统集中日志模式在本地盘上工作良好，但使用云存储时，集中式日志的写入性能随着远程I/O时延变高而下降，进而影响事务写入性能。基于云存储的特性，我们提出了两个优化来提升WAL的写入性能：日志分片和（大）I/O任务并行打散。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/f5.png&quot; alt=&quot;f5&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Redo日志分片&lt;/em&gt;：InnoDB的redo采用的是Physiological Logging的方式，大部分MTR针对单个的数据页（除部分特殊），页之间基本相互独立。如图5（左），我们将redo日志、redo缓冲区等按其修改的page进行分片（partition），分别写入不同的文件中，来支持并发写log（以及并发Recovery，并发物理复制等），从而在并发写友好的分布式文件系统上的获得写入性能优势。&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;I/O任务并行打散&lt;/em&gt;：在云存储中，一个文件由多个chunk组成，根据chunk的分配策略，不同chunk很可能位于不同的存储节点中。我们将每个redo分片（partition）的文件进一步拆分为多个物理分片（split），如图5（右）所示，对于单个大log I/O任务（如group commit、BLOB record等），log writer会将I/O按lsn切片并且并发的分发I/O请求至不同split。通过这种方式，可以将大延时的log I/O任务拆分，并利用分布式存储高分布写特性来减少整体I/O时间。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;2. 快速恢复&lt;/strong&gt;
+为了实现快速恢复，我们提出了两个优化：快速（启动）验证和全并行恢复。
+&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/f6.png&quot; alt=&quot;f6&quot; /&gt;
+在InnoDB的原有恢复过程中，InnoDB首先在启动期间会打开所有文件读取元信息（如文件名、表ID等）并验证正确性，然后通过ARIES风格的恢复算法重做未checkpoint的数据。为了加速启动，快速验证方法不会扫描所有文件，而是在数据库的生命周期中记录和集中必要的元信息，并在创建、修改文件时将必要的元信息集中记录在一个superblock中，在启动时仅扫描元数据块文件。因此，减少了启动扫描过程中的远程I/O访问开销。其次，依赖于Redo日志分片，我们将log file按page拆分成多个文件，在恢复阶段（可以进一步划分为parse、redo、undo三个阶段），可以天然的支持并发parse和redo（undo阶段在后台进行），通过并发任务充分调动CPU和I/O资源加速恢复。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;3. 预读取&lt;/strong&gt;
+在云存储环境下，读I/O延时大大增加，当用户任务访问数据发生cache miss的情况下，而有效的预读取能够充分利用聚合读带宽来减少读任务延时。InnoDB中有线性预读和非线性预读两种原生的物理预读方法，我们进一步引入了逻辑预读策略（由于无序的插入和更新，索引在物理上不一定是顺序的）。例如对于主索引扫描，当任务线程从起始键顺序扫描索引超过一定阈值时，逻辑预读会在主索引上按逻辑顺序触发异步预读，提前读取一定量的顺序页。又如对于具有二级索引和非索引列回表操作的扫描，在对二级索引进行扫描同时批量收集相关命中的主键，积累一定批数据后触发异步任务预读对应主索引数据（此时剩余的二级索引扫描可能仍在进行中）。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;4. 同步（锁）优化&lt;/strong&gt;
+相关背景可以先查阅&lt;a href=&quot;https://zhuanlan.zhihu.com/p/151397269&quot;&gt;《InnoDB btree latch 优化历程》&lt;/a&gt;这篇文章。
+&lt;em&gt;无锁刷脏&lt;/em&gt;：原生InnoDB在刷脏时需要持有当前page的sx锁，导致I/O期间当前page的写入被完全阻塞。而在云存储上I/O延迟更高，阻塞时间更久。我们采用shadow page的方式，首先对当前page构建内存副本，构建好内存副本后原有page的sx锁被释放，然后用这个shadow page内容去做刷脏及相关刷写信息更新。&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;SMO加锁优化&lt;/em&gt;：在InnoDB 里面, 依然有一个全局的index latch, 由于全局的index latch 存在会导致同一时刻在Btree 中只有一个SMO 能够发生, index latch 依然会成为全局的瓶颈点。上述index latch不仅是计算瓶颈，而从另一方面考虑，锁同步期间index上其他可能I/O操作无法并行，存储带宽利用率较低。相关实现可以参考文章&lt;a href=&quot;https://zhuanlan.zhihu.com/p/374000358&quot;&gt;《路在脚下, 从BTree 到Polar Index》&lt;/a&gt;。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;5. 多I/O任务队列适配&lt;/strong&gt;
+针对云存储具有I/O隔离性低的挑战，同时为了避免云存储无法识别DB层存储内核的I/O语义，而造成优先级低的I/O请求（如page刷脏、低优先级预读）影响关键I/O路径的性能，在数据库内核中提供合理的I/O调度模型是很重要的。在 PolarDB 中，我们在数据库内核层为不同类型的I/O请求进行调度，实现根据当前I/O压力实现数据库最优的性能，每个I/O请求都具有 DB 层的语义标签，如 WAL 读/写，Page 读/写。
+&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/f7.png&quot; alt=&quot;f7&quot; /&gt;
+我们为数据库的异步I/O请求建立了多个支持并发写入的生产者 / 消费者队列，并且其存在三种不同特性的队列，分别为 Private 队列，Priority 队列，以及 General 队列，不同队列的数量是根据当前云存储的I/O能力决定的。&lt;/p&gt;
+
+&lt;p&gt;正常情况下，WAL 的写入只通过其 Private 队列，当写入量增大时，其I/O请求也会转发至 Priority 队列，此时 Priority 队列会优先执行 WAL 的写入，并且后续Page写入的I/O不会进入 Priority 队列。基于这种I/O模型，我们保证了一定部分的I/O资源时预留给WAL写入，保证事务提交的写入性能，充分利用云存储的高聚合带宽。此外，I/O任务队列的长度和数目也进行了拓展以一步匹配云存储高吞吐、大带宽但时延较高且波动大的特性。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;6. 格式化I/O请求&lt;/strong&gt;
+云存储和本地存储在I/O格式上具有显著的不同，例如 Block 大小，I/O请求的发起方式。在大多数分布式的云存储中，在实现多个计算节点的共享时，为了避免维护计算节点 cache 一致性的问题，不存在 page cache，此时采用原先本地存储的I/O格式在云上会造成例如 read-on-write 和逻辑与物理位置映射的问题，造成性能下降。在 PolarDB中，我们为WAL I/O和 Page I/O匹配了适应云存储的请求I/O格式以尽可能降低单个I/O的延时。&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;WAL I/O对齐&lt;/em&gt;：文件是通过固定大小的 block 进行读写的。云存储具有更大的 block size （4-128 KB），传统的 log 对齐策略不适合云存储上的 stripe boundary。我们在 log 数据进行提交的时候，将I/O请求的长度和偏移与云存储的 block size进行对齐。&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Data I/O对齐&lt;/em&gt;：例如当前存在两种类型的数据页：常规页和压缩页，常规页为16 KB，可以很容易与云存储的 Block size 进行对齐，但是压缩页会造成后续大量的不对齐I/O。以PolarDB 中对于压缩页的对齐为例。首先，我们读取时保证以最小单位（如PolarFS的4 KB）读取。而在写入时，对于所有小于最小访问单元的压缩页数据，我们会拓展到最小单位再进行写入，以保证存储上的页数据都是最小单位对齐的。&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;去除 Data I/O合并&lt;/em&gt;：在本地数据库中，数据页的I/O会被合并来形成大的I/O实现连续地顺序写入。在云存储中，并发地向不同存储节点写入具有更高的性能，因此在云存储的数据库上，可以无需数据页的I/O合并操作。&lt;/p&gt;
+
+&lt;p&gt;受篇幅所限，我们在本文中只简单介绍所提优化方法的大致实现逻辑，具体实现细节请读者查阅论文及相关文章。&lt;/p&gt;
+
+&lt;p&gt;为了验证我们的优化效果, 我们对比了为针对云存储优化的MySQL 分别运行在PolarStore 和 Local Disk, 以及我们优化以后的PolarDB, 从下图可以看到PolarDB 在CPU-bound, IO-bound sysbench, TPCC 等各个场景下都表现除了明显的性能优势.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20220623203947797.png&quot; alt=&quot;image-20220623203947797&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;同时, 为了证明我们的优化效果不仅仅对于我们自己的云存储PolarStore 有收益, 对于所有的云存储应该都有收益, 因此我们将针对云存储优化的PolarDB 运行在 StorageX, ESSD 等其他云存储上,  我们发现均能获得非常好的性能提升, 从而说明我们的优化对于大部分云存储都是有非常大的收益&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20220623204635224.png&quot; alt=&quot;image-20220623204635224&quot; /&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;实践案例rocksdb&quot;&gt;实践案例：RocksDB&lt;/h4&gt;
+
+&lt;p&gt;我们还将CloudJump的分析框架和部分优化方法拓展到基于云存储的RocksDB上，同样获得了预计的性能收益。
+&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/f8.png&quot; alt=&quot;f8&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;1. Log I/O任务并行打散&lt;/strong&gt;
+RocksDB同样使用集中WAL来保证进程崩溃的一致性，集中日志收集多个column family的日志记录并持久化至单个日志文件。考虑到LSM-Tree只需要恢复尾部append-only的数据块，我们采用在上一个案例中提到的&lt;em&gt;log I/O并行打散&lt;/em&gt;的方法在log writer中切分批日志并且并行分发到不同文件分片中。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;2. 数据访问加速&lt;/strong&gt;
+在RocksDB中有许多加速数据访问的技术，主要有prefetching, filtering 和compression机制。考虑到云存储的特性，这些技术（经过适当改造）在云存储环境中更有价值。经过分析和实验，我们提出了以下建议：1）预读机制能加速部分查询和compaction操作，建议compaction操作开启预读并设定合理的预读I/O任务优先级，并将单个预读操作的大小对齐存储粒度，对于查询操作预读应由用户场景确定；2）在云存储上建议开启bloom filters，并且将filter的meta和常规数据分离，将filter信息并集中管理；3）采用块压缩来减小数据访问的整体用时，如下表展示了数据量和PolarFS访问延时，表中存储基于RDMA，在延迟更高的存储环境中，压缩收益更高，引入压缩后数据访问的整体延时（特别是读延时）下降。
+&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/f9.png&quot; alt=&quot;f9&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;3. 多I/O任务队列及适配&lt;/strong&gt;
+在多核硬件环境中，我们引入了一个多队列I/O模型并在RocksDB中拆分I/O任务和工作任务（例如压缩作业和刷新作业）。这是因为我们通过调整I/O线程的数量来控制较好吞吐和延迟关系。由于将I/O任务与后台刷写作业分离，因此无需进一步增加刷写线程的数量，刷写线程只会对齐I/O请求并进行调度分发。RocksDB本身提供了基于线程角色的优先级调度方案，而我们的调度方法这里是基于I/O标签。&lt;/p&gt;
+
+&lt;p&gt;我们根据云存储调整I/O请求和数据组织（例如block和SST）的大小，并进行更精确的控制，以使SST文件过滤器的块大小也正确对齐。以PolarFS为例，存储的最小请求大小为4 KB（表示最小的处理单元），理想的请求大小为16 KB的倍数（不造成read-on-write），元数据存储粒度为4 MB。SST大小和块大小分别严格对齐存储粒度和理想请求大小的倍数。原生RocksDB也有对齐策略，我们在此需要进行存储参数适配并且对压缩数据块也进行对齐。&lt;/p&gt;
+
+&lt;p&gt;我们不会向多队列I/O模型传递小于最小请求大小的I/O请求，而是对齐最小I/O大小，并将未对齐的后缀缓存在内存中以供后续对齐使用。其次，我们不会下发单个大于存储粒度的I/O请求，而是通过多队列I/O模型执行并行任务（例如一个6 MB的I/O会分散成4 MB加1 MB的两个任务）。这不仅可以将数据尽可能分散在不同的存储节点上，还可以最大限度地提高并行性以充分利用带宽。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;4. I/O对齐&lt;/strong&gt;
+在所有日志和数据I/O请求排入队列前，对其的大小和起始offset进行对齐。对于WAL写入路径，类似于PolarDB的log I/O对齐。对于数据写入路径，在采用数据压缩时，LSM树结构可能会有大量未对齐的数据块。例如要刷写从1 KB开始的2 KB日志数据时，它将从内存缓存的数据中填充前1 KB（对于append-only结构通过保存尾部数据缓存实现，这是与update-in-place结构直接拓展原生页至最小单位的不同之处），并在3-4 KB中附加零，然后从0 KB起始发送一个4 KB的I/O。&lt;/p&gt;
+
+&lt;h3 id=&quot;总结&quot;&gt;总结&lt;/h3&gt;
+
+&lt;p&gt;在这项论文工作中，我们分析了云存储的性能特征，将它们与本地SSD存储进行了比较，总结了它们对B-tree和LSM-tree类数据库存储引擎设计的影响，并推导出了一个框架CloudJump来指导本地存储引擎迁移到云存储的适配和优化。 并通过PolarDB, RocksDB 两个具体Case 展示优化带来的收益.&lt;/p&gt;
+
+&lt;p&gt;更详细的内容请参阅论文《CloudJump: Optimizing Cloud Database For Cloud Storage》。&lt;/p&gt;
+
+&lt;p&gt;感谢数据库产品事业部架构师团队, 感谢 POLARDB 团队全体同学.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 04 Jul 2022 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2022/07/04/polardb-innodb/</link>
+        <guid isPermaLink="true">http://localhost:4000/2022/07/04/polardb-innodb/</guid>
+      </item>
+    
+      <item>
         <title>MySQL unique key check issue</title>
         <description>&lt;h3 id=&quot;innodb-unique-check-的问题&quot;&gt;InnoDB unique check 的问题&lt;/h3&gt;
 
@@ -1679,169 +1818,6 @@ buf_page_mutex_exit(block);&lt;/p&gt;
         <pubDate>Mon, 13 Apr 2020 00:00:00 +0800</pubDate>
         <link>http://localhost:4000/2020/04/13/innodb-bp-coucurrency/</link>
         <guid isPermaLink="true">http://localhost:4000/2020/04/13/innodb-bp-coucurrency/</guid>
-      </item>
-    
-      <item>
-        <title>InnoDB mutex 变化历程</title>
-        <description>&lt;p&gt;InnoDB 中的mutex 和 rw_lock 在早期的版本都是通过系统提供的cas, tas 语义自己进行实现, 并没有使用pthread_mutex_t, pthread_rwlock_t,  这样实现的好处在于便于统计, 以及为了性能考虑, 还有解决早期操作系统的一些限制.&lt;/p&gt;
-
-&lt;p&gt;大概原理是:&lt;/p&gt;
-
-&lt;p&gt;在mutex_enter 之后, 在spin 的次数超过 innodb_sync_spin_loops=30 每次最多 innodb_spin_wait_delay=6如果还没有拿到Mutex, 会主动yield() 这个线程, 然后wait 在自己实现的wait array 进行等待.&lt;/p&gt;
-
-&lt;p&gt;这里每次spin 时候, 等待的时候执行的是ut_delay, 在ut_delay 中是执行 “pause” 指定, 当innodb_spin_wait_delay = 6 的时候, 在当年100MHz Pentium cpu, 这个时间最大是1us.&lt;/p&gt;
-
-&lt;p&gt;wait array 也是InnoDB 实现的一种cond_wait 的实现, 为什么要自己实现?&lt;/p&gt;
-
-&lt;p&gt;早期的MySQL 需要wait array 是因为操作系统无法提供超过100000 event, 因此wait array 在用户态去进行这些event 维护, 但是到了MySQL 5.0.30 以后, 大部分操作系统已经能够处理100000 event, 那么现在之所以还需要 wait array, 主要是为了统计.&lt;/p&gt;
-
-&lt;p&gt;在wait array 的实现里面其实有一把大wait array mutex, 是一个pthread_mutex_t, 然后在wait array 里面的每一个wait cell 中, 包含了os_event_t, wait 的时候调用了os_event_wait_low(), 然后在 os_event_t 里面也包含了一个mutex,  因此在一次wait 里面就有可能调用了两次pthread_mutex_t 的wait.&lt;/p&gt;
-
-&lt;p&gt;并且在os_event_t 唤醒的机制中是直接通过pthread_cond_boradcast(), 当有大量线程等待在一个event 的时候, 会造成很多无谓的唤醒.&lt;/p&gt;
-
-&lt;p&gt;大致代码实现:&lt;/p&gt;
-
-&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;enter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;uint32_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;max_spins&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;uint32_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;max_delay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-             &lt;span class=&quot;kt&quot;&gt;uint32_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;UNIV_NOTHROW&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;// 在try_lock 中通过 TAS 比较是否m_lock_word = LOCKED&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;// TAS(&amp;amp;m_lock_word, MUTEX_STATE_LOCKED) == MUTEX_STATE_UNLOCKED&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;// 在InnoDB 自己实现的mutex 中, 使用m_lock_word = 0, 1, 2 分别来比较unlock,&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;// lock, wait 状态&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;// 在InnoDB 自己实现的rw_lock 中, 同样使用 m_lock_word 来标记状态,&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;// 不过rw_lock 记录的状态就不止lock, unlock, 需要记录有多少read 等待,&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;// 多少write 等待等待, 不过大体都一样&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;try_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;c1&quot;&gt;// 如果try_lock 失败, 就进入spin 然后同时try_lock 的逻辑&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;spin_and_try_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;max_spins&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;max_delay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-  &lt;span class=&quot;err&quot;&gt;}&lt;/span&gt;
-
-  &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;spin_and_try_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;uint32_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;max_spins&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;uint32_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;max_delay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                         &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;uint32_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;UNIV_NOTHROW&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(;;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;cm&quot;&gt;/* If the lock was free then try and acquire it. */&lt;/span&gt;
-
-      &lt;span class=&quot;c1&quot;&gt;// is_free 的逻辑很简单, 每spin 一次, 就检查一下这个lock 是否可以获得,&lt;/span&gt;
-      &lt;span class=&quot;c1&quot;&gt;// 如果不可以获得, 那么就delay (0, max_delay] 的时间&lt;/span&gt;
-      &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;is_free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;max_spins&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;max_delay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n_spins&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;......&lt;/span&gt;
-      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-        &lt;span class=&quot;c1&quot;&gt;// 如果尝试了max_spins 次, 那么就将当前cpu 时间片让出&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;os_thread_yield&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-
-      &lt;span class=&quot;c1&quot;&gt;// 最后进入到wait 逻辑, 这个wait 是基于InnoDB 自己实现的wait array 来实现&lt;/span&gt;
-      &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wait&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;n_spins&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;2012 年的时候, Mark 在这边文章中说, 现有的mutex 实现会导致cpu 利用过高, 差不多比使用pthread mutex 高16%, 并且上下文切换也会更高&lt;/p&gt;
-
-&lt;p&gt;https://www.facebook.com/notes/mysql-at-facebook/green-mutexes/10151060544265933/&lt;/p&gt;
-
-&lt;p&gt;主要的原因是:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;因为Mutex 的唤醒在os_event 里面, os_event 实现中, 如果需要执行唤醒操作, 那么需要执行pthread_cond_boradcast() 操作, 需要把所有等待的pthread 都唤醒, 而不是只唤醒一个.&lt;/p&gt;
-
-    &lt;p&gt;Innam 在底下回复: 当然只唤醒一个也并不能完全解决问题, 如果使用 pthread_cond_signal, 那么等待的线程就是一个一个的被唤醒, 那么所有等待的线程执行的时间就是串行的&lt;/p&gt;
-
-    &lt;p&gt;在当前InnoDB 的实现中, 如果使用pthread_cond_boradcase 会让所有的线程都唤醒, 然后其中的一个线程获得mutex, 但是其他线程并不会因为拿不到mutex马上进入wait, 而是依然会通过spin 一段时间再进入wait,这样就可以减少一些无谓的wait.&lt;/p&gt;
-
-    &lt;p&gt;所以这里官方到现在一直也都没有改.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;在wait array 的实现中,  需要有一个全局的pthread_mutex_t 保护 sync array,&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;在默认的配置中, innodb_spin_wait_delay=6 是ut_delay 执行1us,  innodb_sync_spin_loops=30 会执行30次, 那么每次mutex 有可能都需要spin 30us, 这个太暴力了&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;然后 sunny 在这个文章里面回复,&lt;/p&gt;
-
-&lt;p&gt;https://www.facebook.com/notes/mysql-at-facebook/green-mutexes-part-2/10151061901390933&lt;/p&gt;
-
-&lt;p&gt;sunny 的回复很有意思:&lt;/p&gt;
-
-&lt;p&gt;It is indeed an interesting problem. I think different parts of the code have different requirements. Therefore, I’ve designed and implemented something that allows using the mutex type that best suits the sub-system. e.g., mutexes that are held very briefly like the page mutexes can be pure spin locks, this also makes them space efficient. I’ve also gotten rid of the distinction between OS “fast” mutexes and InnoDB mutexes. We can use any type of mutexes in any part of the code. We can also add new mutexe types. I’ve also been experimenting with Futexes, implemented a mutex type for Linux which uses Futexes to schedule the next thread instead of the sync array&lt;/p&gt;
-
-&lt;p&gt;这里主要核心观点有两个&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;不同场景需要的mutex 是不一样的, 比如buffer pool 上面的page 的mutex 希望的就是一直spin. 有些mutex 其实则是希望立刻就进入等待,  只用使用这些mutex 的使用者知道接下来哪一个策略更合适&lt;/strong&gt;&lt;/li&gt;
-  &lt;li&gt;操作系统提供了futex 可能比InnoDB 自己通过wait array 的实现方式, 对于通知机制而言会做的更好.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;所以就有了这个worklog:&lt;/p&gt;
-
-&lt;p&gt;worklog: https://dev.mysql.com/worklog/task/?id=6044&lt;/p&gt;
-
-&lt;p&gt;总结了现有的 mutex 实现存在的问题&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;只有自己实现的ib_mutex_t, 并没有支持futex 的实现&lt;/li&gt;
-  &lt;li&gt;所有的ib_mutex_t 的行为都是一样的, 通过两个变量 innodb_spin_wait_delay(控制在Test 失败以后, 最多会delay 的时间), innodb_sync_spin_loops(控制spin 的次数). 不可以对某一个单独的ib_mutex_t 设置单独的wait + loop 次数&lt;/li&gt;
-  &lt;li&gt;所有的ib_mutex_t 由两个全局的变量控制, 因为mutex 在尝试了innodb_sync_spin_loops 次以后, 会等待在一个wait array 里面的一个wait cell 上, 所有的wait cell 都会注册到一个叫wait array 的队列中进行等待, 然后等&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;最后到现在在 InnoDB 8.0 的代码中总共实现了4种mutex 的实现方式, 2种的策略&lt;/strong&gt;&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;TTASFutexMutex 是spin + futex 的实现,  在mutex_enter 之后, 会首先spin 然后在futex 进行wait&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;TTASMutex 全spin 方式实现, 在spin 的次数超过 innodb_sync_spin_loops=30 每次最多 innodb_spin_wait_delay=6us 以后, 会主动yield() 这个线程, 然后通过TAS(test and set 进行判断) 是否可以获得&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;OSTrackMutex, 在系统自带的mutex 上进行封装, 增加统计计数等等&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;TTASEevntMutex, InnoDB 一直使用的自己实现的Mutex, 如上文所说使用spin + event 的实现.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;cp&quot;&gt;#ifdef HAVE_IB_LINUX_FUTEX
-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TTASFutexMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GenericPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FutexMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TTASFutexMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockMutexPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockFutexMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;cp&quot;&gt;#endif &lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* HAVE_IB_LINUX_FUTEX */&lt;/span&gt;&lt;span class=&quot;cp&quot;&gt;
-&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TTASMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GenericPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SpinMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TTASMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockMutexPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockSpinMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OSTrackMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GenericPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SysMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OSTrackMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockMutexPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockSysMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TTASEventMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GenericPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SyncArrayMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;UT_MUTEX_TYPE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TTASEventMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockMutexPolicy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BlockSyncArrayMutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;同时在8.0 的实现中定义了两种策略, GenericPolicy, BlockMutexPolicy. 这两种策略主要的区别在于在show engine innodb mutex 的时候不同的统计方式.&lt;/p&gt;
-
-&lt;p&gt;BlockMutexPolicy 用于统计所有buffer pool 使用的mutex, 因此该Mutex 特别多, 如果每一个bp 单独统计, 浪费大量的内存空间, 因此所有bp mutex 都在一起统计, 事实上buffer pool 的rw_lock 也是一样&lt;/p&gt;
-
-&lt;p&gt;GenericPolicy 用于除了buffer pool mutex 以外的其他地方&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;使用方式&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;目前InnoDB 里面都是使用 TTASEventMutex&lt;/p&gt;
-
-&lt;p&gt;只不过buffer pool 的mutex 使用的是 BlockMutexPolicy, 而且他的mutex 使用的是 GenericPolicy, 不过从目前的代码来看, 也只是统计的区别而已&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;问题&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;但是从目前来看, 并没有实现sunny 说的, 不同场景使用不同的mutex, Buffer pool 使用 TTASMutex 实现, 其他mutex 使用 TTASEventMutex, 
-并且新加入的 TTASFutexMutex, 也就是spin + futex 的实现方式其实也不是默认使用的
-而且wai array 的实现方式也并没有改动&lt;/p&gt;
-
-</description>
-        <pubDate>Sun, 29 Mar 2020 00:00:00 +0800</pubDate>
-        <link>http://localhost:4000/2020/03/29/innodb-mutex/</link>
-        <guid isPermaLink="true">http://localhost:4000/2020/03/29/innodb-mutex/</guid>
       </item>
     
   </channel>
