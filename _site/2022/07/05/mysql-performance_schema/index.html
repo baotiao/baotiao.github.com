@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>通过performance_schema 定量分析系统瓶颈 &#8211; baotiao</title>
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//cdn.mathjax.org">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="通过performance_schema 定量分析系统瓶颈">
+    <meta name="robots" content="all">
+    <meta name="author" content="baotiao">
+    <meta name="keywords" content="">
+    <link rel="canonical" href="http://localhost:4000/2022/07/05/mysql-performance_schema/">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/pixyll.css?202208210357" type="text/css">
+
+    <!-- Fonts -->
+    
+    <link href='//fonts.googleapis.com/css?family=Merriweather:900,900italic,300,300italic' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Lato:900,300' rel='stylesheet' type='text/css'>
+    
+    
+
+    <!-- MathJax -->
+    
+
+    <!-- Verifications -->
+    
+    
+
+    <!-- Open Graph -->
+    <!-- From: https://github.com/mmistakes/hpstr-jekyll-theme/blob/master/_includes/head.html -->
+    <meta property="og:locale" content="en_US">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="通过performance_schema 定量分析系统瓶颈">
+    <meta property="og:description" content="做有积累的事情">
+    <meta property="og:url" content="http://localhost:4000/2022/07/05/mysql-performance_schema/">
+    <meta property="og:site_name" content="baotiao">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    
+        <meta name="twitter:site" content="@baotiao" />
+    
+    <meta name="twitter:title" content="通过performance_schema 定量分析系统瓶颈" />
+    <meta name="twitter:description" content="通过performance_schema 定量分析系统瓶颈" />
+    <meta name="twitter:url" content="http://localhost:4000/2022/07/05/mysql-performance_schema/" />
+
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="/favicon-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+
+    
+</head>
+
+<body class="site">
+  
+	
+
+  <div class="site-wrap">
+    <header class="site-header px2 px-responsive">
+  <div class="mt2 wrap">
+    <div class="measure">
+      <a href="http://localhost:4000" class="site-title">baotiao</a>
+      <nav class="site-nav">
+        
+    
+
+    
+        <a href="/about/">About</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/links/">Links</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <a href="/paper/">Paper</a>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
+      </nav>
+      <div class="clearfix"></div>
+      
+    </div>
+  </div>
+</header>
+
+
+    <div class="post p2 p-responsive wrap" role="main">
+      <div class="measure">
+        
+
+
+<div class="post-header mb2">
+  <h1>通过performance_schema 定量分析系统瓶颈</h1>
+  <span class="post-meta">Jul 5 2022</span><br>
+  
+  <span class="post-meta small">
+  
+    1 minute read
+  
+  </span>
+</div>
+
+<article class="post-content">
+  <p>目前在系统里面, 我们可以通过perf 或者 pt-pmp 汇总堆栈的方式来查看系统存在的热点, 但是我们仅仅能够知道哪些地方是热点, 却无法定量的说这个热点到底有多热, 这个热点占整个访问请求的百分比是多少? 是10%, 还是40%, 还是80%?</p>
+
+<p>所以我们需要一个定量分析系统瓶颈的方法以便于我们进行系统优化.</p>
+
+<p>本文通过Performance_schema 来进行定量的分析系统性能瓶颈.</p>
+
+<p>原理如下:</p>
+
+<p>performance_schema.events_waits_summary_global_by_event_name  这里event_name 值得是具体的mutex/sx lock, 比如trx_sys-&gt;mutex, lock_sys-&gt;mutex 等等,  这个table 保存的是汇总信息.</p>
+
+<p>具体performance_schema 信息在这里 https://dev.mysql.com/doc/mysql-perfschema-excerpt/8.0/en/performance-schema-wait-summary-tables.html</p>
+
+<p>通过两次调用具体的timer wait 可以算出具体某一个mutex/sx lock 等待的时间.</p>
+
+<p>如果这个时间再除以每一个线程就可以算出每一个线程在这个Lock 上大概的等待时间, 然后就可以算出平均1s 内等在该mutex/sx lock 的占比.</p>
+
+<p>比如我们知道在sysbench oltp_read_write 的小表测试中, 通过pstack 可以看到主要卡在page latch 上, 那么我们需要分析等待patch latch 占用了整个路径的时间大概是多长.</p>
+
+<p><img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20220701045526838.png" alt="image-20220701045526838" /></p>
+
+<p>这里使用256 thread 进行压测, 计算出来等待的时间大概是</p>
+
+<p>buf_block_lock = (122103591705572800-121158362355835200)/5/207/1000000000 = 913ms</p>
+
+<p>也就是平均 1s 里面, 每一个thread 有913ms 等待在page lock 上, 占比90%. 这个信息和多次pstack 的信息也基本吻合.</p>
+
+<p>fil_system_mutex = (3045412747942400-3044314172171200)/5/207 = 1ms</p>
+
+<p>也就是平均1s 里面等待在fil_system_mutex 只有1ms, 占比0.1%</p>
+
+<p>比如我们最常见的 oltp_insert 非 auto_inc insert 的场景中, 通过pstack 可以看到主要卡在trx_sys-&gt;mutex, 那么这个trx_sys-&gt;mutex 具体有多热呢?</p>
+
+<p>以下是perf 相关信息.</p>
+
+<p><img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20220701065441299.png" alt="image-20220701065441299" /></p>
+
+<p>上面红框下主要的热点都是需要去获得trx_sys-&gt;mutex, 从而可以操作全局活跃事务数组.</p>
+
+<p><img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20220701070450831.png" alt="image-20220701070450831" /></p>
+
+<p>这里使用256 thread 进行压测, 计算出来等待的时间大概是</p>
+
+<p>trx_sys_mutex =(19702987247840000-19258717650739200)/5/250/1000000000 = 355 ms</p>
+
+<p>那么等待trx_sys-&gt;mutex 上占比大概是35%.</p>
+
+<p>上面还有一个看过去大头的btree 上面的 index_tree_rw_lock 占比呢</p>
+
+<p>index_tree_rw_lock  = (471944089179312000-471896220032430400)/5/250/1000000000 = 38ms</p>
+
+<p>虽然数据大, 因为跑的久, 但是其实这里只有3% 的占比</p>
+
+<p>tips:</p>
+
+<p>对比来说 perf 看到的信息是on-cpu 信息, 但是因为MySQL 的mutex/sxlock 都是通过backoff 机制进行, 在每一次线程切换出去之前都进行一段时间的spin, 所以mysql 的on-cpu 信息可以一定程度反应off-cpu 的结果.</p>
+
+<p>pstack 更体现的是某一时刻off-cpu 的信息</p>
+
+<p>performance_schame wait_event 也体现的是off-cpu 的信息.</p>
+
+</article>
+
+
+
+
+
+
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+    var disqus_shortname  = 'baotiao';
+    var disqus_identifier = '/2022/07/05/mysql-performance_schema';
+    var disqus_title      = '通过performance_schema 定量分析系统瓶颈';
+
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="center">
+</footer>
+
+
+</body>
+</html>

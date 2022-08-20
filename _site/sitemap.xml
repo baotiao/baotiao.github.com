@@ -481,6 +481,18 @@
 <lastmod>2022-07-04T00:00:00+08:00</lastmod>
 </url>
 <url>
+<loc>http://localhost:4000/2022/07/05/mysql-performance_schema/</loc>
+<lastmod>2022-07-05T00:00:00+08:00</lastmod>
+</url>
+<url>
+<loc>http://localhost:4000/2022/07/19/polardb-game/</loc>
+<lastmod>2022-07-19T00:00:00+08:00</lastmod>
+</url>
+<url>
+<loc>http://localhost:4000/2022/08/21/polardb-bw-tree/</loc>
+<lastmod>2022-08-21T00:00:00+08:00</lastmod>
+</url>
+<url>
 <loc>http://localhost:4000/about/</loc>
 </url>
 <url>
@@ -527,5 +539,8 @@
 </url>
 <url>
 <loc>http://localhost:4000/page12/</loc>
+</url>
+<url>
+<loc>http://localhost:4000/page13/</loc>
 </url>
 </urlset>

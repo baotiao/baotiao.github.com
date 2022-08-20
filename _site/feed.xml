@@ -7,6 +7,550 @@
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml" />
     
       <item>
+        <title>长路漫漫, 从Blink-tree 到Bw-tree (上)</title>
+        <description>&lt;blockquote&gt;
+  &lt;p&gt;天不生我bw-tree, 索引万古如长夜&lt;/p&gt;
+
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;背景&quot;&gt;背景&lt;/h3&gt;
+
+&lt;p&gt;在前面的文章 &lt;a href=&quot;https://zhuanlan.zhihu.com/p/374000358&quot;&gt;路在脚下, 从BTree 到Polar Index&lt;/a&gt;中提到, 我们已经将InnoDB 里面Btree 替换成Blink Tree, 高并发压力下, 在标准的TPCC 场景中最高能够有239%的性能提升, 然后我们对InnoDB 的file space模块也进行了优化, 在分配新page 的时候, 可以允许不进行填0 操作, 从而尽可能的减少fsp-&amp;gt;mutex 的开销, 在这之后我们发现瓶颈卡在了page latch 上, 而且越是在多核的场景, page latch 的开销也越大.&lt;/p&gt;
+
+&lt;p&gt;目前latch 冲突的主要场景&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;读写冲突场景, 典型场景对Page 进行write 操作的时候, 另外一个read 操作进行要读取page.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;写写冲突场景, 典型 autoinc,  或者update_index 对同一个page 进行更新场景.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;“读读冲突”场景. 频繁的对btree root 附近level 进行s lcok 和 unlock 操作.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;前面两个场景比较常见, 为什么会有读读冲突这样的问题?&lt;/p&gt;
+
+&lt;p&gt;现有 blink-tree + lock coupling 的实现中, 我们加锁的顺序是自上而下的, 每一次访问page 都需要lock, 然后unlock.&lt;/p&gt;
+
+&lt;p&gt;在InnoDB 自己实现的rw_lock中(大部分的rw_lock 实现也都类似), 每一个latch 都有lock_word 用于记录持有 s lock thread 数目, 所以即使是read 操作加s lock 的场景, 也是需要修改内存里面的 rw_lock-&amp;gt;lock_word, 然后释放的时候继续对 lock_word 进行减1 操作.&lt;/p&gt;
+
+&lt;p&gt;这样带来的问题是在multi-core 场景中, 需要频繁的修改一个share memory(rw_lock-&amp;gt;lock_word). 而对于share memory 的频繁修改会大量增加CPU cache coherence protocol.&lt;/p&gt;
+
+&lt;p&gt;即使 read only 的场景, 对于Blink-tree 的root page 依然有大量的s lock, s unlock 操作, 从而造成瓶颈.&lt;/p&gt;
+
+&lt;p&gt;在PolarDB 中, 这样的场景对我们的性能有多大的影响呢?&lt;/p&gt;
+
+&lt;p&gt;我们修改了InnoDB 代码, 在sysbench read_only 的场景下, 将所有的lock 都去掉 vs 仅仅持有s lock 的场景.&lt;/p&gt;
+
+&lt;p&gt;before 表示的是s lock 场景&lt;/p&gt;
+
+&lt;p&gt;after 表示的是不持有Lock 场景&lt;/p&gt;
+
+&lt;p&gt;因为是read_only 场景, 不会有任何数据写入, 所以不加锁也就不会出错&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/1657541081763-abaac431-71d3-41a8-a144-9004abb2ab8d.png&quot; alt=&quot;img&quot; style=&quot;zoom: 67%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/1657541115808-aa2781a3-792e-40d5-bbfb-5cd95ffd2ddf.png&quot; alt=&quot;img&quot; style=&quot;zoom:67%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;从上面两个图可以看到, 在Intel 128 core 的场景下, 不持有lock 的性能对比持有s lock 有10% 的提升, 在AMD 256 core 的场景下, 这个提升更加明显, 有20% 左右的提升.&lt;/p&gt;
+
+&lt;p&gt;所以我们认为这里在read only的场景中, 因为cache coherence protocol 引入的开销差不多有10%~20% 之间.&lt;/p&gt;
+
+&lt;p&gt;但是, 其实Btree 是一个非常扁平的tree, 绝大多数访问的是并不冲突的leaf page. 能否避免大家都去加锁访问root page 呢?&lt;/p&gt;
+
+&lt;p&gt;学术界如何处理Page 冲突的问题呢?&lt;/p&gt;
+
+&lt;p&gt;笔者主要参看&lt;a href=&quot;https://15721.courses.cs.cmu.edu/spring2020/&quot;&gt;CMU Advanced Database Systems&lt;/a&gt; 里面推荐的OLTP Indexex(B+Tree Data Structures) 和 OLTP Indexes (Trie Data Structures) 对这一块进行了解.&lt;/p&gt;
+
+&lt;p&gt;其实早在2001 年的时候, 在论文&lt;a href=&quot;http://www.vldb.org/conf/2001/P181.pdf&quot;&gt;OLFIT&lt;/a&gt; 里面, 作者Cha 第一个提出简单的lock coupling 是无法在现代的multi-core CPU 进行scability 的. 即使在没有冲突的场景, 也会因为cache coherence protocol 的开销, 导致性能下降.&lt;/p&gt;
+
+&lt;p&gt;在OLFIT 文章里面, 介绍了这样的场景&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20220518165111054.png&quot; alt=&quot;image-20220518165111054&quot; style=&quot;zoom:40%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;上图中, 在Main-Memory 里面有一个包含7个node btree, 为了简化问题, 有4个core, p1, p2, p3, p4. 有各种的cache block.&lt;/p&gt;
+
+&lt;p&gt;在初始的时刻, 所有core 里面的cacheline 都是空的, P1 访问的路径是 n1-&amp;gt;n2-&amp;gt;n4. 访问完以后, 会把n1, n2, n4 放在自己的cache block 中, 也会把对应的latch 放在自己的cache block 中. P2 访问的路径是n1-&amp;gt;n2-&amp;gt;n5. 在P2 访问n1, n2 的时候, 由于修改了n1 和 n2 的latch, 因此就必须增加了 Invalidate 在P1 里面的n1, n2 的latch 的开销, 同时如果P1 再次访问n1 的时候, 依然要重新冲main-memory 中去获得对应的latch. 并且这里可以看到c1 的cache block 即使有足够多的空间, 也依然会被Invalidate 掉的.&lt;/p&gt;
+
+&lt;p&gt;整体而言OLFIT 这个文章描述了Btree 在Multi-core 场景下的性能问题, 给出了一个较为简单的乐观加锁解决方案OLFIT.&lt;/p&gt;
+
+&lt;h3 id=&quot;olfitoptimistic-latch-free-index-traversal-cc&quot;&gt;OLFIT(Optimistic, Latch-Free Index Traversal CC)&lt;/h3&gt;
+
+&lt;p&gt;OLFIT 实现读操作不需要加锁, 只有写操作需要加锁, 但是很重要的一个前提是, write 操作的修改一定要是原子性的.&lt;/p&gt;
+
+&lt;p&gt;OLFIT 大致流程:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Algorithm UpdateNode
+Update 的算法:
+U1. Acquire latch.
+U2. Update the content. 
+U3. Increment version. 
+U4. Release latch.
+
+Algorithm ReadNode
+Read 的算法:
+R1. Copy the value of version into a register R. 
+R2. Read the content of the node.
+R3. If latch is locked, go to R1.
+R4. If the current value of version is different fromthe copied value in R, go to R1.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Update 的算法:&lt;/p&gt;
+
+&lt;p&gt;操作的时候, 修改之前对page 进行lock, 然后修改完成以后增加版本号, 最后放锁.&lt;/p&gt;
+
+&lt;p&gt;Read 的算法:&lt;/p&gt;
+
+&lt;p&gt;整体Read 过程是不需要加锁的.&lt;/p&gt;
+
+&lt;p&gt;R1 操作将page 内容拷贝到本地, R2 读取内容.&lt;/p&gt;
+
+&lt;p&gt;由于OLFIT不对page 进行lock 操作, Read 进行R2 操作的时候, 有可能有新的Update 操作进来, 进行U2 操作, 也就是修改了page 里面的内容. 因此OLFIT需要在读操作完成以后, 通过R3/R4 操作, 判断Page 版本号是否被修改以及Page 是否被持有lock 来确认读取过程中该Page 是否被修改了, 如果被修改那么就需要发起重试操作了.&lt;/p&gt;
+
+&lt;p&gt;但是, 在工程上, 虽然最后R3/R4 会保证如果U2 进行了修改, Read 操作会进行重试, 但是如果这个U2 update非atomic, 会导致R2 读取出来的内容是corrupt 的. 所以在工程上必须保证U2 操作还应该是atomic 的. 但是目前看来在工程上是无法实现的.&lt;/p&gt;
+
+&lt;p&gt;比如现有 InnoDB 的 update the content 就是非atomic 的, 因为需要修改的是16kb 大小page 的内容. 那么读取操作有可能读取到了corrupt page, 那么这里就无法判断page corrupt 是由于真的page 出错导致corrupt, 还是由于读取非atomic 导致的corrupt. 当然可以通过重试来读取Page 来进一步验证, 但还是无法准确确定Page 的正确性.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;所以这么看来在实际的工程实现中OLFIT 似乎是不可能实现的, OLFIT 很大的一个假设前提read content 是atomic 操作.&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;OLFIT 如何解决SMO 的问题?&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Insert and delete operations can also initially acquire read locks before upgrading them to write locks if necessary.&lt;/p&gt;
+
+&lt;p&gt;并且由于read 操作可以不进行加s lock操作, 那么在btree 中进行x lock 加锁操作的时候自然可以自下而上了. 因为不存在之前search 自上而下的Lock, 而modify自下而上的Lock 导致的死锁问题了.&lt;/p&gt;
+
+&lt;p&gt;但是由于read 操作不再进行加锁操作, 那么可能在上述Algorithm ReadNode R2 操作中, Page 进行了split 操作. 即使我们能够保证Read Content of node 是原子操作, 也有可能该Page 发生了SMO 操作, 要访问的key 已经不在当前Page 了. 那么该如何处理?&lt;/p&gt;
+
+&lt;p&gt;目前OLFIT 通过和blink-tree 类似方法, 增加high key, 并且保证所有的SMO 操作是自左向右, 那么如果访问的page 发生了SMO 操作, 那么可以查看一下当前page 是否有high key, 如果有的话, 那么说明正在发生SMO 操作, 那么如果要访问的key 超过了high key, 那么就直接去访问next node 即可.&lt;/p&gt;
+
+&lt;p&gt;对于删除操作, 和大部分的无锁算法有点类似, Page 被删除以后无法确认没有其他的读取操作正在读取该Page, 因此目前的删除操作是将当前的Page 从当前Btree 中删除, 然后添加到garbage collector list 中. 后续有专门的garbage collector 线程进行garbage collector 操作.&lt;/p&gt;
+
+&lt;p&gt;在OLFIT 之后, Btree 在multi-core 场景下的性能问题也越来越热门, 并且随着现代CPU 技术的发展, CPU 上的core 数会越来越多, 因此该问题会随着core 数的增长愈发严重. 因此后面又有很多文章对该问题进行了探索, 典型的代表是 Bw-Tree 和 ART Tree.&lt;/p&gt;
+
+&lt;p&gt;我们先来看看ART Tree 怎么解决这样的问题.&lt;/p&gt;
+
+&lt;h3 id=&quot;art-tree&quot;&gt;ART Tree&lt;/h3&gt;
+
+&lt;p&gt;ART Tree 其实提出了两个方案&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Optimistic Lock Coupling (OLC)&lt;/li&gt;
+  &lt;li&gt;Read-Optimized Write Exclusion (ROWEX)&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;OLC&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;OLC 的思想就是从 OLFIT 里面出来的, 但是OLFIT 最大的问题在于page version 一旦进行了修改就需要进行重试, 但是很多时候如果page 里面只是增加了数据, 并没有发生SMO, 其实是可以不用retry 的. 所以后续的masstree, ART tree 都是类似的思路.&lt;/p&gt;
+
+&lt;p&gt;另外一个优化是, OLC 可以在同一时刻snapshot 多个节点, 而OLFIT 可以认为同一时刻只能snapshot 1个节点的.&lt;/p&gt;
+
+&lt;p&gt;比如下图中, 右边是OLC 的流程, OLC 的流程是持有父节点的version, 然后去遍历子节点, 此刻最多持有2个节点的version, 当然也可以继续持有父节点的version 去遍历下一个子节点, 这样持有的snapshot 就是3个, 但是这样的并发就降低了.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20220814042951936.png&quot; alt=&quot;image-20220814042951936&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;但是这样OLC 还是有一个前提, 需要对page 的修改是atomic 的, 工程上依然是无法实现的.&lt;/p&gt;
+
+&lt;p&gt;工程上无法实现对page 的atomic 修改本质原因是当前的修改方案是Inplace update, 如果可以做non-inplace update修改, 那么就可以做到atomic 了. bw-tree 和 ROWEX 对Page 的修改就是这样的思路, 但是还是有细微的区别. 下面会讲到.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;ROWEX&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;ROWEX 称为Read-Optimized Write EXclusion, 也就是Read 操作不需要加锁, 甚至不需要读取版本号, 但是写操作需要加锁.&lt;/p&gt;
+
+&lt;p&gt;ROWEX 和RCU 非常像, 读操作不需要任何加锁, 写操作需要加锁. 由于写操作不会对老page 进行修改, 所以读操作很容易实现 atomic, 但是读操作需要保证读取到的是旧版本的数据也能够处理. 对比OLC, 读取到旧版本就要retry 的行为, 性能肯定好很多.&lt;/p&gt;
+
+&lt;p&gt;ROWEX 改动肯定就比OLC 大很多了, 并且并不是所有的数据结构都能改成ROWEX, 因为需要保证读操作读取到老的版本程序的正确性.&lt;/p&gt;
+
+&lt;p&gt;那么ROWEX 如何解决工程上提到的page 修改non-atomic 的问题呢?&lt;/p&gt;
+
+&lt;p&gt;通过Node replacement 的方法, 具体 ROWEX Node replacement 的流程如下:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Both the node and its parent are locked.&lt;/li&gt;
+  &lt;li&gt;A new node of the appropriate type is created and initialized by copying over all entries from the old node.&lt;/li&gt;
+  &lt;li&gt;The location within the parent pointing to the old node is changed to the new node using an atomic store.&lt;/li&gt;
+  &lt;li&gt;The old node is unlocked and marked as obsolete. The parent node is unlocked.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;这里最大的区别是写入的时候将node 拷贝出来, 然后在新的node 上进行改动, parent node 指向 old node 和new node 的指针通过atomic cas (这里保证了修改content 是atomic) 进行切换即可. 然后old node 被标记成unlocked and obsolete.&lt;/p&gt;
+
+&lt;p&gt;与OLC 区别在于, OLC 一个Page 只有一个版本, 因此所有的请求都访问该版本. 而ROWEX 有多个版本, 在修改new page 过程中, 老的请求继续访问old page, 等这次修改完成以后, 把new page cas 到parent node 之下,替换old page. 之后再进来的新请求就可以访问new page 了.&lt;/p&gt;
+
+&lt;p&gt;最后等这些老的请求都结束了以后, old node 才会被真的物理删除.&lt;/p&gt;
+
+&lt;p&gt;那么我们能直接将ROWEX 用于InnoDB 中么?&lt;/p&gt;
+
+&lt;p&gt;也很难, 因为这里每一次修改都需要copy node, 开销还是非常大.&lt;/p&gt;
+
+&lt;h3 id=&quot;bw-tree&quot;&gt;Bw-tree&lt;/h3&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/img/20210321073458.png&quot; style=&quot;zoom: 40%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;bw-tree 做法整体而言是page 多版本, 多个版本通过delta-chain 连接到一起, 由于page 存在的多个版本, 每次读取操作访问的是不同版本Page, 那么自然就需要引入了mapping table. 所以可以说 delta-chain + mapping table 实现无锁化.&lt;/p&gt;
+
+&lt;p&gt;对比ROWEX, ROWEX 将node replacement 的方法常态化, 但是对于page 中每一行的修改都使用copy node 的做法对内存的开销太大, 工程中很难采用.&lt;/p&gt;
+
+&lt;p&gt;具体做法是将修改的内容append 到page delta-chain, 然后通过cas 的方式原子的添加到page 的deltai-chain 中, 从而老版本page 不会被修改, 那么读操作自然就可以不需要加锁. 由于读操作不需要加锁, 那么自然就不存在读写冲突. 同样由于读操作不需要加锁, 那么”读读” 操作自然也就不会有冲突.&lt;/p&gt;
+
+&lt;p&gt;在之前的 OLC/ROWEX 实现中, 依然还是对page 进行加锁操作, 因此 write-write 还是冲突的, 而在 bw-tree 通过引入delta-chain, 改动都是追加到page delta-chain 中, 因此不同的写入操作可以也可以通过cas 的操作顺序添加到delta-chain, 从而也可以将这些操作无锁化, 所以保证write-write 操作也是无冲突的.&lt;/p&gt;
+
+&lt;p&gt;其实可以看到这里对于避免inplace update 的做法, 只有ROWEX 和 bw-tree 这两种做法了.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;每做一次修改都copy node, 然后进行修改, 然后再进行cas 回去. =&amp;gt; ROWEX&lt;/li&gt;
+  &lt;li&gt;通过delta-chain 的方式连接到之前的node, 然后再进行cas 回去. =&amp;gt; bw-tree&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;bw-tree 具体实现, 主要两个主要流程:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;正常的数据append 过程&lt;/p&gt;
+
+    &lt;p&gt;在append page 过程, 增加delta chain 的过程, mapping table 里面page id =&amp;gt; memory 中parse buffer 地址&lt;/p&gt;
+
+    &lt;p&gt;当比如超过16个, 进行一次consolidate 以后, 但是该page 并没有进行smo, 那么我们的做法是尽可能不去修改Parent node, 那么会纯生存new page, 该page 同样和Delta chain 连在一起. 就变成这样的结构&lt;/p&gt;
+
+    &lt;p&gt;page id =&amp;gt; new page -&amp;gt; delta1 -&amp;gt; delta2 -&amp;gt; delta3 -&amp;gt; oldpage&lt;/p&gt;
+
+    &lt;p&gt;这里new page = delt1 + delt2 + delta3 + oldpage 的内容.&lt;/p&gt;
+
+    &lt;p&gt;如果进行consolidate 需要发生smo 操作, 那么就不得不修改parent node, 这个时候会给page 增加一个split deltas, 然后合适的实际进行SMO 操作&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;smo 过程&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20220427201403469.png&quot; alt=&quot;image-20220427201403469&quot; style=&quot;zoom: 33%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;bw-tree 的smo 流程是这样, 整体而言和blink-tree 类似, 分成了2个阶段. 上图的 a + b 是阶段1(处理子节点), c 是阶段2(添加到父节点).&lt;/p&gt;
+
+&lt;p&gt;图a 需要计算出seperate key Kp, 增加Page Q, 然后将Page P 上面 &amp;gt;=Kp 的keys 拷贝到Page Q, Q 指向Page R.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;注意: 图a 阶段就已经确定了 seperate key Kp&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;图b 需要增加split delta, 包含&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;增加seperate key Kp, 用来记录哪些record 迁移到Q上&lt;/li&gt;
+  &lt;li&gt;增加logic point 指向Page Q.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;最后通过CAS 操作, 将Page P 指向split delta.&lt;/p&gt;
+
+&lt;p&gt;阶段1 只处理了child node, 并没有把新增加的Page Q添加的Parent node O 上, 和Blink-tree 类似, 访问的时候有可能一半的内容已经迁移到Page Q 了, 但Page O 上面记录的范围还在Page P里面, (因此Page P 需要有一个信息, 这个信息可以记录在Split delta 记录中), 所以和Blink tree 类似, 先访问Page P, 知道Page P 处在SMO 状态中, 然后通过Page P 的link page 到 Page Q.&lt;/p&gt;
+
+&lt;p&gt;和Blink-tree 类似, 阶段1 和 阶段2 之前不需要在同一个mtr 里面完成, 到阶段1 完成以后, 是一个合法的Btree. 只不过查询的时候需要额外多走一个Page.&lt;/p&gt;
+
+&lt;p&gt;阶段2 做的事情就是把Page Q 添加到父节点Page O 中.&lt;/p&gt;
+
+&lt;p&gt;这里Index entry delta 做3个事情&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Page O 需要增加一个seperate key, 访问从[P, R] 变成[P, Q] + [Q, R] 两个, Page Q 负责[Q, R] 的区间&lt;/li&gt;
+  &lt;li&gt;Page O 需要增加一个point 指向Page Q&lt;/li&gt;
+  &lt;li&gt;Page Q 和 Page R 的seperate key(其实可以复用Page P 和 Page R, 这个可以忽略)&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;最后通过CAS 操作, 将Page O 指向这个Index entry delta.&lt;/p&gt;
+
+&lt;p&gt;我们来看看这个时候有Read 操作如何保证正确性, 在图a 中时候, 只是增加了Page Q 对任何操作都是不可见的, 因此没有问题.&lt;/p&gt;
+
+&lt;p&gt;图b 增加了Split delta, Page P + Delta 是最新版本, 这是一次cas 操作, 完成以后P -&amp;gt;next = Q. Q-&amp;gt;next = R(图a中修改), 那么此时的访问依然没有正确性问题.&lt;/p&gt;
+
+&lt;p&gt;如果此刻有一个mtr 访问的是Old Page P(不包含Delta), 然后访问next page, 依然是正确的.&lt;/p&gt;
+
+&lt;p&gt;图c 同样通过一个cas 操作将Page Q 添加到Page O中, 依然没有正确性问题.&lt;/p&gt;
+
+&lt;p&gt;如果这里Page P 已经把一半的内容迁移到Page Q 了, 那么这个时候Page P 还有写入, 这个时候该如何处理?&lt;/p&gt;
+
+&lt;p&gt;也就是SMO 和正常写入的冲突, 以及SMO 和SMO 的冲突.&lt;/p&gt;
+
+&lt;p&gt;bw-tree 文章在 &lt;em&gt;C. Serializing Structure Modifications and Updates&lt;/em&gt; 讲的过程&lt;/p&gt;
+
+&lt;p&gt;文章里面说的是, 对于同一个row 的修改, 通过事务锁去保证. 目前InnoDB 也是这么做的. 在lock 模块就已经冲突了, 就不可能拿到page latch.&lt;/p&gt;
+
+&lt;p&gt;这里需要处理SMO 和 SMO 的关系, 以及SMO 和正常写入的关系.&lt;/p&gt;
+
+&lt;p&gt;因为bw-tree 是无锁的. 所以SMO 过程中(阶段1 和 阶段2中间) 比如会穿插正常的查询和写入操作, 甚至SMO 操作.&lt;/p&gt;
+
+&lt;p&gt;bw-tree 选择的操作是, 如果候选的查询或者写入遇到了处在smo 中间状态的节点, 那么该操作会帮助完成这次smo 操作.&lt;/p&gt;
+
+&lt;p&gt;原因是如果Page P 正在做SMO 期间, 又有写入操作, 假设写入的内容应该写入到迁移完成的Page Q上, 因为SMO 操作还未完成, 也就是已经完成了图a, 确定了seperate Key Kp, 这个时候其实应该把新的内容写入到Page Q 的delta chain 上, 但是此时该操作是不知道的.&lt;/p&gt;
+
+&lt;p&gt;因此bw-tree 选择的是Page P 上标记正在进行smo 的状态, 那么写入操作帮忙Page P 完成这次SMO, 然后等SMO 结束以后已经知道Page Q了, 再把要写入的内容写入到Page Q上.&lt;/p&gt;
+
+&lt;p&gt;bw-tree 为了解决write SMO 的时候同时有新的write 进来的时候, Bw-tree 让新的write 完成前面write SMO 操作, 但是具体工程实现上, 这样的操作想想就过于复杂, InnoDB 的btree 需要同时承担事务锁相关能力, 更增加了复杂度.&lt;/p&gt;
+
+&lt;h3 id=&quot;结论&quot;&gt;结论&lt;/h3&gt;
+
+&lt;p&gt;笔者主要站在工业界的视角看学术界如何解决btree 在multi-core 场景下的性能问题, 了解这些学术界的实现, 看是否对工业界有帮助.&lt;/p&gt;
+
+&lt;p&gt;目前看来, 学术界这些新型的数据结构在工程上落地都有一定的难度.&lt;/p&gt;
+
+&lt;p&gt;比如OLFIT假设读取一个page 是atomic 的, 这个在工程上是无法实现的. 也就是读取的时候如果有写入, 虽然后面可以通过版本号判断是旧的,但是可能存在的问题是读取了一半的内容, 那么使用这一半内容的MySQL程序本身就会corrupt.&lt;/p&gt;
+
+&lt;p&gt;比如ART Tree 通过copy node 的方式实现Atomic 修改, 但是这样拷贝的开销工程上是无法接受的.&lt;/p&gt;
+
+&lt;p&gt;比如Bw-tree 处理SMO 的时候如果有write 操作, SMO 和 SMO 的冲突的解决方案过于复杂等等.&lt;/p&gt;
+
+&lt;p&gt;有些方案是latch-based, 有些方案是latch-free,  有些是hybrid, 在工程上我们一般如何考虑呢?&lt;/p&gt;
+
+&lt;p&gt;在文章 “Latch-free Synchronization in Database Systems: Silver Bullet or Fool’s Gold?” 给出了比较有意义的结论:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Latch free Algorithm 通常在线程数超过CPU 核数的场景下, 比 latch-based 的算法要来的好.&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;In this traditional database system architecture, the progress guarantees of latch-free algorithms are extremely valuable because a preempted context will never block or delay the execution of other contexts in the system (Section 2).&lt;/p&gt;
+
+&lt;p&gt;因为在latch-based 做法里面, 当核数比thread 数多的时候, 有可能当前持有latch 的thread 被CPU 调度出去, 而其他线程被调度执行, 但是因为在等锁, 也无法执行, 持有latch 的thread 又得不到cpu, 陷入了死锁.&lt;/p&gt;
+
+&lt;p&gt;在这种场景里面. latch free 算法有优势, 因为latch free 并没有一个thread 持有latch, 所有thread 都尝试乐观获得old value, 然后尝试更新, 最后再commit, 如果commit 之前被cpu 调度出去, 那么切回来以后可能old value 已经被修改了, 仅仅是commit 失败而已, 不会影响其他thread. 所以cpu 的调度对latch free的影响是不大的.&lt;/p&gt;
+
+&lt;p&gt;当然这里的本质原因是操作系统的调度不感知用户层的信息, 也不可能感知. 持有Latch thread 和waiting latch thread 在操作系统眼里是一样的.&lt;/p&gt;
+
+&lt;p&gt;现在一些新的im-memory database 一般都才去latch based 的方法, 尽可能不依赖操作系统的调度.&lt;/p&gt;
+
+&lt;p&gt;而MySQL 正好属于这种场景, 在大量的并发场景下, 活跃连接远远高于cpu 核数. 所以latch free 是有意义的.&lt;/p&gt;
+
+&lt;p&gt;但是现在新的Database 比如in-memory database 都是和core 绑定, 比如redis 这种单线程的. 包括polarstore 也是这样的设计, 那么这种场景下, 由于冲突不明显, 本身设计就考虑了尽可能减少contention, 所以latch-based 就更好了. 因为latch-based 更简单, lock-free 需要一些复杂的内存管理解决 ABA, garbage collect 等等问题.&lt;/p&gt;
+
+&lt;p&gt;所以作者不建议database 里面建议使用latch-free algorithm, 更建议好好优化Latch-based algorithm.&lt;/p&gt;
+
+&lt;p&gt;最后强调multi-core 上的scalability 重点在于减少在single shared meomry 上面的频繁操作, 也就是contention. 而不是在于选择latch-free 和 latch-based 的算法. 其实这个观点也是能理解的, 本质是能通过业务逻辑的设计避免contention 肯定是最好的.&lt;/p&gt;
+
+&lt;p&gt;但是MySQL 内部其实有一些逻辑避免不了contention, 比如lock_sys-&amp;gt;mutex, trx_sys-&amp;gt;mutx 等等.&lt;/p&gt;
+
+&lt;p&gt;另外可以看到实现一个bw-tree, blink-tree 在学术界的论文里面是非常简单的一个事情, 但是InnoDB 里面Page 里面结合了事务锁, 并发控制, undo log 等等一系列内容, 所以将InnoDB 的btree 修改并稳定到线上其实是比较大工程量的事情, 比如为了推动Blink-tree 上线, 笔者就写了Inno_space 这样的工具, 用于如果真的有数据损坏的情况, 对数据进行修复, 为了前期的灰度, blink-tree 先上线到二级索引等等这样的工作.&lt;/p&gt;
+
+&lt;p&gt;那么PolarDB 是如何处理这个问题呢?&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;References:&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;[1]  Z. Wang, et al., &lt;a href=&quot;https://15721.courses.cs.cmu.edu/spring2020/papers/06-oltpindexes1/mod342-wangA.pdf&quot;&gt;Building A Bw-Tree Takes More Than Just Buzz Words&lt;/a&gt;, in &lt;em&gt;SIGMOD&lt;/em&gt;, 2018 
+[2] S.K. Cha, et al., &lt;a href=&quot;https://15721.courses.cs.cmu.edu/spring2020/papers/06-oltpindexes1/cha-vldb2001.pdf&quot;&gt;Cache-Conscious Concurrency Control of Main-Memory Indexes on Shared-Memory Multiprocessor Systems&lt;/a&gt;, in &lt;em&gt;VLDB&lt;/em&gt;, 2001 &lt;em&gt;(Optional)&lt;/em&gt;
+[3] G. Graefe, &lt;a href=&quot;https://15721.courses.cs.cmu.edu/spring2020/papers/06-oltpindexes1/a16-graefe.pdf&quot;&gt;A Survey of B-Tree Locking Techniques&lt;/a&gt;, in &lt;em&gt;TODS&lt;/em&gt;, 2010 &lt;em&gt;(Optional)&lt;/em&gt;
+[4]  J. Faleiro, et al., &lt;a href=&quot;https://15721.courses.cs.cmu.edu/spring2020/papers/06-oltpindexes1/faleiro-cidr17.pdf&quot;&gt;Latch-free Synchronization in Database Systems: Silver Bullet or Fool’s Gold?&lt;/a&gt;, in &lt;em&gt;CIDR&lt;/em&gt;, 2017 &lt;em&gt;(Optional)&lt;/em&gt;
+[5]  J. Levandoski, et al., &lt;a href=&quot;https://15721.courses.cs.cmu.edu/spring2020/papers/06-oltpindexes1/bwtree-icde2013.pdf&quot;&gt;The Bw-Tree: A B-tree for New Hardware&lt;/a&gt;, in &lt;em&gt;ICDE&lt;/em&gt;, 2013 &lt;em&gt;(Optional)&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;[6]  V. Leis, et al., &lt;a href=&quot;https://15721.courses.cs.cmu.edu/spring2020/papers/07-oltpindexes2/leis-damon2016.pdf&quot;&gt;The ART of Practical Synchronization&lt;/a&gt;, in &lt;em&gt;DaMoN&lt;/em&gt;, 2016 &lt;em&gt;(Optional)&lt;/em&gt;
+[7]  V. Leis, et al., &lt;a href=&quot;https://15721.courses.cs.cmu.edu/spring2020/papers/07-oltpindexes2/leis-icde2013.pdf&quot;&gt;The Adaptive Radix Tree: ARTful Indexing for Main-Memory Databases&lt;/a&gt;, in &lt;em&gt;ICDE&lt;/em&gt;, 2013 &lt;em&gt;(Optional)&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;[8] https://15721.courses.cs.cmu.edu/spring2020/schedule.html&lt;/p&gt;
+
+&lt;p&gt;[9] https://zhuanlan.zhihu.com/p/374000358&lt;/p&gt;
+</description>
+        <pubDate>Sun, 21 Aug 2022 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2022/08/21/polardb-bw-tree/</link>
+        <guid isPermaLink="true">http://localhost:4000/2022/08/21/polardb-bw-tree/</guid>
+      </item>
+    
+      <item>
+        <title>为什么游戏行业喜欢用PolarDB</title>
+        <description>&lt;p&gt;&lt;strong&gt;游戏行业痛点&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;在我看来, 不同行业对数据库使用有巨大的差别. 比如游戏行业没有复杂的事务交易场景, 他有一个非常大的blob 字段用于存储角色的装备信息, 那么大Blob 字段的更新就会成为数据库的瓶颈, 比如在线教育行业需要有抢课的需求, 因此会有热点行更新的场景, 对热点行如何处理会成为数据库的瓶颈, 比如SaaS 行业, 每一个客户有一个Database, 因此会有非常多的Table, 那么数据库就需要对多表有很好的支持能力.&lt;/p&gt;
+
+&lt;p&gt;游戏行业和其他行业对数据库的使用要求是不一样的.&lt;/p&gt;
+
+&lt;p&gt;所以在支撑了大量游戏业务之后, 我理解游戏行业在使用自建MySQL 的时候有3个比较大的痛点&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;对备份恢复的需求&lt;/li&gt;
+  &lt;li&gt;对写入性能的要求&lt;/li&gt;
+  &lt;li&gt;对跨region 容灾的需求&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;接下来会分别讲述这三个痛点PolarDB 是如何解决的.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;备份恢复&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;笔者和大量游戏开发者沟通中, 游戏行业对备份恢复的需求是极其强烈的. 比如在电商行业, 是不可能存在将整个数据库实例进行回滚到一天之前的数据, 这样所有的用户的购买交易信息都丢失了.&lt;/p&gt;
+
+&lt;p&gt;但是, 在游戏行业中, 这种场景确实存在的, 比如在发版的时候, 游戏行业是有可能发版失败, 这个在其他行业出现概率非常低, 如果发版失败, 那么整个实例就需要回滚到版本之前. 因此每次发版的时候都需要对数据库实例进行备份. 因此当我们玩游戏的时候, 看到大版本需要停服更新, 那么就有可能是因为后台需要备份数据等等一系列操作了.&lt;/p&gt;
+
+&lt;p&gt;还有一种场景, 当发生因为外挂, 漏洞, 参数配置错误等等场景下, 这种紧急情况游戏就需要回滚到出问题前的版本, 这样就需要对整个实例进行回滚.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20220717042019107.png&quot; alt=&quot;image-20220717042019107&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;官方MySQL 由于是单机架构, 那么常见的备份方法是通过Xtrabackup 工具, 将数据备份到本地以后, 如果本地空间不够, 就需要上传到OSS 等远端存储中. 通常通过Xtrabackup 备份工具都需要1h 左右, 如果需要将数据上传到远端那么时间就更长了.&lt;/p&gt;
+
+&lt;p&gt;PolarDB 是天然的计存分离的架构, 那么备份的时候通过底下分布式存储的快照能力, 备份可以不超过30s, 将备份时间大大缩短了.&lt;/p&gt;
+
+&lt;p&gt;核心思路是采用Redirect-on-Write 机制, 每次创建快照并没有真正Copy数据, 只有建立快照索引, 当数据块后期有修改(Write)时才把历史版本保留给Snapshot, 然后生成新的数据块, 被原数据引用(Redirect).&lt;/p&gt;
+
+&lt;p&gt;另外一种场景是, 在游戏行业中, 有可能某一个玩家的装备被盗号了, 那么玩家就会找游戏的运营人员投诉, 运营人员会找到游戏运维人员, 帮忙查询玩家的历史数据.&lt;/p&gt;
+
+&lt;p&gt;笔者之前就遇到某著名游戏多个玩家被盗号, 然后运维人员经常需要通过PolarDB 按时间的还原的能力恢复出某多个不同时间点的实例, 用来查询这个玩家的具体装备信息, 同时由于玩家对盗号的时间也不准确, 经常有时候需要还原出多个实例才可以.&lt;/p&gt;
+
+&lt;p&gt;针对这样的场景, PolarDB 推出了Flashback Query, 就可以在当前实例查询出任意时间点的历史数据. 具体原理见文章 &lt;a href=&quot;https://zhuanlan.zhihu.com/p/434466612&quot;&gt;Flashback Query&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20220717043717181.png&quot; alt=&quot;image-20220717043717181&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;整体而言, PolarDB 建立了一套非常完善的备份恢复能力, 从库=&amp;gt;表=&amp;gt;行三个维度满足的游戏行业对备份恢复的需求.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20220717043059363.png&quot; alt=&quot;image-20220717043059363&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;写入性能&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;游戏行业使用数据库的方式也与其他行业有较大区别, 是一种非常弱Schema 的使用方式, 其他行业通常对业务经常抽象, 建立表结构, 每个字段尽可能小, 不建议有大字段, 有大字段尽可能进行拆封等等.&lt;/p&gt;
+
+&lt;p&gt;但是在游戏行业中, 由于需要满足游戏快速迭代发展的需求, 玩家的装备信息结构非常复杂, 因此常见的做法是将玩家装备等级信息保存在一个大的blob字段中, 这个blob字段通过proto_buf 或者 json 进行编解码, 每次在获得装备或者升级以后, 就进行整个字段更新,  在游戏开服初期玩家数据长度较短, 而随着游戏版本更新版本, 游戏剧情, 运营活动的增多, 相对于游戏开服初期的数KB, blob字段的长度可能会膨胀到数百KB, 甚至达到MB级别, 因此可能只是获得一个装备, 就需要向数据库写入数百KB 大小的数据, 这样的写放大其实非常不合理.&lt;/p&gt;
+
+&lt;p&gt;目前也有像MongoDB 这样的文档数据库, 让用户写入的时候仅仅更新某个字段, 从而减少写放大. 但是这样影响了用户的使用习惯, 需要用户在业务逻辑上进行修改, 这是快速发展的游戏行业所不能接受的, 所以笔者看到尽管有客户因为写入问题转向了MongoDB, 但是其实不多.&lt;/p&gt;
+
+&lt;p&gt;PolarDB 针对这样的情况尽可能满足用户的使用习惯, 在数据库内核层面优化数据库的写入能力. 通过 partition redo log, redo log cache, undo log readahead,  early lock release, no blob latch 等等能力将写入能力充分优化. 具体原理可以参考我们&lt;a href=&quot;http://mysql.taobao.org/monthly/&quot;&gt;内核月报&lt;/a&gt; 和之前的文章&lt;a href=&quot;https://zhuanlan.zhihu.com/p/535426034&quot;&gt;PolarDB-cloudjump&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;针对游戏场景, 我们修改了 sysbench 工具, 模拟游戏行业中大Blob 更新的workload, 放在 &lt;a href=&quot;https://github.com/baotiao/game-sysbench&quot;&gt;game-sysbench&lt;/a&gt; 工具中, 后续我们还会将更多行业比如Saas, 电商等等行业的workload 放在这个工具中.&lt;/p&gt;
+
+&lt;p&gt;在game_blob_update workload 中, 如果玩家的平均装备信息是 300kb, 我们对比了PolarDB VS aurora VS 自建MySQL 的数据&lt;/p&gt;
+
+&lt;p&gt;PolarDB 8.0 相对有最高的QPS 1877.44, 峰值QPS最高可以到2000, CPU bound场景PolarDB的性能大概是Aurora的5.7倍, 是自建 MySQL 本地盘的3倍. IO bound场景PolarDB的性能是Aurora的15倍.&lt;/p&gt;
+
+&lt;p&gt;CPU bound场景：&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;DB&lt;/th&gt;
+      &lt;th&gt;并发数据&lt;/th&gt;
+      &lt;th&gt;QPS&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;PolarDB 8.0&lt;/td&gt;
+      &lt;td&gt;5&lt;/td&gt;
+      &lt;td&gt;1877.44&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;MySQL 8.0 本地盘&lt;/td&gt;
+      &lt;td&gt;4&lt;/td&gt;
+      &lt;td&gt;600.22&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Aurora 8.0&lt;/td&gt;
+      &lt;td&gt;200&lt;/td&gt;
+      &lt;td&gt;328.47&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;IO bound场景：&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;DB&lt;/th&gt;
+      &lt;th&gt;并发数据&lt;/th&gt;
+      &lt;th&gt;QPS&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;PolarDB 8.0&lt;/td&gt;
+      &lt;td&gt;200&lt;/td&gt;
+      &lt;td&gt;1035.30&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;MySQL 8.0 本地盘&lt;/td&gt;
+      &lt;td&gt;200&lt;/td&gt;
+      &lt;td&gt;610&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Aurora 8.0&lt;/td&gt;
+      &lt;td&gt;200&lt;/td&gt;
+      &lt;td&gt;69.15&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;跨region 容灾&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;目前游戏行业纷纷出海, 包含了游戏服和平台服. 用户在自建MySQL/RDS 的场景中,  用户可能需要在另外一个region 建立一个新的实例, 然后通过同步工具或者DTS 进行跨region 备份. 用户需要处理region 错误场景如何进行切换等等.&lt;/p&gt;
+
+&lt;p&gt;笔者认为对数据库而言, 稳定性 &amp;gt; 易用性 &amp;gt; 性能.&lt;/p&gt;
+
+&lt;p&gt;在这个场景中, 用户如果使用云厂商的话, 使用的是云厂商提供的原子能力, 自己通过组装这些原子能力实现容灾的需求, 而PolarDB 针对这样场景提出来PolarDB GlobalDataba 的解决方案, 将跨region 的容灾放在解决方案中, 提供了一个更加易容的解决方案, 从而用户可以关注自身的业务逻辑, 而不需要处理这些容灾的场景.&lt;/p&gt;
+
+&lt;p&gt;在具体跨region 的同步场景方案中, PolarDB 是通过多通道物理复制能力, 从而保证跨region 的容灾在1s 以内.&lt;/p&gt;
+
+</description>
+        <pubDate>Tue, 19 Jul 2022 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2022/07/19/polardb-game/</link>
+        <guid isPermaLink="true">http://localhost:4000/2022/07/19/polardb-game/</guid>
+      </item>
+    
+      <item>
+        <title>通过performance_schema 定量分析系统瓶颈</title>
+        <description>&lt;p&gt;目前在系统里面, 我们可以通过perf 或者 pt-pmp 汇总堆栈的方式来查看系统存在的热点, 但是我们仅仅能够知道哪些地方是热点, 却无法定量的说这个热点到底有多热, 这个热点占整个访问请求的百分比是多少? 是10%, 还是40%, 还是80%?&lt;/p&gt;
+
+&lt;p&gt;所以我们需要一个定量分析系统瓶颈的方法以便于我们进行系统优化.&lt;/p&gt;
+
+&lt;p&gt;本文通过Performance_schema 来进行定量的分析系统性能瓶颈.&lt;/p&gt;
+
+&lt;p&gt;原理如下:&lt;/p&gt;
+
+&lt;p&gt;performance_schema.events_waits_summary_global_by_event_name  这里event_name 值得是具体的mutex/sx lock, 比如trx_sys-&amp;gt;mutex, lock_sys-&amp;gt;mutex 等等,  这个table 保存的是汇总信息.&lt;/p&gt;
+
+&lt;p&gt;具体performance_schema 信息在这里 https://dev.mysql.com/doc/mysql-perfschema-excerpt/8.0/en/performance-schema-wait-summary-tables.html&lt;/p&gt;
+
+&lt;p&gt;通过两次调用具体的timer wait 可以算出具体某一个mutex/sx lock 等待的时间.&lt;/p&gt;
+
+&lt;p&gt;如果这个时间再除以每一个线程就可以算出每一个线程在这个Lock 上大概的等待时间, 然后就可以算出平均1s 内等在该mutex/sx lock 的占比.&lt;/p&gt;
+
+&lt;p&gt;比如我们知道在sysbench oltp_read_write 的小表测试中, 通过pstack 可以看到主要卡在page latch 上, 那么我们需要分析等待patch latch 占用了整个路径的时间大概是多长.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20220701045526838.png&quot; alt=&quot;image-20220701045526838&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;这里使用256 thread 进行压测, 计算出来等待的时间大概是&lt;/p&gt;
+
+&lt;p&gt;buf_block_lock = (122103591705572800-121158362355835200)/5/207/1000000000 = 913ms&lt;/p&gt;
+
+&lt;p&gt;也就是平均 1s 里面, 每一个thread 有913ms 等待在page lock 上, 占比90%. 这个信息和多次pstack 的信息也基本吻合.&lt;/p&gt;
+
+&lt;p&gt;fil_system_mutex = (3045412747942400-3044314172171200)/5/207 = 1ms&lt;/p&gt;
+
+&lt;p&gt;也就是平均1s 里面等待在fil_system_mutex 只有1ms, 占比0.1%&lt;/p&gt;
+
+&lt;p&gt;比如我们最常见的 oltp_insert 非 auto_inc insert 的场景中, 通过pstack 可以看到主要卡在trx_sys-&amp;gt;mutex, 那么这个trx_sys-&amp;gt;mutex 具体有多热呢?&lt;/p&gt;
+
+&lt;p&gt;以下是perf 相关信息.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20220701065441299.png&quot; alt=&quot;image-20220701065441299&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;上面红框下主要的热点都是需要去获得trx_sys-&amp;gt;mutex, 从而可以操作全局活跃事务数组.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20220701070450831.png&quot; alt=&quot;image-20220701070450831&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;这里使用256 thread 进行压测, 计算出来等待的时间大概是&lt;/p&gt;
+
+&lt;p&gt;trx_sys_mutex =(19702987247840000-19258717650739200)/5/250/1000000000 = 355 ms&lt;/p&gt;
+
+&lt;p&gt;那么等待trx_sys-&amp;gt;mutex 上占比大概是35%.&lt;/p&gt;
+
+&lt;p&gt;上面还有一个看过去大头的btree 上面的 index_tree_rw_lock 占比呢&lt;/p&gt;
+
+&lt;p&gt;index_tree_rw_lock  = (471944089179312000-471896220032430400)/5/250/1000000000 = 38ms&lt;/p&gt;
+
+&lt;p&gt;虽然数据大, 因为跑的久, 但是其实这里只有3% 的占比&lt;/p&gt;
+
+&lt;p&gt;tips:&lt;/p&gt;
+
+&lt;p&gt;对比来说 perf 看到的信息是on-cpu 信息, 但是因为MySQL 的mutex/sxlock 都是通过backoff 机制进行, 在每一次线程切换出去之前都进行一段时间的spin, 所以mysql 的on-cpu 信息可以一定程度反应off-cpu 的结果.&lt;/p&gt;
+
+&lt;p&gt;pstack 更体现的是某一时刻off-cpu 的信息&lt;/p&gt;
+
+&lt;p&gt;performance_schame wait_event 也体现的是off-cpu 的信息.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 05 Jul 2022 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2022/07/05/mysql-performance_schema/</link>
+        <guid isPermaLink="true">http://localhost:4000/2022/07/05/mysql-performance_schema/</guid>
+      </item>
+    
+      <item>
         <title>PolarDB-CloudJump：优化基于云存储服务的云数据库(发表于VLDB 2022)</title>
         <description>&lt;p&gt;云数据库实现计算存储分离，支持计算与存储的独立扩展，其用户还可以享受按量付费等特性。这使得基于云数据库的系统更加高效、灵活。因此，构建并使用云原生数据库的势头愈演愈烈。另一方面，云化存储服务已经是云的标准能力，存储侧提供兼容通用的文件接口，并且不对外暴露持久化、容错处理等复杂细节，其易用性和规模化带来的高性价比使得云存储成为了云上系统的第一选择。在通用云存储服务上构建云数据库，无疑是一种既能够享受规模化云存储红利，又能够通过可靠云存储服务实现降低维护成本、加速数据库开发周期的方案。&lt;/p&gt;
 
@@ -1159,665 +1703,6 @@ fil_purge();  =&amp;gt; fil_shard.purge()&lt;/p&gt;
         <pubDate>Mon, 08 Feb 2021 00:00:00 +0800</pubDate>
         <link>http://localhost:4000/2021/02/08/faster-truncate-drop/</link>
         <guid isPermaLink="true">http://localhost:4000/2021/02/08/faster-truncate-drop/</guid>
-      </item>
-    
-      <item>
-        <title>InnoDB page management</title>
-        <description>&lt;p&gt;这个图片可以看到InnoDB 里面涉及的文件:&lt;/p&gt;
-
-&lt;p&gt;从 tablespace =&amp;gt; segment =&amp;gt; extent =&amp;gt; page=&amp;gt;row&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/U8lbbM5.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;在一个tablespace 里面, 每一个segment 也是有一个唯一的id 的标识的&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Tablespace&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;一个唯一的Tablespace 会由这个file space 的第一个Page来描述&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/K5HswIh.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;这里主要有几个重要的list&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;维护Inode 的FULL_INODE, FREE_INODE list, 和维护 extent 的 FREE List, FREE_FRAG List, FULL_FRAG List 都在FSP Header里面, 我们可以理解成这两个资源是这个file space 的meta信息&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Tablespace =&amp;gt; segment&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;一个tablespace 里面包含了多个segment, 特别是tablespace 0, sys tablespace, 里面还包含了rollback segment,  用户创建的table 所对应的table space 里面, 一般有segment, left node segment 和 non-leaf node segment. 如果用户创建了索引, 又会增加两个新的segment.&lt;/p&gt;
-
-&lt;p&gt;tablespace 是如何找到segment 的呢?  这些segment 的描述信息在哪里呢?&lt;/p&gt;
-
-&lt;p&gt;一个Inode Entry 用来描述一个 segment,  然后所有的这些Inode Entry 都在一个Inode page 里面, 默认这个Inode page 在tablespace 的第2个page. 如果这个tablespace 里面有过多的segment 了, 那么就创建更多的Inode page, 这些Inode page 通过FSP header 里面的FULL_INODE list 和 FREE_INODE list 连接在一起&lt;/p&gt;
-
-&lt;p&gt;所以tablespace 通过Inode Page 找到所有的segment.&lt;/p&gt;
-
-&lt;p&gt;底下这个图是Inode Page 结构&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/bE5NM0m.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;一个Inode Page 里面包含84个Inode Entry&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;segment=&amp;gt;extent&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;一个segment 里面包含了多个extent,  所以每一个extent 都有一个属于的segment id.&lt;/p&gt;
-
-&lt;p&gt;那么segment 如何找到属于它的extent, 这些extent 的描述信息在哪里呢?&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/ofrhlCX.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;在Inode Entry 里面, 也就是每一个segment 的描述结构里面, 有3个List, NOT_FULL List, Free List, NOT_FULL List,  这3个List 就把对应的 extent 连在一起了.&lt;/p&gt;
-
-&lt;p&gt;所以通过遍历Inode Entry 里面的3个List, 就可以找到这个Segment 的所有的 extent了, 然后extent 对应的描述符就是XDES Entry.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Extent =&amp;gt; Page&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;一个extent 里面包含了64 个page,  只有一个index 的root page, 也就是根节点这个page, 会记录该page 所对应的两个segment 的Inode Entry 在Inode page 里面的具体位置.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/hQqvXoP.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;那么一个extent 是如果管理这64个page 是否空闲呢? 是也通过InnoDB List 么?&lt;/p&gt;
-
-&lt;p&gt;不是的, 和一个segment 对应一个Inode Entry 类似, 一个extent 也对应一个XDES Entry.&lt;/p&gt;
-
-&lt;p&gt;类似有一个Inode Page 存储了所有的Inode Entry, XDES Entry 也存在XDES page 里面(如果这个XDES page 是这个file space 的第一个XDES, 这个XDES 又叫做FSP_HDR, 一个file space 只会有一个FSP_HDR). 类似Inode Page 存在第2个Page, 这个XDES Entry 存在256MB XDES 的第一个page 上.&lt;/p&gt;
-
-&lt;p&gt;对应的XDES Entry 的结构:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/KkDOOCy.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;这里标记了 XDES对应的extent 属于的File Segment ID. XDES List 就把一个segment 对应的多个extent 连成一个链表, 然后State 标记这个extent 是FREE, FREE_FRAG, FREE_FULL, 然后在FSP_HDR 里面有FREE_LIST, FREE_FRAG, FREE_FULL list 把这些extent 也连在一起了.&lt;/p&gt;
-
-&lt;p&gt;在一个XDES Entry 里面包含了 Page State Bitmap=16 字节 = 128 byte. 每两个byte 用来描述1个page. 所以一个XDES 可以描述连续的61 个page, 这也是为什么extent = 64page 的原因.&lt;/p&gt;
-
-&lt;p&gt;所以Extent 通过Page State Bitmap 来管理64 个空闲page&lt;/p&gt;
-
-&lt;p&gt;对应的XDES Page 的结构:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://i.imgur.com/ebBjQW3.jpg&quot; alt=&quot;Imgur&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;一个XDES Page 里面保存了 256 个XDES Entry.&lt;/p&gt;
-
-&lt;p&gt;这里与Inode page 不一样的地方, 因为每256M 的第一个page 都是XDES page. 所以不需要动态的分配XDES Page.&lt;/p&gt;
-
-&lt;p&gt;这里可以看出对于 Extent, FSP_Header 里面有3个List 可能把它连在一起 FREE_FRAG, FULL_FRAG, FREE. Inode Entry 里面同样有3个List FREE, NOT_FULL, FULL.&lt;/p&gt;
-
-&lt;p&gt;当一个extent 完全被某一个segment 使用的时候, 就会连在Inode Entry 里面, 如果这个extent 完全空的, 就连在FREE. 一般被这个segment 使用, 连在NOT_FULL, 全部连在FULL.&lt;/p&gt;
-
-&lt;p&gt;如果一个extent 被多个segment 混用, 这里面还没满, 就连在FREE_FRAG, 被混用满了, 就连在FULL_FRAG, 这个extent 完全空闲, 有可能后续被分配给某一个segment 连在Inode Entry里面的FREE, 也有可能分配给 FREE_FRAG 使用&lt;/p&gt;
-
-&lt;p&gt;所以当我需要新的segment 的时候, 就从Inode Page 上面去找一个空闲的Inode Entry, 如果没有, FSP 就会分配一个新的Inode Page, 然后从这个新的Inode Page 去找新的Inode Entry&lt;/p&gt;
-
-&lt;p&gt;当我需要新的extent的时候, 就从XDES Page/FSP_HDR 上去找, XDES Page 有每一个XDES Entry 的状态, 如果没有, 就从下一个256M 的 XDES Page 上去找&lt;/p&gt;
-
-&lt;p&gt;当我需要新的page 的时候, 就从XDES Entry 上面找, XDES 里面的Page State Bitmaps 记录着里面是否有空闲page, 如果没有空闲page, 就申请一个新的 extent.这个新的extent 是从XDES Page 上去申请.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;问题&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;由于一个用户创建的table 对应一个file space, 那么这个file space 里面就只会有两个segment, left page segment, non-leaf page segment, 那么这个这个file space 对应的Inode page 就只有两个Inode entry 是有用的吧&lt;/p&gt;
-
-&lt;p&gt;但是如果给这个table 建立一个索引, 就会增加两个segment, 所以最多给这个表建立42个索引以后, 这个Inode page 里面的Inode entry 就会用用满了, 然后这个file space 里面所对应的FSP_HEADER 里面就会去创建一个新的Inode page, 所以在file space 这个level, 也有两个InnoDB list, FREE_INODES, FULL_INODES, 记录在FSP header 这个结构体, 所以我们也可以看到Inode page 里面也有12 字节的InnoDB LIst 结构体&lt;/p&gt;
-
-&lt;p&gt;虽然大部分情况下一个Inode page 都是用不满的&lt;/p&gt;
-
-&lt;p&gt;可以这么理解, 只有redo log 是脱离Innode page management 这一套, undo log 里面的rollback segment page, undolog segment page, undolog normal page 都是走的Inode page management 这一套的&lt;/p&gt;
-
-</description>
-        <pubDate>Tue, 08 Sep 2020 00:00:00 +0800</pubDate>
-        <link>http://localhost:4000/2020/09/08/innodb-page-management/</link>
-        <guid isPermaLink="true">http://localhost:4000/2020/09/08/innodb-page-management/</guid>
-      </item>
-    
-      <item>
-        <title>InnoDB btree latch 优化历程</title>
-        <description>&lt;p&gt;(一般在数据库里面latch 指的是物理Lock, Lock 指的是事务的逻辑lock, 这里混用)&lt;/p&gt;
-
-&lt;p&gt;在InnoDB 的实现中, btree 主要有两种lock: index lock 和 page lock&lt;/p&gt;
-
-&lt;p&gt;index lock 就是整个Index 的lock, 具体在代码里面就是 dict_index-&amp;gt;lock&lt;/p&gt;
-
-&lt;p&gt;page lock 就是我们在btree 里面每一个page 的变量里面都会有的 lock&lt;/p&gt;
-
-&lt;p&gt;当我们说btree lock的时候, 一般同时包含 index lock 和 page lock 来一起实现&lt;/p&gt;
-
-&lt;p&gt;在5.6 的实现里面比较简单,btree latch 大概是这样的流程&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;如果是一个查询请求
-    &lt;ul&gt;
-      &lt;li&gt;
-        &lt;p&gt;那么首先把btree index-&amp;gt;lock  S LOCK&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;然后直到找到 leaf node 以后, 对leaft node 也是 S LOCK, 然后把index-&amp;gt; lock 放开&lt;/p&gt;
-
-        &lt;p&gt;&lt;img src=&quot;https://i.imgur.com/7AouKrR.png&quot; alt=&quot;Imgur&quot; style=&quot;zoom:50%;&quot; /&gt;&lt;/p&gt;
-      &lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;如果是一个修改leaf page 请求
-    &lt;ul&gt;
-      &lt;li&gt;同样把btree index-&amp;gt; lock  S LOCK&lt;/li&gt;
-      &lt;li&gt;然后直到找到leaf node 以后, 对leaf node 执行 X LOCK, 因为需要修改这个page. 然后把index-&amp;gt;lock 放开.   到这里又分两种场景了, 对于这个page 的修改是否会引起 btree 的变化
-        &lt;ul&gt;
-          &lt;li&gt;
-            &lt;p&gt;如果不会, 那么很好, 对leaf node 执行了X LOCK 以后, 修改完数据返回就可以&lt;/p&gt;
-          &lt;/li&gt;
-          &lt;li&gt;
-            &lt;p&gt;如果会, 那么需要执行悲观插入操作, 重新遍历btree.&lt;/p&gt;
-
-            &lt;p&gt;对btree inex 加X LOCK, 执行btr_cur_search_to_nth_level 到指定的page.&lt;/p&gt;
-
-            &lt;p&gt;因为leaft node 修改, 可能导致整个沿着leaf node 到root node 的btree 都会随着修改, 因此必须让其他的线程不能访问到, 因此需要整个btree 加X LOCK, 那么其他任何的查询请求都不能访问了, 并且加了index X LOCK 以后, 进行record 插入到page, 甚至可能导致上一个Level 的page 也需要改变, 这里需要从磁盘中读取数据, 因此可能有磁盘IO, 这就导致了加X LOCK 可能需要很长一段时间, 这段时间sread 相关的操作就都不可访问了&lt;/p&gt;
-
-            &lt;p&gt;这里具体的代码在 row_ins_clust_index_entry&lt;/p&gt;
-
-            &lt;p&gt;首先尝试乐观的插入操作&lt;/p&gt;
-
-            &lt;p&gt;err = row_ins_clust_index_entry_low(
-	0, BTR_MODIFY_LEAF, index, n_uniq, entry, n_ext, thr,
-	&amp;amp;page_no, &amp;amp;modify_clock);&lt;/p&gt;
-
-            &lt;p&gt;然后这里如果插入失败, 再尝试悲观的插入操作,&lt;/p&gt;
-
-            &lt;p&gt;return(row_ins_clust_index_entry_low(
-		0, BTR_MODIFY_TREE, index, n_uniq, entry, n_ext, thr,
-		&amp;amp;page_no, &amp;amp;modify_clock));&lt;/p&gt;
-
-            &lt;p&gt;从这里可以看到, 唯一的区别在于这里latch_mode = BTR_MODIFY_LEAF 或者 BTR_MODIFY_TREE. 并且由于btr_cur_search_to_nth_level 是在函数 row_ins_clust_index_entry_low 执行, 那么也就是尝试了乐观操作失败以后, 重新进行悲观插入的时候, 需要重新遍历btree&lt;/p&gt;
-
-            &lt;p&gt;&lt;img src=&quot;https://i.imgur.com/MZrRVA6.png&quot; alt=&quot;Imgur&quot; style=&quot;zoom:50%;&quot; /&gt;&lt;/p&gt;
-          &lt;/li&gt;
-        &lt;/ul&gt;
-      &lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;从上面可以看到, 5.6 里面只有对整个btree  的index lock,  以及在btree 上面的leaf node page 会有lock, 但是btree 上面non-leaf node 并没有 lock.&lt;/p&gt;
-
-&lt;p&gt;这样的实现带来的好处是代码实现非常简单, 但是缺点也很明显由于在SMO 操作的过程中, 读取操作也是无法进行的, 并且SMO 操作过程可能有IO 操作, 带来的性能抖动非常明显, 我们在线上也经常观察到这样的现象.&lt;/p&gt;
-
-&lt;p&gt;所以有了官方的改动, 其实这些改动在5.7 就引入, 我们这里以8.0 为例子:&lt;/p&gt;
-
-&lt;p&gt;主要有这两个改动&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;引入了sx lock&lt;/li&gt;
-  &lt;li&gt;引入了non-leaf page lock&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;引入SX Lock 以后&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;首先介绍一下 SX Lock,  SX Lock 在index lock 和 page lock 的时候都可能用到.&lt;/p&gt;
-
-&lt;p&gt;SX Lock 是和 S LOCK 不冲突, 但是和 X LOCK 冲突的, SX LOCK 和 SX LOCK 之间是冲突的.&lt;/p&gt;
-
-&lt;p&gt;SX LOCK 的意思我有意向要修改这个保护的范围, 但是现在还没开始修改, 所以还可以继续访问, 但是要修改以后, 就无法访问了.  因为我有意向要修改, 因此不能允许其他的改动发生, 因此和 X LOCK 是冲突的.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;目前主要用途因为index SX lock 和 S LOCK 不冲突, 因此悲观insert 改成index SX LOCK 以后, 可以允许用户的read/乐观写入&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;SX LOCK 的引入由这个 WL 加入 &lt;a href=&quot;https://dev.mysql.com/worklog/task/?id=6363&quot;&gt;WL#6363&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;可以认为 SX LOCK 的引入是为了对读操作更加的优化,  SX lock 是和 X lock 冲突, 但是是和 S lock 不冲突的, 将以前需要加X lock 的地方改成了SX lock, 因此对读取更加友好了&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;引入non-leaf page lock&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;其实这也是大部分商业数据库都是这样, 除了leaf page 有page lock, non-leaf page 也有page lock.&lt;/p&gt;
-
-&lt;p&gt;主要的想法还是 Latch coupling, 在从上到下遍历btree 的过程中, 持有了子节点的page lock 以后, 再把父节点的page lock 放开, 这样就可以尽可能的减少latch 的范围. 这样的实现就必须保证non-leaf page 也必须持有page lock.&lt;/p&gt;
-
-&lt;p&gt;不过这里InnoDB 并未把index-&amp;gt;lock 完全去掉, 这就导致了现在InnoDB 同一时刻仍然只有同时有一个 BTR_MODIFY_TREE 操作在进行, 从而在激烈并发修改btree 结构的时候, 性能下降明显.&lt;/p&gt;
-
-&lt;p&gt;回到5.6 的问题&lt;/p&gt;
-
-&lt;p&gt;可以看到在5.6 里面, 最差的情况是如果要修改一个btree leaf page, 这个btree leaf page 可能会触发btree 结构的改变, 那么这个时候就需要加一整个index X LOCK, 但是其实我们知道有可能这个改动只影响当前以及上一个level 的btree page, 如果我们能够缩小LOCK 的范围, 那么肯定对并发是有帮助的.&lt;/p&gt;
-
-&lt;p&gt;那么到了8.0&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;如果是一个查询请求&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;
-        &lt;p&gt;那么首先把btree index-&amp;gt;lock  S LOCK&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;然后沿着搜索btree 路径, 遇到的non-leaf node page 都加 S LOCK&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;然后直到找到 leaf node 以后, 对leaft node page 也是 S LOCK, 然后把index-&amp;gt; lock 放开&lt;/p&gt;
-
-        &lt;p&gt;&lt;img src=&quot;https://i.imgur.com/AGN3ghS.png&quot; alt=&quot;Imgur&quot; style=&quot;zoom:50%;&quot; /&gt;&lt;/p&gt;
-      &lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;如果是一个修改leaf page 请求&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;
-        &lt;p&gt;同样把btree index-&amp;gt; lock  S LOCK, 通过对non-leaf node page 都加S LOCK&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;然后直到找到leaf node 以后, 对leaf node 执行 X LOCK, 因为需要修改这个page. 然后把index-&amp;gt;lock 放开.   到这里又分两种场景了, 对于这个page 的修改是否会引起 btree 的变化&lt;/p&gt;
-
-        &lt;ul&gt;
-          &lt;li&gt;
-            &lt;p&gt;如果不会, 那么很好, 对leaf node 执行了X LOCK 以后, 修改完数据返回就可以&lt;/p&gt;
-          &lt;/li&gt;
-          &lt;li&gt;
-            &lt;p&gt;如果会, 那么需要执行悲观插入操作, 重新遍历btree. 这时候给index-&amp;gt;lock 是加 SX LOCK&lt;/p&gt;
-
-            &lt;p&gt;**因为已经给btree 加上sx lock, 那么搜索路径上的btree 的page 都不需要加 lock, 但是需要把搜索过程中的page 保存下来, 最后阶段给搜索路径上有可能发生结构变化的page  加x lock. **&lt;/p&gt;
-
-            &lt;p&gt;这样就保证了在搜索的过程中,  对于read 操作的影响降到最低.&lt;/p&gt;
-
-            &lt;p&gt;只有在最后阶段确定了本次修改btree 结构的范围, 对可能发生结构变化的page 加X lock 以后, 才会有影响.&lt;/p&gt;
-          &lt;/li&gt;
-          &lt;li&gt;
-            &lt;p&gt;8.0 里面, SMO 操作过程中, 拿着sx lock 的持续时间是&lt;/p&gt;
-
-            &lt;p&gt;持有sx lock 的时间:&lt;/p&gt;
-
-            &lt;p&gt;第一次btr_cur_optimistic_insert insert 失败以后, 在 row_ins_clust_index_entry 会调用&lt;/p&gt;
-
-            &lt;p&gt;row_ins_clust_index_entry_low(flags, BTR_MODIFY_TREE …) 进行插入, 在 row_ins_clust_index_entry_low 里面,  在btr_cur_search_to_nth_level 函数里面加上 sx lock, 到这里btree 因为已经加了sx lock, 就已经无法进行smo 操作了, 然后接下来仍然会尝试先乐观插入,这个时候sx lock 依然持有, 失败的话, 再尝试悲观插入操作.&lt;/p&gt;
-
-            &lt;p&gt;释放sx lock 的时间:&lt;/p&gt;
-
-            &lt;p&gt;在悲观插入操作里面会一直持有sx lock, 直到在 btr_page_split_and_insert 内部, 将新的page2 已经产生, 同时page2 已经连接上father node 之后.  并且这次发生SMO 的page 还需要是leaf page, 否则一直持有sx lock, 直到SMO 操作完成, 并且insert 成功才会释放&lt;/p&gt;
-
-            &lt;p&gt;&lt;img src=&quot;https://i.imgur.com/ye4VVpc.png&quot; alt=&quot;Imgur&quot; style=&quot;zoom:50%;&quot; /&gt;&lt;/p&gt;
-
-            &lt;p&gt;具体执行SMO 操作并且insert 的函数是 btr_page_split_and_insert&lt;/p&gt;
-
-            &lt;p&gt;btr_page_split_and_insert 操作大概有8个流程:&lt;/p&gt;
-
-            &lt;ol&gt;
-              &lt;li&gt;
-                &lt;p&gt;从要分裂的page 中, 找到要split 的record, split 的时候要保证split 的位置是record 的边界&lt;/p&gt;
-              &lt;/li&gt;
-              &lt;li&gt;
-                &lt;p&gt;分配一个新的索引页&lt;/p&gt;
-              &lt;/li&gt;
-              &lt;li&gt;
-                &lt;p&gt;分别计算page, 和new_page 的边界record&lt;/p&gt;
-              &lt;/li&gt;
-              &lt;li&gt;
-                &lt;p&gt;在上一级索引页(父节点)添加新的索引页的索引项, 如果上一级没有足够的空间, 那么就触发父节点的分裂操作了&lt;/p&gt;
-              &lt;/li&gt;
-              &lt;li&gt;
-                &lt;p&gt;连接当前索引页, 当前索引页prev_page, next_page, father_page, 新创建的 page. 当前的连接顺序是先连接父节点, 然后是prev_page/next_page, 最后是 page 和 new_page  (在这一步结束之后就可以放开index-&amp;gt;sx lock)&lt;/p&gt;
-              &lt;/li&gt;
-              &lt;li&gt;
-                &lt;p&gt;将当前索引页上的部分Record 移动到新的索引页&lt;/p&gt;
-              &lt;/li&gt;
-              &lt;li&gt;
-                &lt;p&gt;SMO 操作已经结束, 计算本次insert 要插入的page 位置&lt;/p&gt;
-              &lt;/li&gt;
-              &lt;li&gt;
-                &lt;p&gt;进行insert 操作, 如果insert 失败, 通过reorgination page 重新尝试插入&lt;/p&gt;
-              &lt;/li&gt;
-            &lt;/ol&gt;
-
-            &lt;p&gt;​&lt;/p&gt;
-          &lt;/li&gt;
-        &lt;/ul&gt;
-      &lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;现有代码里面只有一个场景会对index-&amp;gt;lock X lock. 也就是&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  if (lock_intention == BTR_INTENTION_DELETE &amp;amp;&amp;amp;
-      trx_sys-&amp;gt;rseg_history_len &amp;gt; BTR_CUR_FINE_HISTORY_LENGTH &amp;amp;&amp;amp;
-      buf_get_n_pending_read_ios()) { 如果这次lock_intention 是BTR_INTENTION_DELETE, 并且history list 过长, 才会对 index 加 x lock
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;总结:&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;8.0 比5.6 改进的地方&lt;/p&gt;
-
-&lt;p&gt;在5.6 里面, 写入的时候, 如果有SMO 在进行, 那么就需要把整个index-&amp;gt;lock x lock, 那么在SMO 期间所有的read 操作也是无法进行的.&lt;/p&gt;
-
-&lt;p&gt;在8.0 里面SMO 操作的过程中是允许有read 和 乐观写入操作的.&lt;/p&gt;
-
-&lt;p&gt;但是8.0 里面还有一个约束就是同一时刻只能有一个SMO 正在进行, 因为SMO 的时候需要拿 sx lock. sx lock 和 sx lock 是冲突的, 这也是目前8.0 主要问题.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;优化点&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;当然这里还是有优化点.&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;依然有全局的index-&amp;gt;lock, 虽然是sx lock, 但是理论上按照8.0 的实现, 可以完全将index lock 放开, 当然很多细节需要处理&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;在执行具体的分裂操作过程中, btr_page_split_and_insert 里面的持有index lock 是否还可以优化?&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;
-        &lt;p&gt;比如按照一定的顺序的话, 是否将新创建page 连接到new_page 以后就可以放开index-&amp;gt;lock&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;还可以考虑发生SMO 的page 持有x lock 的时间.&lt;/p&gt;
-
-        &lt;p&gt;目前会持有整个路径上的page x lock 直到SMO 操作结束, 并且这次insert 完成, 同时需要一直持有fater_page, prev_page, next_page 的x lock, 是否可以减少持有page 的个数, 比如这个优化 &lt;a href=&quot;https://bugs.mysql.com/bug.php?id=99948&quot;&gt;BUG#99948&lt;/a&gt;&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;btr_attach_half_pages 中多次通过btr_cur_search_to_nth_level 遍历btree 操作是否可以避免?
-函数是将father link, prev link, next link 等建立好的操作
-在这里会重新执行一次 btr_page_get_father_block 对btree 进行遍历找到父节点, 在该函数里面有需要重新执行 btr_cur_search_to_nth_level 函数, 其实这一步操作是可以避免的. 
-因为这时index已经 sx lock 了,  father 肯定不会变了的, 那么可以将上次btr_cur_search_to_nth_level 的结果保留, 就可以获得&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;是否可以像b-link tree 类似, 给正在SMO 的page 标记状态, 这个状态是允许读取的, 只不过有可能存在要读取的record 不在当前的page, 那么就需要去该page-&amp;gt;next page 去尝试读取, 如果能读取到依然是可以的..&lt;/p&gt;
-      &lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;每次进行btr_cur_search_to_nth_level, 搜索路径中遇到的page 是否可以保留? 这样即使重复搜索, 只需要确定upper level page 的max trx_id, 则可以确定整个搜索路径都没有改变, 那么就不需要重新遍历.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;是否还需要保留先乐观insert 再悲观insert 的操作过程?&lt;/p&gt;
-
-    &lt;p&gt;我理解现有的流程是因为在5.6 的实现中, 悲观insert 操作的开销太大, 从而尽可能的避免悲观insert, 因此沿用到了目前的8.0 实现中.这种多次insert 需要多次遍历btree, 带来额外开销&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;talking&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;https://dom.as/2011/07/03/innodb-index-lock/&lt;/p&gt;
-
-&lt;p&gt;https://dev.mysql.com/worklog/task/?id=6326&lt;/p&gt;
-
-</description>
-        <pubDate>Sun, 28 Jun 2020 00:00:00 +0800</pubDate>
-        <link>http://localhost:4000/2020/06/28/innodb-btree-latch/</link>
-        <guid isPermaLink="true">http://localhost:4000/2020/06/28/innodb-btree-latch/</guid>
-      </item>
-    
-      <item>
-        <title>Buffer pool 并发控制</title>
-        <description>&lt;h3 id=&quot;buffer-pool-并发控制&quot;&gt;Buffer pool 并发控制&lt;/h3&gt;
-
-&lt;p&gt;InnoDB 对buffer pool 的访问除了包含了用户线程会并发访问buffer pool 以外, 同时还有其他的后台线程也在访问buffer pool, 比如刷脏, purge, IO 模块等等, InnoDB 主要通过5个不同维度的mutex, rw_lock, io_fix 进行并发访问的控制&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;free/LRU/flush list Mutex&lt;/li&gt;
-  &lt;li&gt;hash_lock rw_lock (在5.6 之前, 只会有一个大的buffer pool Mutex)&lt;/li&gt;
-  &lt;li&gt;BPageMutex mutex&lt;/li&gt;
-  &lt;li&gt;io_fix, buf_fix_count&lt;/li&gt;
-  &lt;li&gt;BPageLock lock  rw_lock&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;free/LRU/flush list Mutex&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;所有的page 都在free list, LRU list, flush list 上, 所以大部分操作第一步如果需要操作这几个list, 需要首先获得这几个list mutex, 然后在进行IO 操作的过程, 是会把list Mutex 放开.&lt;/p&gt;
-
-&lt;p&gt;InnoDB 也是尽可能让持有LRU list, flush list 的时间尽可能短&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;hash_lock rw_lock&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;一个buffer pool instance 下面的buffer block 都存在一个hash table上&lt;/p&gt;
-
-&lt;p&gt;这个hash_lock 是这个hash_table 上面的slot/segment 的rw_lock, 也就是这个hash table 有多少个slot, 就有多少个这个hash_lock, 这个hash_lock 的引入也是为了尽可能的减少锁冲突, 这样可以做到需要写入的时候锁的只是这个hash_table 的slot/segment 级别&lt;/p&gt;
-
-&lt;p&gt;这里InnoDB 优化这个lock level 从整个hash table 到hash table slot 级别, 在5.6 之前的版本, 是一个整个hash table mutex.&lt;/p&gt;
-
-&lt;p&gt;从代码里面可以看到, 总是先拿 hash_lock, 然后才是 buffer block mutex 或者是 page frame mutex&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;BPageMutex mutex&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;我们也叫做buffer block mutex, 在buf_block_t 结构体里面.&lt;/p&gt;
-
-&lt;p&gt;BPageMutex mutex 保护的是io_fix, state, buf_fix_count, state 等等变量, 引入这个mutex 是为了减少早期版本直接使用buffer pool-&amp;gt;mutex 的开销
-可以理解BPageMutex 是保护buf_block_t 结构体, 而下面BPageLock 是为了保护page frame&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;io_fix, buf_fix_count&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;io_fix, buf_fix_count 受 pager block mutex的保护.&lt;/p&gt;
-
-&lt;p&gt;io_fix 表示当前的page frame 正在进行的IO 操作状态, 主要有 BUF_IO_READ, BUF_IO_WRITE, BUF_IO_PIN.&lt;/p&gt;
-
-&lt;p&gt;buf_fix_count 表示当前这个block 被引用了多少次, 每次访问一个page 的时候, 都会对buf_fix_count++, 最后在mtr:commit() 的最后资源释放阶段, 会对这个buf_fix_count–, 进行资源的释放.&lt;/p&gt;
-
-&lt;p&gt;比如: 在flush 一个page 的时候, 会检测一个page 是否可以被flush, 这里为了减少拿 page frame rw_lock, 直接通过判断 io_fix 即可&lt;/p&gt;
-
-&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;oldest_modification&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;buf_page_get_io_fix_unlocked&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUF_IO_NONE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;比如: 在检查一个block 能否被replace 的时候, 除了确定当前这个block io_fix == BUF_IO_NONE, 还需要确保当前没有其他的线程在引用这个block, 当然还需要保证当前block oldest_modification ==0.  来确定当前这个block 是否可以允许被replace&lt;/p&gt;
-
-&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;ibool&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;buf_flush_ready_for_replace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_page_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_page_in_file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;oldest_modification&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_fix_count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;buf_page_get_io_fix&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUF_IO_NONE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;可以理解, 引入io_fix, buf_fix_count 是为了减少调用page frame rw_lock 的开销, 因为page frame 的调用是在btree search 的核心路径&lt;/p&gt;
-
-&lt;p&gt;如果io_fix 处于BUF_IO_READ, BUF_IO_WRITE 那我们可以知道, 当前page 处于IO 状态, 如果要进行replace, flush 操作是不可以的, 这样就不需要去获得page frame rw_lock, 然后再检查当前page frame 是否允许这样的操作&lt;/p&gt;
-
-&lt;p&gt;所以代码里面我们会看到在设置了io_fix 的状态以后, 我们就可以把之前的几个mutex, rw_lock 都完全放开, 因为被设置了io_fix 状态的page 是不可以从list 上面删除或者replace, 需要等IO 操作完成以后, 将io_fix 设置成BUF_IO_NONE 才可以进行操作&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;BPageLock lock  rw_lock&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;如上所说, BPageMutex 是保护buf_block_t 结构体, 而BPageLock 是为了保护page frame.
-当需要对buffer pool page frame 内容进行读取/修改的时候, 就需要持有BPageLock.&lt;/p&gt;
-
-&lt;p&gt;比如最常见的我们要修改一个btree page 内容的时候,
-都需要通过btr_cur_search_to_nth_level() 把page 从磁盘读取到内存中, 然后修改.
-这里修改之前会对page 加 x lock. 如果是读取操作, 就需要加s lock.&lt;/p&gt;
-
-&lt;p&gt;同样后台进行刷脏操作的时候, 也需要对page 加x lock.&lt;/p&gt;
-
-&lt;p&gt;在InnoDB 访问btree 的过程中, btr_cur_search_to_nth_level() 函数里面, 会对btree index s lock, 如果只是修改leaf page, 那么在8.0 里面, 是沿着btree 的搜索路径, 给路径上的non-leaf page 都加上s lock, 最后给leaf page 加x lock. 具体看文章 InnoDB latch&lt;/p&gt;
-
-&lt;p&gt;但是后台操作比如刷脏, 或者当前page frame 不在buffer pool 中, 同样需要拿 page frame rw_lock, 那么是会对前台的page 访问有非常大的性能影响. 因此上述的io_fix, page block mutex 也是为了尽可能减少持有page frame rw_lock 的机会&lt;/p&gt;
-
-&lt;p&gt;我们看到官方做了很多优化, 比如尽可能减少访问btree 的时候, 拿着btree index lock, 在访问btree 的时候, 不会像在5.6 时候一样, 拿着整个btree index lock.&lt;/p&gt;
-
-&lt;p&gt;这里与5.6 对比, 5.6 在做SMO 的时候, 是所有的读操作也无法进行的, 因为读操作都需要加 index s lock..&lt;/p&gt;
-
-&lt;p&gt;在8.0 在做SMO 的时候, 因为index 加的是sx lock, 所以所有的读操作依然是可以进行的, 但是由于sx lock 和 sx lock 之间是互斥的, 因此同一时刻只能有一个smo 在进行.  但是这也比5.6 好很多,  至少在SMO 的过程, 读操作还可以进行的&lt;/p&gt;
-
-&lt;p&gt;但是8.0 里面还有一个约束就是同一时刻只能有一个SMO 正在进行, 因为SMO 的时候需要拿 sx lock. 这也是目前8.0 主要问题.&lt;/p&gt;
-
-&lt;p&gt;(其实引入sx lock 是对读取的优化, 对写入并没有优化. 因为持有sx lock 的时候, s lock 操作是可以进行的, 但是x lock 操作是不可以进行的. 跟原先需要修改就直接拿着x lock 对比, 允许更多的读取了, 但是x lock 和之前是一样的)&lt;/p&gt;
-
-&lt;p&gt;但是这些优化只是优化了用户访问路径上page frame rw_lock 的获取, 但是在后台的路径并没有过多的优化.&lt;/p&gt;
-
-&lt;p&gt;但是后台操作比如刷脏, 或者当前page frame 不在buffer pool 中, 同样需要拿 page frame rw_lock, 那么是会对前台的page 访问有非常大的性能影响. 因此上述的io_fix, page block mutex 也是为了尽可能减少持有page frame rw_lock 的机会&lt;/p&gt;
-
-&lt;p&gt;我们看到官方做了很多优化, 比如尽可能减少访问btree 的时候, 拿着btree index lock,  在访问btree 的时候, 不会像在5.6 时候一样, 拿着整个btree index lock, 尽可能的只拿着会引起树结构变化的子树. 比如引入sx lock, 在真正要修改的时候, 才会获得x lock 去修改btree. (其实引入sx lock 是对读取的优化, 对写入并没有优化. 因为持有sx lock 的时候, s lock 操作是可以进行的, 但是x lock 操作是不可以进行的. 跟原先需要修改就直接拿着x lock 对比, 允许更多的读取了, 但是x lock 和之前是一样的)&lt;/p&gt;
-
-&lt;p&gt;但是这些优化只是优化了用户访问路径上page frame rw_lock 的获取, 但是在后台的路径并没有过多的优化.&lt;/p&gt;
-
-&lt;p&gt;比如: page frame rw_lock 是在buf_page_io_complete 之后才会放开的&lt;/p&gt;
-
-&lt;p&gt;在page flush, read ahead 的时候, 在走simulated AIO 的时候, page 操作被放入队列即可, 但是并没有执行完成.&lt;/p&gt;
-
-&lt;p&gt;执行完成的通知是在simulated AIO fil_aio_wait:buf_page_io_complete() 里面完成, 在buf_page_io_complete() 操作里面, 会把page 上的rw_lock 给释放.&lt;/p&gt;
-
-&lt;p&gt;所以一个page 在进行IO 操作的时候, 是在调用simulated AIO 之前, 给page frame rw_lock 加 x/sx lock, 但是释放page frame rw_lock 需要等到IO 操作结束才可以完成, 而fio_io() 只是将IO 放到的队列中, 这个IO 并没有执行完成.  是在simulated io handler 的 fil_aio_wait() 函数里面, 这个操作才会完成, 然后调用buf_page_io_complete() 进行通知操作.&lt;/p&gt;
-
-&lt;p&gt;因此page frame 的rw_lock 的持有周期是整个异步IO 的周期, 直到IO 操作完成, 这个page frame 才会释放.&lt;/p&gt;
-
-&lt;p&gt;而page frame 的rw_lock 又是用户访问btree 路径上面的 btr_cur_search_to_nth_level() 必须要获得的lock, 因此就可能出现大量的page frame由于刷脏或者read ahead 的时候, 持有了page frame x lock/sx lock, 当用户的访问路径需要x/sx lock 的时候, 被堵塞住的情况.&lt;/p&gt;
-
-&lt;p&gt;这种堵塞住的情况, 如果是非leaf page 的时候, 影响会更明显, 而且目前InnoDB simulated AIO 的队列长度是*(n_read_thread + n_write_thread) * 256, 那么会可能出现大量的page 因为在IO 等待队列中等待, 造成更多的btree search 操作被堵住, 特别是如果底层存储IO latency 比较长的情况, 这里问题会更加的明显.&lt;/p&gt;
-
-&lt;p&gt;当然我们也通过simulated AIO 优化, copy page等等减少持有page frame 的时长.&lt;/p&gt;
-
-&lt;p&gt;buf_page_io_complete 主要做什么呢?&lt;/p&gt;
-
-&lt;p&gt;将page io_fix 设置成NONE, 表示这个page 的io 操作已经完成了&lt;/p&gt;
-
-&lt;p&gt;buf_page_set_io_fix(bpage, BUF_IO_NONE);&lt;/p&gt;
-
-&lt;p&gt;将page 上面的rw_lock 放开, 如果是read, 把 x lock 放开, 如果是write, 把sx lock 放开.&lt;/p&gt;
-
-&lt;p&gt;为什么是这样? 那么什么时候拿s lock?&lt;/p&gt;
-
-&lt;p&gt;读操作要拿 x lock 主要是为了避免多个线程同时去读这个page, 然后另外一个线程如果需要访问该page, 那么会通过buf_wait_for_read(block) 操作, 尝试给这个page frame 加s lock, 如果加成功, 这说明这个page 已经被获得了&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;总结:&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;free/LRU/flush List 相关mutex 主要是是否操作 list 时候持有.&lt;/p&gt;
-
-&lt;p&gt;而后面4个mutex 一般操作都是加hash_lock rw_lock, 然后获得buf block mutex, 放开hash_lock rw_lock, 然后修改 io_fix, buf_fix_count,然后放开 buf block mutex, 最后持有page frame rw_lock.&lt;/p&gt;
-
-&lt;p&gt;如上面所说寻找block 在hash table 的位置, 通过hash_lock slot 级别的Lock 来进行了优化, 减少了修改和查找hash table 的冲突&lt;/p&gt;
-
-&lt;p&gt;引入 buf block mutex, io_fix, buf_fix_count 将IO操作通过判断io_fix, buf_fix_count 避免不必要的获得page frame rw_lock 的开销.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;具体代码流程&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;buf_page_init_for_read&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;以 buf_read_page_low() =&amp;gt; buf_page_init_for_read() 来举例并发过程&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;// 根据page_id 返回对应的buf_pool instance
-buf_pool_t *buf_pool = buf_pool_get(page_id);&lt;/p&gt;
-
-    &lt;p&gt;// 先尝试从LRU list 获得一个free block
-block = buf_LRU_get_free_block(buf_pool);&lt;/p&gt;
-
-    &lt;p&gt;// 持有我们说的第一层 LRU_list_mutex
-mutex_enter(&amp;amp;buf_pool-&amp;gt;LRU_list_mutex);&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;// 然后持有我们说的第二层 hash_lock
-hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
-rw_lock_x_lock(hash_lock);&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;// 持有page block mutex
-buf_page_mutex_enter(block);&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;// 在持有page block mutex 的情况下, 会修改 block-&amp;gt;state, io_fix 等等&lt;/p&gt;
-
-    &lt;p&gt;buf_page_init(buf_pool, page_id, page_size, block);&lt;/p&gt;
-
-    &lt;p&gt;buf_page_set_io_fix(bpage, BUF_IO_READ);&lt;/p&gt;
-
-    &lt;p&gt;// 将当前Block 加入到LRU list 中&lt;/p&gt;
-
-    &lt;p&gt;buf_LRU_add_block(bpage, TRUE /* to old blocks */);&lt;/p&gt;
-
-    &lt;p&gt;// 释放 LRU list mutex, 这里持有LRU list mutex 到现在, 是因为要把page block 加入到LRU list中&lt;/p&gt;
-
-    &lt;p&gt;mutex_exit(&amp;amp;buf_pool-&amp;gt;LRU_list_mutex);&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;// 这里给page frame 加了rw_lock x lock,
-// 保证同一时刻只会有一个线程从磁盘去读取这个page&lt;/p&gt;
-
-    &lt;p&gt;rw_lock_x_lock_gen(&amp;amp;block-&amp;gt;lock, BUF_IO_READ);  &lt;br /&gt;
-// 依次放开hash_lock rw_lock
-rw_lock_x_unlock(hash_lock);
-// page block mutex
-buf_page_mutex_exit(block);&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;buf_page_try_get_func&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;比如在 buf_page_try_get_func() 函数里面, 也是这样顺序获得mutex 的操作.&lt;/p&gt;
-
-&lt;p&gt;// 1. 首先获得这个bp, 因此这里不涉及到各个list 相关操作, 因此没有list
-  // 相关Mutex
-  buf_pool_t *buf_pool = buf_pool_get(page_id);&lt;/p&gt;
-
-&lt;p&gt;// 2. 获得这个page 在hash table 上面的slot 上面的block, 
-  // 同时在这个函数里面, 已经把这个hash_lock 给s lock 了
-  block = buf_block_hash_get_s_locked(buf_pool, page_id, &amp;amp;hash_lock);&lt;/p&gt;
-
-&lt;p&gt;// 3. 或者这个page block block mutex, 同时将这里的hash_lock 给释放
-  buf_page_mutex_enter(block);
-  rw_lock_s_unlock(hash_lock);&lt;/p&gt;
-
-&lt;p&gt;// 4. 在持有page block mutex 之后, 给这个block buf_fix_count++, 同时把这个page block mutex 释放
-  // 这里设置了buf_fix_count 之后, 上述的mutex, rw_lock 都放开了, 因为这个page frame 在buf_fix_count != 0 的情况下, 是不能被replace 的, 会议在在buffer pool 里面, 因此后续的page frame s lock 操作可以放心操作&lt;/p&gt;
-
-&lt;p&gt;buf_block_buf_fix_inc(block, file, line);
-  buf_page_mutex_exit(block);&lt;/p&gt;
-
-&lt;p&gt;// 5. 获得这个page frame 的rw_lock
-  mtr_memo_type_t fix_type = MTR_MEMO_PAGE_S_FIX;
-  success = rw_lock_s_lock_nowait(&amp;amp;block-&amp;gt;lock, file, line);&lt;/p&gt;
-
-&lt;p&gt;在写入操作里面&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;buf_flush_page_and_try_neighbors&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;在执行刷脏的时候, 可能从LRU_list, flush_list 上面刷脏, 分别是&lt;/p&gt;
-
-&lt;p&gt;buf_do_LRU_batch, buf_do_flush_list_batch&lt;/p&gt;
-
-&lt;p&gt;这两个函数都会调用 buf_flush_page_and_try_neighbors 进行刷脏操作, 这里在进行具体page 刷脏操作过程中是会将 lru_list_mutex/flush_list_mutex 放开, 然后操作完成以后再持有&lt;/p&gt;
-
-&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;flush_type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUF_FLUSH_LRU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;mutex_exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_pool&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;LRU_list_mutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;flush_type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUF_FLUSH_LRU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;mutex_exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block_mutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;buf_flush_list_mutex_exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_pool&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;// 在进行具体flush 操作的时候, 是会将LRU_list_mutex/buf_flush_list mutex放开&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf_flush_try_neighbors&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;page_id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;flush_type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n_to_flush&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;flush_type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUF_FLUSH_LRU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-   &lt;span class=&quot;n&quot;&gt;mutex_enter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_pool&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;LRU_list_mutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-   &lt;span class=&quot;n&quot;&gt;buf_flush_list_mutex_enter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_pool&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;具体的page flush 操作&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;buf_flush_try_neighbors =&amp;gt; buf_flush_page&lt;/strong&gt;&lt;/p&gt;
-
-&lt;div class=&quot;language-c++ highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;
-&lt;span class=&quot;c1&quot;&gt;// 1. 首先获得 hash_lock rw_lock&lt;/span&gt;
-&lt;span class=&quot;cm&quot;&gt;/* We only want to flush pages from this buffer pool. */&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf_page_hash_get_s_locked&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buf_pool&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;cur_page_id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hash_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-&lt;span class=&quot;c1&quot;&gt;// 2. 然后是获得page header mutex, 同事释放hash_lock &lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;block_mutex&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buf_page_get_mutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;mutex_enter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block_mutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;rw_lock_s_unlock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hash_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-&lt;span class=&quot;c1&quot;&gt;// =&amp;gt; 进入buf_flush_page()&lt;/span&gt;
-
-&lt;span class=&quot;c1&quot;&gt;// 3. 修改 io_fix 设置成 BUF_IO_WRITE&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;buf_page_set_io_fix&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUF_IO_WRITE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;// 4. 放开buf block mutex&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;// 因为已经修改了 io_fixed 和 oldest_modification&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;// 因此到这里已经不需要持有任何mutex 了&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;mutex_exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block_mutex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;// 5. 获得这个page frame 的 rw_lock&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;rw_lock_sx_lock_gen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rw_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUF_IO_WRITE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;// 对这个page 进行flush 操作的时候, 不需要持有mutex&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;buf_flush_write_block_low&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bpage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;flush_type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sync&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-</description>
-        <pubDate>Mon, 13 Apr 2020 00:00:00 +0800</pubDate>
-        <link>http://localhost:4000/2020/04/13/innodb-bp-coucurrency/</link>
-        <guid isPermaLink="true">http://localhost:4000/2020/04/13/innodb-bp-coucurrency/</guid>
       </item>
     
   </channel>

@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?202207041525" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?202208210357" type="text/css">
 
     <!-- Fonts -->
     
@@ -124,6 +124,8 @@
 
     
 
+    
+
 
     
 
@@ -135,6 +137,8 @@
 
     
         <a href="/links/">Links</a>
+    
+
     
 
     
@@ -214,6 +218,8 @@
 
     
 
+    
+
 
       </nav>
       <div class="clearfix"></div>
@@ -230,6 +236,48 @@
 <div class="home">
   
     <div class="posts">
+      
+        <div class="post py3">
+          <p class="post-meta">Nov 16 2012</p>
+          <a href="/2012/11/16/linux-kernel-process/" class="post-link"><h3 class="h1 post-title">Linux内核设计与实现-进程内存使用</h3></a>
+          <p class="post-summary">
+            
+              <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+  <span class="k">while</span> <span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+  <span class="p">};</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Oct 18 2012</p>
+          <a href="/2012/10/18/linux-kernel-io/" class="post-link"><h3 class="h1 post-title">Linux内核的设计与实现:块I/O层</h3></a>
+          <p class="post-summary">
+            
+              <h3 id="块设备">块设备</h3>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Sep 12 2012</p>
+          <a href="/2012/09/12/c++-constuct/" class="post-link"><h3 class="h1 post-title">c++对象模型 构造函数语义学</h3></a>
+          <p class="post-summary">
+            
+              <h3 id="1-c-不会为所有的class构造默认的constructor">1. C++ 不会为所有的class构造默认的constructor</h3>
+
+
+            
+          </p>
+        </div>
       
         <div class="post py3">
           <p class="post-meta">Aug 25 2012</p>
@@ -311,53 +359,6 @@
           <p class="post-summary">
             
               <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>1.signal(SIGINT, sig_handler);
-</code></pre></div></div>
-
-
-            
-          </p>
-        </div>
-      
-        <div class="post py3">
-          <p class="post-meta">Mar 5 2012</p>
-          <a href="/tech/2012/03/05/memcached-meituan/" class="post-link"><h3 class="h1 post-title">Memcache stats mt 线上使用情况</h3></a>
-          <p class="post-summary">
-            
-              <p>美团网memcached的使用情况,线上有3个memcached服务器,默认的内存空间是256M.</p>
-
-
-            
-          </p>
-        </div>
-      
-        <div class="post py3">
-          <p class="post-meta">Feb 18 2012</p>
-          <a href="/tech/2012/02/18/memcache-slabs/" class="post-link"><h3 class="h1 post-title">Memcache 内存分配</h3></a>
-          <p class="post-summary">
-            
-              <p>内存分配主要在slab.c里面实现.
-slabclass 的数据结构</p>
-
-
-            
-          </p>
-        </div>
-      
-        <div class="post py3">
-          <p class="post-meta">Feb 4 2012</p>
-          <a href="/tech/2012/02/04/event-like-memcache/" class="post-link"><h3 class="h1 post-title">event + 线程池模型的 server 类似 Memcache线程池模型</h3></a>
-          <p class="post-summary">
-            
-              <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/*
-    main.h
-    定义了三个数据结构 conn_queue_item,work_thread,dispatch_thread.
-    conn_queue_item 只是存dispatch_thread accept 以后的描述符,然后
-    dispatch_thread 将conn_queue_item 存入某一个work_thread.
-    work_thread 真正负责work的thread.
-    dispatch_thread 监听9877端口,并且将accept后的fd传给work_thread.
-*/
-#ifndef MAINH
-#define MAINH
 </code></pre></div></div>
 
 

@@ -16,7 +16,7 @@
     <link rel="alternate" type="application/rss+xml" title="RSS Feed for baotiao" href="/feed.xml" />
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/css/pixyll.css?202207041525" type="text/css">
+    <link rel="stylesheet" href="/css/pixyll.css?202208210357" type="text/css">
 
     <!-- Fonts -->
     
@@ -124,6 +124,8 @@
 
     
 
+    
+
 
     
 
@@ -135,6 +137,8 @@
 
     
         <a href="/links/">Links</a>
+    
+
     
 
     
@@ -214,6 +218,8 @@
 
     
 
+    
+
 
       </nav>
       <div class="clearfix"></div>
@@ -230,6 +236,53 @@
 <div class="home">
   
     <div class="posts">
+      
+        <div class="post py3">
+          <p class="post-meta">Mar 5 2012</p>
+          <a href="/tech/2012/03/05/memcached-meituan/" class="post-link"><h3 class="h1 post-title">Memcache stats mt 线上使用情况</h3></a>
+          <p class="post-summary">
+            
+              <p>美团网memcached的使用情况,线上有3个memcached服务器,默认的内存空间是256M.</p>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Feb 18 2012</p>
+          <a href="/tech/2012/02/18/memcache-slabs/" class="post-link"><h3 class="h1 post-title">Memcache 内存分配</h3></a>
+          <p class="post-summary">
+            
+              <p>内存分配主要在slab.c里面实现.
+slabclass 的数据结构</p>
+
+
+            
+          </p>
+        </div>
+      
+        <div class="post py3">
+          <p class="post-meta">Feb 4 2012</p>
+          <a href="/tech/2012/02/04/event-like-memcache/" class="post-link"><h3 class="h1 post-title">event + 线程池模型的 server 类似 Memcache线程池模型</h3></a>
+          <p class="post-summary">
+            
+              <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/*
+    main.h
+    定义了三个数据结构 conn_queue_item,work_thread,dispatch_thread.
+    conn_queue_item 只是存dispatch_thread accept 以后的描述符,然后
+    dispatch_thread 将conn_queue_item 存入某一个work_thread.
+    work_thread 真正负责work的thread.
+    dispatch_thread 监听9877端口,并且将accept后的fd传给work_thread.
+*/
+#ifndef MAINH
+#define MAINH
+</code></pre></div></div>
+
+
+            
+          </p>
+        </div>
       
         <div class="post py3">
           <p class="post-meta">Feb 1 2012</p>
@@ -312,74 +365,6 @@
             
               <p>cola.php 是一个叫付超群写得框架,可能对比较大型的框架理解不清楚,可以先看这个比较小型的.
 0.1版就包含了框架里面最主要的几个文件,那些扩张功能还不包括在里面,非常适合让我们理解如何实现一个mvc框架的过程.</p>
-
-
-            
-          </p>
-        </div>
-      
-        <div class="post py3">
-          <p class="post-meta">Aug 17 2011</p>
-          <a href="/2011/08/17/grep-in-awk/" class="post-link"><h3 class="h1 post-title">grep in awk</h3></a>
-          <p class="post-summary">
-            
-              <p>```shell
-awk ‘BEGIN {while (( getline &lt; “f2” &gt; 0 )) { f2[lc] = $0 ;lc++;}} { for (i=1; i&lt;lc; i++) { if (match (f2[i], $1)) print f2[i];}}’ f1</p>
-
-
-            
-          </p>
-        </div>
-      
-        <div class="post py3">
-          <p class="post-meta">Aug 12 2011</p>
-          <a href="/tech/2011/08/12/vim/" class="post-link"><h3 class="h1 post-title">vim 一些命令</h3></a>
-          <p class="post-summary">
-            
-              <ul>
-  <li>x dw是删除单词用的  还有d$是删除到当前行的末尾 U 是用来作回复对当前行的修改</li>
-  <li>还有就是 dd 完以后可以直接按p就可以实现复制粘帖 不过貌似只能对一行用</li>
-  <li>然后就是修改句子中的某一个字符  就可以直接 r然后一个字符就修改光标处的 字符</li>
-  <li>cw 用来改变一个单词的部分或者全部  从光标在的那个地方修改</li>
-  <li>同样c 和d 是一系列的 也有 c$ 就是修改的最后为止</li>
-  <li>ctrl-g 显示当前光标和文件状态</li>
-  <li>/ 是用来做正方向查找，然后?是用来作反方向查找</li>
-  <li>%可以找到匹配的括号处</li>
-  <li>替换的时候 如果要替换某一行，那么 直接 :s/thee/the/g 就可以直接替换thee为the了</li>
-  <li>:s/thee/the/gc 会加一次询问而已</li>
-  <li>也可以先选中某一个区域块里面的进行修改，系统默认会多出一些&lt;&gt;什么东西，直接写上:s就可以了</li>
-  <li>还有一种全屏替换的方法是  :%s/thee/the/g这样就可以了</li>
-  <li>想执行外部命令直接加一个  :!就可以了</li>
-  <li>:10,20 w test 是把从几行到几行存起来</li>
-  <li>然后 :r test是从这个文件中载入这个test 的文件</li>
-  <li>o是在本行下面打开新的一行，O是本行上面打开， Shif O 是在本行上面开一行，不过光标不转过去而已</li>
-  <li>a是光标后面一个插入，A是在本行的末尾插入</li>
-  <li>R是替换</li>
-  <li>按住b是从后面往前面跳一个单词</li>
-  <li>ct！，这会删除从光标位置到下一个叹号（但不包括）   比如  ct{ 就算删除到 { 之前为止..</li>
-  <li>‘’ 直接是跳回到光标 上一次在的地方</li>
-  <li>tabe 是在上面开一个东西,然后可以在vimrc 里面配置 就可以用 ctrl n ctrl p 来来回移动了 vim 在写 html 的时候有 比如 &lt;h 1&gt;sdfsdsdfsd &lt;/h 1&gt; 那么 你 直接  dit  t 是 tab 的意思  意味着标签,就可以把 中间的东西删掉了   如果是 dat 的话 就连h1也一起删掉了</li>
-  <li>同样在写其他的时候也一样  用 ‘dfdfdfd’  那么 就是  di’ 就是中间的东西删除掉  用 da’的话就连‘也一起删除了 fx移动光标到当前行的下一个 x 处。很明显，x 可以是任意一个字母，而且你可以使用 ; 来重复你的上一个 f 命令。</li>
-  <li>tx 和上面的命令类似，但是是移动到 x 的左边一个位置。（这真的很有用）</li>
-  <li>” 这个符号是用来使用寄存器的 :reg 就可以列出来现在寄存器里面复制的东西</li>
-  <li>我们要拷贝当前行到寄存器 k。你应该按 “kyy “kp 来粘贴寄存器 k 里面的内容到你想要的位置</li>
-  <li>这个是用来设定搜索的时候要不要注意大小写（:set ic 和 :set noic）</li>
-  <li>dG 就是删除某一行下面的所有行  dgg 就是删除某一行上面的所有行</li>
-  <li>vim 里面复制的时候到某个地方 要把某几行先删除掉,然后再粘贴过去,应该是先复制好,然后在选择上要删除的那些行,然后p</li>
-  <li>yw 是复制某一个单词.</li>
-  <li>vim 里面 set ic 和 set noic 就是要不要大小写.</li>
-</ul>
-
-            
-          </p>
-        </div>
-      
-        <div class="post py3">
-          <p class="post-meta">Aug 10 2011</p>
-          <a href="/2011/08/10/iconv/" class="post-link"><h3 class="h1 post-title">iconv 脚本 转换字符编码脚本</h3></a>
-          <p class="post-summary">
-            
-              <p>这个脚本碰到有些别字的中文的时候会报错,直接去文件里面该就可以了.iconv: 北京.csv:31:12: cannot convert</p>
 
 
             
