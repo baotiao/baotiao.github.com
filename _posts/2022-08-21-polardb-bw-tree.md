@@ -4,7 +4,7 @@ title: 长路漫漫, 从Blink-tree 到Bw-tree (上)
 summary: 天不生我bw-tree, 索引万古如长夜
 ---
 
-> 天不生我bw-tree, 索引万古如长夜
+> 天不生我 bw-tree, 索引万古如长夜
 >
 
 ### 背景
