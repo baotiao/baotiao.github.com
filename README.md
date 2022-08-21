@@ -1,2 +1,1 @@
-### my blog
-http://baotiao.github.io/
+# ba0tiao.github.io

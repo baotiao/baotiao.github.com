@@ -333,7 +333,7 @@ In this traditional database system architecture, the progress guarantees of lat
 
 当然这里的本质原因是操作系统的调度不感知用户层的信息, 也不可能感知. 持有Latch thread 和waiting latch thread 在操作系统眼里是一样的.
 
-现在一些新的im-memory database 一般都才去latch based 的方法, 尽可能不依赖操作系统的调度.
+现在一些新的im-memory database 一般采取latch based 的方法, 尽可能不依赖操作系统的调度.
 
 而MySQL 正好属于这种场景, 在大量的并发场景下, 活跃连接远远高于cpu 核数. 所以latch free 是有意义的.
 
@@ -355,13 +355,18 @@ In this traditional database system architecture, the progress guarantees of lat
 
 **References:**
 
-[1]  Z. Wang, et al., [Building A Bw-Tree Takes More Than Just Buzz Words](https://15721.courses.cs.cmu.edu/spring2020/papers/06-oltpindexes1/mod342-wangA.pdf), in *SIGMOD*, 2018 
+[1]  Z. Wang, et al., [Building A Bw-Tree Takes More Than Just Buzz Words](https://15721.courses.cs.cmu.edu/spring2020/papers/06-oltpindexes1/mod342-wangA.pdf), in *SIGMOD*, 2018
+
 [2] S.K. Cha, et al., [Cache-Conscious Concurrency Control of Main-Memory Indexes on Shared-Memory Multiprocessor Systems](https://15721.courses.cs.cmu.edu/spring2020/papers/06-oltpindexes1/cha-vldb2001.pdf), in *VLDB*, 2001 *(Optional)*
+
 [3] G. Graefe, [A Survey of B-Tree Locking Techniques](https://15721.courses.cs.cmu.edu/spring2020/papers/06-oltpindexes1/a16-graefe.pdf), in *TODS*, 2010 *(Optional)*
+
 [4]  J. Faleiro, et al., [Latch-free Synchronization in Database Systems: Silver Bullet or Fool's Gold?](https://15721.courses.cs.cmu.edu/spring2020/papers/06-oltpindexes1/faleiro-cidr17.pdf), in *CIDR*, 2017 *(Optional)*
+
 [5]  J. Levandoski, et al., [The Bw-Tree: A B-tree for New Hardware](https://15721.courses.cs.cmu.edu/spring2020/papers/06-oltpindexes1/bwtree-icde2013.pdf), in *ICDE*, 2013 *(Optional)*
 
 [6]  V. Leis, et al., [The ART of Practical Synchronization](https://15721.courses.cs.cmu.edu/spring2020/papers/07-oltpindexes2/leis-damon2016.pdf), in *DaMoN*, 2016 *(Optional)*
+
 [7]  V. Leis, et al., [The Adaptive Radix Tree: ARTful Indexing for Main-Memory Databases](https://15721.courses.cs.cmu.edu/spring2020/papers/07-oltpindexes2/leis-icde2013.pdf), in *ICDE*, 2013 *(Optional)*
 
 [8] https://15721.courses.cs.cmu.edu/spring2020/schedule.html
