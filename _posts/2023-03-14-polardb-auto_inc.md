@@ -26,28 +26,7 @@ summary: PolarDB auto_inc 场景性能优化之路
 
 所以这样的场景是允许出现的: 并发Insert 时, 后续有可能插入比当前 auto_inc value 小的行
 
-```mysql
-mysql> create table t1 (`id` int(10) NOT NULL AUTO_INCREMENT,`c1` int(11) NOT NULL,PRIMARY KEY (`id`));
-Query OK, 0 rows affected (0.04 sec)
-
-### Session 1																### Session 2
-mysql> INSERT INTO t1 (c1) VALUES (123);    mysql> INSERT INTO t1 (c1) VALUES (456);
-Query OK, 1 row affected (20.41 sec)				Query OK, 1 row affected (0.06 sec)																																											
-																						mysql> select * from t1;
-																						+----+-----+
-																						| id | c1  |
-																						+----+-----+
-																						|  2 | 456 |
-																						+----+-----+
-mysql> select * from t1;
-+----+-----+
-| id | c1  |
-+----+-----+
-|  1 | 123 |
-|  2 | 456 |
-+----+-----+																			
-																						
-```
+![image-20230314173155947](https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20230314173155947.png)														
 
 
 
