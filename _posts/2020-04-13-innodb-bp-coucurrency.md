@@ -20,6 +20,8 @@ InnoDB 对buffer pool 的访问除了包含了用户线程会并发访问buffer 
 
 所有的page 都在free list, LRU list, flush list 上, 所以大部分操作第一步如果需要操作这几个list, 需要首先获得这几个list mutex, 然后在进行IO 操作的过程, 是会把list Mutex 放开.
 
+但是只有LRU list Mutex 的latch order 在page mutex 前面, 因此持有LRU list Mutex 可以直接持有page mutex, 但是持有free list/flush list 则不可以.
+
 InnoDB 也是尽可能让持有LRU list, flush list 的时间尽可能短
 
 
@@ -38,17 +40,38 @@ InnoDB 也是尽可能让持有LRU list, flush list 的时间尽可能短
 
 **BPageMutex mutex**
 
-我们也叫做buffer block mutex, 在buf_block_t 结构体里面.
+我们也叫做page block mutex, 在buf_block_t 结构体里面.
 
 BPageMutex mutex 保护的是io_fix, state, buf_fix_count, state 等等变量, 引入这个mutex 是为了减少早期版本直接使用buffer pool->mutex 的开销
+
 可以理解BPageMutex 是保护buf_block_t 结构体, 而下面BPageLock 是为了保护page frame
+
+比如常见代码
+
+```c++
+ib_mutex_t* mutex = buf_page_get_mutex(&block->page);
+mutex_enter(mutex);
+io_fix = buf_block_get_io_fix(block);
+mutex_exit(mutex);
+```
+
+
+
 
 
 **io_fix, buf_fix_count**
 
-io_fix, buf_fix_count 受 pager block mutex的保护.
+io_fix, buf_fix_count 受 page block mutex的保护.
 
-io_fix 表示当前的page frame 正在进行的IO 操作状态, 主要有 BUF_IO_READ, BUF_IO_WRITE, BUF_IO_PIN.
+io_fix 表示当前的page frame 正在进行的IO 操作状态, 主要有 BUF_IO_READ, BUF_IO_WRITE, BUF_IO_PIN, BUF_IO_NONE.
+
+BUF_IO_READ: 当前Page 正在从disk 读取到buffer pool 中.
+
+BUF_IO_WRITE: 当前Page 正在从buffer pool 写入到disk 中. 在 buf_flush_page() 函数执行刷脏的时候设置.
+
+一旦IO 操作结束, 在 buf_page_io_complete()  io_fix 会被设置成 BUF_IO_NONE.
+
+
 
 buf_fix_count 表示当前这个block 被引用了多少次, 每次访问一个page 的时候, 都会对buf_fix_count++, 最后在mtr:commit() 的最后资源释放阶段, 会对这个buf_fix_count--, 进行资源的释放.
 
@@ -86,35 +109,29 @@ ibool buf_flush_ready_for_replace(buf_page_t *bpage) {
 
 **BPageLock lock  rw_lock**
 
-如上所说, BPageMutex 是保护buf_block_t 结构体, 而BPageLock 是为了保护page frame.
-当需要对buffer pool page frame 内容进行读取/修改的时候, 就需要持有BPageLock.
+如上所说, BPageMutex 是保护buf_block_t 结构体, 而BPageLock 是为了保护page frame.  当需要对buffer pool page frame 内容进行读取/修改的时候, 就需要持有BPageLock.
 
-比如最常见的我们要修改一个btree page 内容的时候,
-都需要通过btr_cur_search_to_nth_level() 把page 从磁盘读取到内存中, 然后修改.
-这里修改之前会对page 加 x lock. 如果是读取操作, 就需要加s lock.
+比如最常见的我们要修改一个btree page 内容的时候, 都需要通过btr_cur_search_to_nth_level() 把page 从磁盘读取到内存中, 然后修改. 这里修改之前会对page 加 x lock. 如果是读取操作, 就需要加s lock.
 
-同样后台进行刷脏操作的时候, 也需要对page 加x lock.
+同样后台进行刷脏操作的时候, 在进行具体 IO write 操作阶段, 对 page 加s lock. 在进行具体的从磁盘读取到buffer pool 阶段, 对page 加 x lock.
 
-在InnoDB 访问btree 的过程中, btr_cur_search_to_nth_level() 函数里面, 会对btree index s lock, 如果只是修改leaf page, 那么在8.0 里面, 是沿着btree 的搜索路径, 给路径上的non-leaf page 都加上s lock, 最后给leaf page 加x lock. 具体看文章 InnoDB latch
+这里要区分进行IO 过程中对rw_lock 的用途. 以及正常没有进行IO 操作的时候, btr_cur_search_to_nth_level() 对bp 中的page s/x lock 的用途.
+
+
+
+在InnoDB 访问btree 的过程中, btr_cur_search_to_nth_level() 函数里面, 会对btree index s lock, 如果只是修改leaf page, 那么在8.0 里面, 是沿着btree 的搜索路径, 给路径上的non-leaf page 都加上s lock, 最后给leaf page 加x lock. 具体看文章 [InnoDB latch](./InnoDB btr | InnoDB latch.md)
 
 但是后台操作比如刷脏, 或者当前page frame 不在buffer pool 中, 同样需要拿 page frame rw_lock, 那么是会对前台的page 访问有非常大的性能影响. 因此上述的io_fix, page block mutex 也是为了尽可能减少持有page frame rw_lock 的机会
 
-我们看到官方做了很多优化, 比如尽可能减少访问btree 的时候, 拿着btree index lock, 在访问btree 的时候, 不会像在5.6 时候一样, 拿着整个btree index lock.
+我们看到官方做了很多优化, 比如尽可能减少访问btree 的时候, 拿着btree index lock,  在访问btree 的时候, 不会像在5.6 时候一样, 拿着整个btree index lock.
 
 这里与5.6 对比, 5.6 在做SMO 的时候, 是所有的读操作也无法进行的, 因为读操作都需要加 index s lock..
 
-在8.0 在做SMO 的时候, 因为index 加的是sx lock, 所以所有的读操作依然是可以进行的, 但是由于sx lock 和 sx lock 之间是互斥的, 因此同一时刻只能有一个smo 在进行.  但是这也比5.6 好很多,  至少在SMO 的过程, 读操作还可以进行的
+在8.0 在做SMO 的时候, 因为index 加的是sx lock, 所以所有的读操作依然是可以进行的, 但是由于sx lock 和 sx lock 之间是互斥的, 因此同一时刻只能有一个smo 在进行. 但是这也比5.6 好很多,  至少在SMO 的过程, 读操作还可以进行的
 
 但是8.0 里面还有一个约束就是同一时刻只能有一个SMO 正在进行, 因为SMO 的时候需要拿 sx lock. 这也是目前8.0 主要问题.
 
 (其实引入sx lock 是对读取的优化, 对写入并没有优化. 因为持有sx lock 的时候, s lock 操作是可以进行的, 但是x lock 操作是不可以进行的. 跟原先需要修改就直接拿着x lock 对比, 允许更多的读取了, 但是x lock 和之前是一样的)
-
-但是这些优化只是优化了用户访问路径上page frame rw_lock 的获取, 但是在后台的路径并没有过多的优化.
-
-
-但是后台操作比如刷脏, 或者当前page frame 不在buffer pool 中, 同样需要拿 page frame rw_lock, 那么是会对前台的page 访问有非常大的性能影响. 因此上述的io_fix, page block mutex 也是为了尽可能减少持有page frame rw_lock 的机会
-
-我们看到官方做了很多优化, 比如尽可能减少访问btree 的时候, 拿着btree index lock,  在访问btree 的时候, 不会像在5.6 时候一样, 拿着整个btree index lock, 尽可能的只拿着会引起树结构变化的子树. 比如引入sx lock, 在真正要修改的时候, 才会获得x lock 去修改btree. (其实引入sx lock 是对读取的优化, 对写入并没有优化. 因为持有sx lock 的时候, s lock 操作是可以进行的, 但是x lock 操作是不可以进行的. 跟原先需要修改就直接拿着x lock 对比, 允许更多的读取了, 但是x lock 和之前是一样的)
 
 但是这些优化只是优化了用户访问路径上page frame rw_lock 的获取, 但是在后台的路径并没有过多的优化.
 
@@ -138,17 +155,81 @@ ibool buf_flush_ready_for_replace(buf_page_t *bpage) {
 
 
 
-buf_page_io_complete 主要做什么呢?
+**buf_page_io_complete** 主要做什么呢?
 
-将page io_fix 设置成NONE, 表示这个page 的io 操作已经完成了
+同步IO 和 异步IO 操作都会调用 buf_page_io_complete.
+
+同步read 操作buf_read_page_low  sync=true 最后会调用
+
+同步write 操作 buf_flush_write_block_low  sync=true 也会调用, 当然只有single page flush 才会同步刷脏
+
+
+
+buf_page_io_complete 主要工作:
+
+将page io_fix 设置成NONE, 表示这个page 的io 操作已经完成了.
 
 buf_page_set_io_fix(bpage, BUF_IO_NONE);
+
+另外重要的是IO 操作完成以后, 因此buf_page_io_complete 是完成异步的IO 操作, 那么就需要唤醒等待在这个IO 的线程.
+
+如果是读操作, 要注意的是, 在这里才会将page x lock 放开.
+
+如果是写操作, 执行buf_flush_write_complete() 将 flush list, LRU list 上的page 删除等等操作, POLARDB 的copy page 也在这里进行删除操作
 
 将page 上面的rw_lock 放开, 如果是read, 把 x lock 放开, 如果是write, 把sx lock 放开.
 
 为什么是这样? 那么什么时候拿s lock?
 
-读操作要拿 x lock 主要是为了避免多个线程同时去读这个page, 然后另外一个线程如果需要访问该page, 那么会通过buf_wait_for_read(block) 操作, 尝试给这个page frame 加s lock, 如果加成功, 这说明这个page 已经被获得了
+read 操作要拿page x lock 因为read操作会从磁盘中读取数据, 会修改page 里面的内容, 另外为了避免多个线程同时去读这个page, 然后另外一个线程如果需要访问该page, 那么会通过buf_wait_for_read(block) 操作, 尝试给这个page frame 加s lock, 如果加成功, 这说明这个page 已经被获得了
+
+write 操作要拿page s lock. 在5.7/8.0 以后持有的是sx lock. 因为write 操作不会修改page 中的内容, 但是需要防止有人在write page 的时候对page 进行修改.
+
+<img src="https://raw.githubusercontent.com/baotiao/bb/main/img/20210222062245.png" style="zoom:33%;" />
+
+
+
+**那么这些latch 是如何保证并发访问控制的时候不会出现死锁呢?**
+
+在InnoDB 里面定义了所有latch 的latch order, 所有thread 都按照这个顺序进行加锁, 那么就不会出现死锁情况, 其中对于InnoDB buffer pool 这块的latch 是这样的顺序
+
+<img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20230516040059736.png" alt="image-20230516040059736" style="zoom:40%;" />
+
+
+
+比如:
+
+在 buf_LRU_free_page() 里面, 为了加hash_lock (SYNC_BUF_PAGE_HASH) mutex, 因为已经持有block_mutex(SYNC_BUF_BLOCK), 就必须先释放block_mutex(SYNC_BUF_BLOCK), 然后再重新加上.
+
+![image-20230516042316725](https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20230516042316725.png)
+
+
+
+可以看到上述的latch order 是BUF_LRU_LIST => BUF_BLOCK => BUF_FLUSH_LIST, 而不是BUF_LRU_LIST => BUF_FLUSH_LIST => BUF_BLOCK. 为啥要把flush_list 的latch 放在buf_block 后面呢?
+
+
+
+因为这样的顺序会出现很奇怪的代码.
+
+比如 buf_flush_batch 函数里面, 对lru list 刷脏的时候需要提前持有 list_list mutex, 但是对flush list 刷脏的时候不需要持有flush list mutex? 这里是严格按照latch order 定义的, 但是为什么latch order 要这样设定呢?
+
+<img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20230516040002096.png" alt="image-20230516040002096" style="zoom: 33%;" />
+
+
+
+我理解最常见的操作流程是这样的
+
+对Btree 的修改: 先从LRU_list 找一个free block 的时候持有LRU list, 拿到block 以后持有block latch, 最后要去flush list 上面修改, 持有flush list.  这样就顺序就是latch order 里面的顺序,
+
+但是其他场景就只能按照这个顺序了, 所以代码里面经常出现这种 持有 flush_list mutex 的时候, 要想获得block_mutex, 需要先释放一下 flush_list mutex.
+
+在buf_flush_page_and_try_neighbors() 里面, buf_flush_try_neighbors() 是需要持有block latch, 那么就需要提前将flush_list mutex 释放, 当然这里释放flush_list mutex 也为了避免进行IO 过程持有flush_list mutex 过长时间.
+
+![image-20230521225605569](https://raw.githubusercontent.com/baotiao/oss/master/uPic/image-20230521225605569.png?token=AAE6OLEO62BC5OJE7FO6JFLENIYVA)
+
+
+
+所以在Buffer Pool 的代码里面, 出现非常多的针对LRU_list 和 flush_list 不同的处理方式, 比如在持有LRU_list 以后可以直接持有block_mutex, 但是持有flush_list 则不可以等等.
 
 
 
@@ -212,6 +293,7 @@ free/LRU/flush List 相关mutex 主要是是否操作 list 时候持有.
     buf_page_mutex_exit(block);
 
 
+
 **buf_page_try_get_func**
 
 比如在 buf_page_try_get_func() 函数里面, 也是这样顺序获得mutex 的操作.
@@ -237,6 +319,8 @@ free/LRU/flush List 相关mutex 主要是是否操作 list 时候持有.
   // 5. 获得这个page frame 的rw_lock
   mtr_memo_type_t fix_type = MTR_MEMO_PAGE_S_FIX;
   success = rw_lock_s_lock_nowait(&block->lock, file, line);
+
+
 
 
 
@@ -273,15 +357,14 @@ if (flush_type == BUF_FLUSH_LRU) {
 
 具体的page flush 操作
 
-**buf_flush_try_neighbors => buf_flush_page**
+**buf_flush_try_neighbors => buf_flush_page **
 
 ```c++
-
 // 1. 首先获得 hash_lock rw_lock
 /* We only want to flush pages from this buffer pool. */
 bpage = buf_page_hash_get_s_locked(buf_pool, cur_page_id, &hash_lock);
 
-// 2. 然后是获得page header mutex, 同事释放hash_lock 
+// 2. 然后是获得page header mutex, 同时释放hash_lock 
 block_mutex = buf_page_get_mutex(bpage);
 mutex_enter(block_mutex);
 rw_lock_s_unlock(hash_lock);
@@ -298,6 +381,4 @@ mutex_exit(block_mutex);
 rw_lock_sx_lock_gen(rw_lock, BUF_IO_WRITE);
 // 对这个page 进行flush 操作的时候, 不需要持有mutex
 buf_flush_write_block_low(bpage, flush_type, sync);
-
 ```
-
