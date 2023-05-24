@@ -5,8 +5,6 @@ summary: Buffer pool 并发控制
 
 ---
 
-### Buffer pool 并发控制
-
 InnoDB 对buffer pool 的访问除了包含了用户线程会并发访问buffer pool 以外, 同时还有其他的后台线程也在访问buffer pool, 比如刷脏, purge, IO 模块等等, InnoDB 主要通过5个不同维度的mutex, rw_lock, io_fix 进行并发访问的控制
 
 1. free/LRU/flush list Mutex
@@ -212,26 +210,113 @@ write 操作要拿page s lock. 在5.7/8.0 以后持有的是sx lock. 因为write
 
 比如 buf_flush_batch 函数里面, 对lru list 刷脏的时候需要提前持有 list_list mutex, 但是对flush list 刷脏的时候不需要持有flush list mutex? 这里是严格按照latch order 定义的, 但是为什么latch order 要这样设定呢?
 
-<img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20230516040002096.pnck 以后持有block latch, 最后要去flush list 上面修改, 持有flush list.  这样就顺序就是latch order 里面的顺序,
+<img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20230516040002096.png" alt="image-20230516040002096" style="zoom: 33%;" />
 
-但是其他场景就只能按照这个顺序了, 所以代码里面经常出现这种 持有 flush_list mutex 皈就需要提前将flush_list mutex 释放, 当然这里释æck mutex, 放开hash_lock rw_lock, 然后修改 io_fix, buf_fix_count,然后放开 buf block mutex, 最后持有page fre_id);
 
-     // 先尝试从LRU list 获得一个free block   block = buf_LRU_get_free_block(buf_pool);
+
+我理解最常见的操作流程是这样的
+
+对Btree 的修改: 先从LRU_list 找一个free block 的时候持有LRU list, 拿到block 以后持有block latch, 最后要去flush list 上面修改, 持有flush list.  这样就顺序就是latch order 里面的顺序,
+
+但是其他场景就只能按照这个顺序了, 所以代码里面经常出现这种 持有 flush_list mutex 的时候, 要想获得block_mutex, 需要先释放一下 flush_list mutex.
+
+在buf_flush_page_and_try_neighbors() 里面, buf_flush_try_neighbors() 是需要持有block latch, 那么就需要提前将flush_list mutex 释放, 当然这里释放flush_list mutex 也为了避免进行IO 过程持有flush_list mutex 过长时间.
+
+![image-20230521225605569](https://raw.githubusercontent.com/baotiao/oss/master/uPic/image-20230521225605569.png?token=AAE6OLEO62BC5OJE7FO6JFLENIYVA)
+
+
+
+所以在Buffer Pool 的代码里面, 出现非常多的针对LRU_list 和 flush_list 不同的处理方式, 比如在持有LRU_list 以后可以直接持有block_mutex, 但是持有flush_list 则不可以等等.
+
+
+
+**总结:**
+
+free/LRU/flush List 相关mutex 主要是是否操作 list 时候持有.
+
+而后面4个mutex 一般操作都是加hash_lock rw_lock, 然后获得buf block mutex, 放开hash_lock rw_lock, 然后修改 io_fix, buf_fix_count,然后放开 buf block mutex, 最后持有page frame rw_lock.
+
+如上面所说寻找block 在hash table 的位置, 通过hash_lock slot 级别的Lock 来进行了优化, 减少了修改和查找hash table 的冲突
+
+引入 buf block mutex, io_fix, buf_fix_count 将IO操作通过判断io_fix, buf_fix_count 避免不必要的获得page frame rw_lock 的开销.
+
+
+
+**具体代码流程**
+
+
+
+**buf_page_init_for_read**
+
+以 buf_read_page_low() => buf_page_init_for_read() 来举例并发过程
+
+1.   // 根据page_id 返回对应的buf_pool instance
+     buf_pool_t *buf_pool = buf_pool_get(page_id);
+
+     // 先尝试从LRU list 获得一个free block
+     block = buf_LRU_get_free_block(buf_pool);
      
-     // page block mutex
+     // 持有我们说的第一层 LRU_list_mutex
+     mutex_enter(&buf_pool->LRU_list_mutex);
+
+2.   // 然后持有我们说的第二层 hash_lock
+     hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
+     rw_lock_x_lock(hash_lock);
+     
+3.  // 持有page block mutex
     buf_page_mutex_enter(block);
     
 4.  // 在持有page block mutex 的情况下, 会修改 block->state, io_fix 等等
 
-    buf_page_init(buf_pool, page_id, page_tex 的操作.
+    buf_page_init(buf_pool, page_id, page_size, block);
+
+    buf_page_set_io_fix(bpage, BUF_IO_READ);
+
+    // 将当前Block 加入到LRU list 中
+    
+    buf_LRU_add_block(bpage, TRUE /* to old blocks */);
+    
+    // 释放 LRU list mutex, 这里持有LRU list mutex 到现在, 是因为要把page block 加入到LRU list中
+    
+    mutex_exit(&buf_pool->LRU_list_mutex);
+
+5.  // 这里给page frame 加了rw_lock x lock,
+    // 保证同一时刻只会有一个线程从磁盘去读取这个page
+    
+    rw_lock_x_lock_gen(&block->lock, BUF_IO_READ);    
+    // 依次放开hash_lock rw_lock
+    rw_lock_x_unlock(hash_lock);
+    // page block mutex
+    buf_page_mutex_exit(block);
+
+
+
+**buf_page_try_get_func**
+
+比如在 buf_page_try_get_func() 函数里面, 也是这样顺序获得mutex 的操作.
 
   // 1. 首先获得这个bp, 因此这里不涉及到各个list 相关操作, 因此没有list
   // 相关Mutex
   buf_pool_t *buf_pool = buf_pool_get(page_id);
 
-  // f_fix_count++, 同时把这个page block mutex 释放
-  // 迊述的mutex, rw_lock 都放开了, 因为这个page frame 在, 是不能被replace 的, 会议在在buffer pool 里面, 因fix_type = MTR_MEMO_PAGE_S_FIX;
+  // 2. 获得这个page 在hash table 上面的slot 上面的block, 
+  // 同时在这个函数里面, 已经把这个hash_lock 给s lock 了
+  block = buf_block_hash_get_s_locked(buf_pool, page_id, &hash_lock);
+
+  // 3. 或者这个page block block mutex, 同时将这里的hash_lock 给释放
+  buf_page_mutex_enter(block);
+  rw_lock_s_unlock(hash_lock);
+
+  // 4. 在持有page block mutex 之后, 给这个block buf_fix_count++, 同时把这个page block mutex 释放
+  // 这里设置了buf_fix_count 之后, 上述的mutex, rw_lock 都放开了, 因为这个page frame 在buf_fix_count != 0 的情况下, 是不能被replace 的, 会议在在buffer pool 里面, 因此后续的page frame s lock 操作可以放心操作
+
+  buf_block_buf_fix_inc(block, file, line);
+  buf_page_mutex_exit(block);
+
+  // 5. 获得这个page frame 的rw_lock
+  mtr_memo_type_t fix_type = MTR_MEMO_PAGE_S_FIX;
   success = rw_lock_s_lock_nowait(&block->lock, file, line);
+
 
 
 
@@ -294,4 +379,3 @@ rw_lock_sx_lock_gen(rw_lock, BUF_IO_WRITE);
 // 对这个page 进行flush 操作的时候, 不需要持有mutex
 buf_flush_write_block_low(bpage, flush_type, sync);
 ```
-
