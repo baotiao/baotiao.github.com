@@ -3,9 +3,12 @@ layout: post
 title: talk about kernel process descriptor
 summary: some problem of kernel process descriptor
 
+layout: post
+title: MySQL client Tips
+summary: MySQL client 命令 pager/edit/tee 介绍
 ---
 
-### task_struct, thread_struct, tss_struct, thread_info 他们之间的关系是什么
+**task_struct, thread_struct, tss_struct, thread_info 他们之间的关系是什么?**
 
 * task_struct 
 

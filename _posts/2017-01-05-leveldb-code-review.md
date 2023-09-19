@@ -1,6 +1,6 @@
 ---
 layout: post
-title: leveldb code review
+title: LevelDB cpp 编码最佳实践
 summary: 又看leveldb 的代码, 确实是c++程序员必读的代码
 ---
 

@@ -1,12 +1,12 @@
 ---
 layout: post
-title: "kernel list"
+title: "kernel source code list implementation"
 description: "kernel list"
 category: kernel, tech
 tags: [kernel]
 ---
 
-### 困惑点
+问题:
 之前看kernel list 的时候困惑的地方在于这个list里面居然没有指针指向这个list
 对应的struct, 而是直接指向struct 里面的list 元素,
 比如这样

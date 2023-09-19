@@ -1,9 +1,9 @@
 ---
 layout: post
-title: "levelDB中用到的迭代器模型"
+title: LevelDB Iterator Pattern
 ---
 
-### 迭代器的设计模式是一种很常用的设计模式. leveldb的实现里面就用到了.
+迭代器的设计模式是一种很常用的设计模式. leveldb的实现里面就用到了.
 
 Iteartor模式:提供一种方法顺序访问一个聚合对象中的各个元素, 而又不暴露其内部的表示.
 
