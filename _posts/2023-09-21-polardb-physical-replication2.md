@@ -75,9 +75,7 @@ flush_lsn 是rw 节点page 刷脏推进的速度
 
 
 
-
-
-多版本或者Aurora 如何解决这个问题?
+**多版本或者Aurora 如何解决这个问题?**
 
 刚才上面的分析有两个链条互相依赖
 
@@ -85,6 +83,18 @@ flush_lsn 是rw 节点page 刷脏推进的速度
 
 约束2: ro 节点释放old parse buffer 依赖rw 节点刷脏
 
-多版本/Aurora 都把约束2 给去掉了, ro 节点可以随意释放old parse buffer. 那么就不会有parse buffer 满的问题, 那么如果ro 节点访问到rw 还未刷下去page, 但是ro 节点已经把Parse buffer 释放了, 那么会通过磁盘上的 logIndex + 磁盘上page 生成想要的版本.
+多版本和Aurora 都把约束2 给去掉了, ro 节点可以随意释放old parse buffer. 那么就不会有parse buffer 满的问题, 那么如果ro 节点访问到rw 还未刷下去page, 但是ro 节点已经把Parse buffer 释放了, 那么会通过磁盘上的 logIndex + 磁盘上page 生成想要的版本.
 
-但是这里依然还要去解决约束1 的问题, rw 的刷脏会被ro 给限制. rw 刷脏时候判断 page newest_modification_lsn > ro apply_lsn, 那么在Aurora 里面这个Page 也是无法进行Apply 的, 但是Aurora 和我们区别在于Aurora 可以把这个Page 丢出buffer pool, 但是我们是无法把这样的page 丢出Buffer Pool, 依然会造成Buffer Pool 里面大量的脏页, 最后找不到空闲Page 的情况. 在多版本引擎里面支持把Page newest_modification_lsn > ro apply_lsn 这样的Page 在Buffer Pool 中释放也很重要.
+但是这里依然还要去解决约束1 的问题, rw 的刷脏会被ro 给限制. PolarDB rw 刷脏的时候需要判断 page newest_modification_lsn > ro apply_lsn, 才可以进行刷脏.
+
+在Aurora 里面这种情况的行为是Page 在Page Server 上无法进行Page Apply. 但是Aurora 和PolarDB 区别在于Aurora 可以把这个Page 丢出buffer pool, 需要访问的时候通过Old Page + LogIndex 去获得指定版本的Page. 
+
+目前对于热点页场景 PolarDB 已经通过Copy Page 机制去规避这种场景, 也就是page 的 newest_modification_lsn 在某一时刻可以copy 出来, 不再增长, 那么随着RO apply_lsn 的增长, 总是会超过RO apply_lsn 的.
+
+但是这种场景唯一存在缺陷的情况是, 如果RO 节点Hang 住了, 那么这个时候RO apply_lsn 就不会增长, 那么Copy Page 也就没有任何效果了, 那么就RW 就无法刷脏, 就是出现RW 自己crash 了. 这个时候PolarDB 通过叫Delay flush(LogIndex +Old Page 读取)机制, 去解决这个常见的问题.
+
+PolarDB 和Aurora 类似, 把dirty page 丢出Buffer Pool, 访问的时候和RO 节点类似的方法通过LogIndex + Old Page 进行访问, 但是这样会造成访问性能急剧下降,Checkpoint 无法推进等等一系列问题, 所以目前这个策略在PolarDB 上还没有默认打开.
+
+超过一定时间以后, PolarDB 和Aurora 都一样, 认为只读节点延迟太大, 将这个只读节点kickout.
+
+
