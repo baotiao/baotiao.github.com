@@ -83,6 +83,8 @@ flush_lsn 是rw 节点page 刷脏推进的速度
 
 约束2: ro 节点释放old parse buffer 依赖rw 节点刷脏
 
+
+
 多版本和Aurora 都把约束2 给去掉了, ro 节点可以随意释放old parse buffer. 那么就不会有parse buffer 满的问题, 那么如果ro 节点访问到rw 还未刷下去page, 但是ro 节点已经把Parse buffer 释放了, 那么会通过磁盘上的 logIndex + 磁盘上page 生成想要的版本.
 
 但是这里依然还要去解决约束1 的问题, rw 的刷脏会被ro 给限制. PolarDB rw 刷脏的时候需要判断 page newest_modification_lsn > ro apply_lsn, 才可以进行刷脏.
@@ -96,5 +98,4 @@ flush_lsn 是rw 节点page 刷脏推进的速度
 PolarDB 和Aurora 类似, 把dirty page 丢出Buffer Pool, 访问的时候和RO 节点类似的方法通过LogIndex + Old Page 进行访问, 但是这样会造成访问性能急剧下降,Checkpoint 无法推进等等一系列问题, 所以目前这个策略在PolarDB 上还没有默认打开.
 
 超过一定时间以后, PolarDB 和Aurora 都一样, 认为只读节点延迟太大, 将这个只读节点kickout.
-
 
