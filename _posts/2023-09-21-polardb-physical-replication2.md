@@ -1,10 +1,7 @@
 ---
 layout: post
 title: PolarDB 物理复制刷脏约束问题和解决
-
 ---
-
-
 
 目前物理复制到了ro 开始刷120s apply_lsn 不推进的信息以后, 即使压力停下来也无法恢复, 为什么?
 
@@ -14,13 +11,33 @@ title: PolarDB 物理复制刷脏约束问题和解决
 
 
 
-这里最极端的场景是如果rw 上面最老的page1, 也就是在flush list 上根据 oldest_modification_lsn 排在最老的位置page_lsn 已经大于ro 上面的apply_lsn 了, 那么刷脏是无法进行的, 因为物理复制需要保证page 已经被解析到ro parse buffer才可以进行刷脏. 另外想Page2 这样的Page 虽然newest_modification 和 oldest_modification 没有差很多也无法进行刷脏了. 因为Parse buffer 已经满了.
+在回答这个问题之前, 我们先了解一下目前 PolarDB 架构存在的两个能够造成互相死锁的约束
 
-但是这个时候ro 节点的apply_lsn 已经不推进了, 因为上面的parse buffer 已经满了, parse buffer 推进需要等rw 节点把老的page 刷下去, 老的parse buffer chunk 才可以释放. 但是由于上面rw 节点已经最老的page 都无法刷脏, 那么parse buffer chunk 肯定就没机会释放了.
+这里有 2 个约束
 
-那么此时就形成了死循环了. 即使写入压力停下来, ro 也是无法恢复的.
+约束1: rw 的刷脏依赖ro 节点apply_lsn 的推进
 
-所以只要rw 上面最老page 超过了 parse buffer 的大小, 也就是最老page newest_modification_page lsn > ro apply_lsn 之时, 那么死锁就已经形成, 后续都无法避免了
+约束2: ro 节点释放old parse buffer 依赖rw 节点刷脏
+
+
+
+如上图所示. rw 上面最老的page1, 也就是在flush list 上根据 oldest_modification_lsn 排在最老的位置page newest_modification page_lsn 已经大于ro 的apply_lsn 了, 那么RW 是无法将 page1 刷脏. **这里触发了约束 1.** 因为物理复制需要保证page1 对应的所有redo log 已经被解析到ro 的 parse buffer, 这样的 Page 才可以刷脏, 避免 RO 读取到future page.
+
+
+
+同时像 Page2 这样的Page 虽然newest_modification 和 oldest_modification 没有差很多也无法进行刷脏了. 因为Parse buffer 已经满了.
+
+ 
+
+但是这个时候ro 节点的apply_lsn 已经不推进了, 因为上面的parse buffer 已经满了, Parse buffer 推进需要等rw 节点把老的page 刷下去, 老的parse buffer chunk 才可以释放. 但是由于上面rw 节点已经最老的page 都无法刷脏, 那么parse buffer chunk 肯定就没机会释放了.
+
+**这里就触发了约束 2**
+
+那么此时就形成了死循环了. 热点Page 限制了rw 刷脏. rw 不刷脏导致, ro 节点不释放parse buffer, 不释放parse buffer 又限制了rw 节点刷脏, rw 节点无法刷脏, 又限制了ro 节点parse buffer 释放.
+
+
+
+所以只要rw 上面最老page 超过了 parse buffer 的大小, 即使写入压力停下来, ro 也是无法恢复的.也就是最老page newest_modification_page lsn > ro apply_lsn 之时, 那么死锁就已经形成, 后续都无法避免了
 
 
 
@@ -32,7 +49,35 @@ title: PolarDB 物理复制刷脏约束问题和解决
 
 
 
-开启了多版本LogIndex 版本为什么可以规避这个问题?
+
+
+**多版本或者Aurora 如何解决这个问题?**
+
+对于约束 2:
+
+多版本和Aurora 都把约束2 给去掉了, ro 节点可以随意释放old parse buffer. 那么就不会有parse buffer 满的问题, 那么如果ro 节点访问到rw 还未刷下去page, 但是ro 节点已经把Parse buffer 释放了, 那么会通过磁盘上的 logIndex + 磁盘上page 生成想要的版本.
+
+
+
+对于约束 1:
+
+rw 的刷脏会被ro 给限制, 其实 PolarDB 和 Aurora/Socrates 给出的不同的选择
+
+PolarDB rw 刷脏的时候需要判断 page newest_modification_lsn > ro apply_lsn, 才可以进行刷脏. 所以我们认为 PolarDB 并没有解决约束 1
+
+Aurora/Socrates 解决方法是允许ro 读取到future page, 完全不限制 rw 节点的刷脏, 由ro 去处理读取到future page 以后的重试问题, 具体原理看 [Socrates](./[Paper Review] Socrates The New SQL Server in the Cloud.md), 所以我们认为 Aurora/Socrates 解决了约束 1
+
+
+
+目前 PolarDB 选择的是一条不同的路, 也就是不允许 ro 节点读取到future page. Aurora/Socrates 允许读取到future page
+
+两个选择各有优劣:
+
+PolarDB 劣势在于ro 节点会限制rw 节点的的刷脏, 有可能把rw 憋死.
+
+优势在于不需要处理遍历 Btree 不一致的问题, 并且由于ro 上面的 Page 不会太新, 不需要通过 Undo 访问历史数据, 理论上性能更好.
+
+
 
 在因为parse buffer 满导致的刷脏约束中, 如上图所示, Page1, Page2 无法进行刷脏, 但是其他的Page 如果newest_modification < ro apply_lsn 是可以刷脏的, 因此rw 节点buffer pool 里面脏页其实不多.
 
@@ -44,7 +89,45 @@ title: PolarDB 物理复制刷脏约束问题和解决
 
 如果rw 开启了copy page 以后, 虽然上图中的Page1 刚刚被copy 出来的时候无法flush, 但是因为开启LogIndex, ro apply_lsn 可以随意推进, 随着ro apply_lsn 的推进, 过一段时间一定可以刷这个copy page, 也就避免了这个问题了.
 
-**所以目前版本答案是 LogIndex + copy page 解决了几乎所有问题**
+**所以目前版本答案是 LogIndex + copy page 解决了几乎所有问题, 但是也有一个例外**
+
+目前对于热点页场景 PolarDB 已经通过Copy Page 机制去规避这种场景, 也就是page 的 newest_modification_lsn 在某一时刻可以copy 出来, 不再增长, 那么随着RO apply_lsn 的增长, 总是会超过RO apply_lsn 的.
+
+但是这种场景唯一存在缺陷的情况是, 如果RO 节点Hang 住了, 那么这个时候RO apply_lsn 就不会增长, 那么Copy Page 也就没有任何效果了, 那么就RW 就无法刷脏, 就是出现RW 自己crash 了.
+
+
+
+
+
+Aurora/Socrates 的优势ro 节点完全不限制rw 节点, 不存在约束 1
+
+劣势是 btree 不一致的问题可能需要频繁的重新遍历btree, 这里就看如何detect inconsistency 这块做的怎样了.
+
+另外是由于ro 总是访问到最新版本page, 那么可能 ro 上读取老数据的时候性能会差一些
+
+
+
+**其他:**
+
+PolarDB 和 Aurora/Socrate 都实现的类似 Delay flush 机制.
+
+所谓 Delay flush(LogIndex + Old Page 读取)机制指的是, 如果 buffer pool 满的情况下, 在对应的 Page 的 LogIndex 已经写入到磁盘的情况下, 可以将该 Page 直接从buffer pool 中踢除,  不需要保证对应的 Page 一定要写入到磁盘这个刷脏就算结束了.
+
+RW 把dirty page 丢出Buffer Pool, 并不进行刷脏, 访问的时候和RO 节点类似的方法通过LogIndex + Old Page 进行访问, RW 的做法比较简单, 访问的是 Page + 所有LogIndex, 那么就可以获得最新版本的 Page, 但是 RO 上面就复杂也写, 也就是 RO 访问future page 的问题.
+
+但是使用 Delay flush 机制同样也有缺点, 会造成访问性能急剧下降,Checkpoint 无法推进等等一系列问题, 所以目前这个策略在PolarDB 上还没有默认打开.
+
+而像Aurora/Socrates 是默认打开这样的机制的.
+
+
+
+另外一个let is crash 机制.
+
+PolarDB 和Aurora 都一样, 如果只读节点延迟太大, 因为会限制 Page Server 的apply, 需要保留的最老版本 Page 非常老, 对应于 PolarDB 也一样, 出现了大量的 Delay flush. 那么影响到了RW 节点, 那么就把对应的ro 节点 kick out.
+
+
+
+
 
 
 
@@ -72,30 +155,3 @@ flush_lsn 是rw 节点page 刷脏推进的速度
 从公式里面可以看到, 如果redo 推进速度加快, page 刷脏速度减慢, 那么是最容易出现刷脏约束的. 也就是redo IO 速度不变, Page IO 速度变慢, 就容易出现把RO parse buffer 打满的情况, 但是一样需要出现热点页才能出现parse buffer 被打满的死锁.
 
 如果没有热点页, 这个时候由于parse buffer 还是再推进, 所以不会自动crash, 反而会出现rw 由于被限制了刷脏, buffer pool 里面大量的脏页, 最后找不到空闲Page 的情况. rw crash 的情况.
-
-
-
-**多版本或者Aurora 如何解决这个问题?**
-
-刚才上面的分析有两个链条互相依赖
-
-约束1: rw 的刷脏依赖ro 节点apply_lsn 的推进
-
-约束2: ro 节点释放old parse buffer 依赖rw 节点刷脏
-
-
-
-多版本和Aurora 都把约束2 给去掉了, ro 节点可以随意释放old parse buffer. 那么就不会有parse buffer 满的问题, 那么如果ro 节点访问到rw 还未刷下去page, 但是ro 节点已经把Parse buffer 释放了, 那么会通过磁盘上的 logIndex + 磁盘上page 生成想要的版本.
-
-但是这里依然还要去解决约束1 的问题, rw 的刷脏会被ro 给限制. PolarDB rw 刷脏的时候需要判断 page newest_modification_lsn > ro apply_lsn, 才可以进行刷脏.
-
-在Aurora 里面这种情况的行为是Page 在Page Server 上无法进行Page Apply. 但是Aurora 和PolarDB 区别在于Aurora 可以把这个Page 丢出buffer pool, 需要访问的时候通过Old Page + LogIndex 去获得指定版本的Page. 
-
-目前对于热点页场景 PolarDB 已经通过Copy Page 机制去规避这种场景, 也就是page 的 newest_modification_lsn 在某一时刻可以copy 出来, 不再增长, 那么随着RO apply_lsn 的增长, 总是会超过RO apply_lsn 的.
-
-但是这种场景唯一存在缺陷的情况是, 如果RO 节点Hang 住了, 那么这个时候RO apply_lsn 就不会增长, 那么Copy Page 也就没有任何效果了, 那么就RW 就无法刷脏, 就是出现RW 自己crash 了. 这个时候PolarDB 通过叫Delay flush(LogIndex +Old Page 读取)机制, 去解决这个常见的问题.
-
-PolarDB 和Aurora 类似, 把dirty page 丢出Buffer Pool, 访问的时候和RO 节点类似的方法通过LogIndex + Old Page 进行访问, 但是这样会造成访问性能急剧下降,Checkpoint 无法推进等等一系列问题, 所以目前这个策略在PolarDB 上还没有默认打开.
-
-超过一定时间以后, PolarDB 和Aurora 都一样, 认为只读节点延迟太大, 将这个只读节点kickout.
-
