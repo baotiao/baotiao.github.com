@@ -5,12 +5,11 @@ title: PolarDB 物理复制刷脏约束问题和解决
 ### PolarDB 物理复制刷脏约束问题和解决
 
 
+### PolarDB 物理复制刷脏约束问题和解决
 
-目前物理复制到了ro 开始刷120s apply_lsn 不推进的信息以后, 即使压力停下来也无法恢复, 为什么?
 
-如下图所示:
 
-![image-20230410025547807](https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20230410025547807.png)
+目前PolarDB 物理复制到了ro 开始刷120s apply_lsn 不推进的信息以后, 即使压力停下来也无法恢复, 为什么?
 
 
 
@@ -23,6 +22,12 @@ title: PolarDB 物理复制刷脏约束问题和解决
 约束2: ro 节点释放parse buffer 依赖rw 节点刷脏. 因为只有rw 节点将最老Page 刷下去以后, ro 才可以把这个 page 对应的 parse buffer释放. 否则提前释放 parse buffer, rw 节点又不刷脏, 会出现 ro 节点读取不到这个 page 最新版本的问题.
 
 ![image-20240312111903011](https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20240312111903011.png)
+
+
+
+一个Page1 热点页场景如下图所示:
+
+![image-20230410025547807](https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20230410025547807.png)
 
 如上图所示. rw 上面最老的page1, 也就是在flush list 上根据 oldest_modification_lsn 排在最老的位置page newest_modification page_lsn 已经大于ro 的apply_lsn 了, 那么RW 是无法将 page1 刷脏. **这里触发了约束 1.** 因为物理复制需要保证page1 对应的所有redo log 已经被解析到ro 的 parse buffer, 这样的 Page 才可以刷脏, 避免 RO 读取到future page.
 
@@ -128,10 +133,6 @@ RW 把dirty page 丢出Buffer Pool, 并不进行刷脏, 访问的时候和RO 节
 
 
 
-
-
-
-
 另外验证了刷脏约束两种场景
 
 1. 大量写入场景
@@ -154,4 +155,5 @@ flush_lsn 是rw 节点page 刷脏推进的速度
 由于IO 延迟同时影响了 redo 和 page, 从公式可以看到, 那么ro parse buffer 不会快速增长的.
 
 从公式里面可以看到, 如果redo 推进速度加快, page 刷脏速度减慢, 那么是最容易出现刷脏约束的. 也就是redo IO 速度不变, Page 刷脏速度变慢, 就容易出现把RO parse buffer 打满的情况, 但是一样需要出现热点页才能出现parse buffer 被打满的死锁.
+
 
