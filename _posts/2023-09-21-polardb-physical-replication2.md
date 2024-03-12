@@ -2,6 +2,9 @@
 layout: post
 title: PolarDB 物理复制刷脏约束问题和解决
 ---
+### PolarDB 物理复制刷脏约束问题和解决
+
+
 
 目前物理复制到了ro 开始刷120s apply_lsn 不推进的信息以后, 即使压力停下来也无法恢复, 为什么?
 
@@ -15,11 +18,11 @@ title: PolarDB 物理复制刷脏约束问题和解决
 
 这里有 2 个约束
 
-约束1: rw 的刷脏依赖ro 节点apply_lsn 的推进
+约束1: rw 的刷脏依赖ro 节点apply_lsn 的推进. 因为只有 ro 节点将对应的page 的内容更新到自己的 parse_buffer, 推进自己的 apply_lsn, rw 才可以把对应 page 刷下去, 否则会出现 ro 节点读取到 future page 的问题.
 
-约束2: ro 节点释放old parse buffer 依赖rw 节点刷脏
+约束2: ro 节点释放parse buffer 依赖rw 节点刷脏. 因为只有rw 节点将最老Page 刷下去以后, ro 才可以把这个 page 对应的 parse buffer释放. 否则提前释放 parse buffer, rw 节点又不刷脏, 会出现 ro 节点读取不到这个 page 最新版本的问题.
 
-
+![image-20240312111903011](https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20240312111903011.png)
 
 如上图所示. rw 上面最老的page1, 也就是在flush list 上根据 oldest_modification_lsn 排在最老的位置page newest_modification page_lsn 已经大于ro 的apply_lsn 了, 那么RW 是无法将 page1 刷脏. **这里触发了约束 1.** 因为物理复制需要保证page1 对应的所有redo log 已经被解析到ro 的 parse buffer, 这样的 Page 才可以刷脏, 避免 RO 读取到future page.
 
@@ -83,7 +86,7 @@ PolarDB 劣势在于ro 节点会限制rw 节点的的刷脏, 有可能把rw 憋�
 
 开启了LogIndex 以后, ro 就可以随意丢弃自己的parse buffer 了, 当然也就不会crash.
 
-但是依然有一个问题是如果Page1 一直修改, 这个Page1 的newest_modification lsn 一直在更新, 那么即使开启LogIndex 也无法将该Page 刷下去, 带来的问题是rw checkpoint 是无法推进,  但是由于有了LogIndex, 其他page 可以随意刷脏, 所以不会出现rw 脏页数不够的问题. 那Page1 刷脏如何解决呢?
+但是依然有一个问题是如果Page1 一直修改, 这个Page1 的newest_modification lsn 一直在更新, 那么即使开启LogIndex 也无法将该Page 刷下去, 带来的问题是rw checkpoint 是无法推进. 那Page1 刷脏如何解决呢?
 
 通过copy page 解决.
 
@@ -95,7 +98,11 @@ PolarDB 劣势在于ro 节点会限制rw 节点的的刷脏, 有可能把rw 憋�
 
 但是这种场景唯一存在缺陷的情况是, 如果RO 节点Hang 住了, 那么这个时候RO apply_lsn 就不会增长, 那么Copy Page 也就没有任何效果了, 那么就RW 就无法刷脏, 就是出现RW 自己crash 了.
 
+这里 PolarDB 和 Aurora 都有一个 let is crash 机制.
 
+PolarDB 和Aurora 都一样, 如果只读节点延迟太大, 因为会限制 Page Server 的apply, 需要保留的最老版本 Page 非常老, 对应于 PolarDB 也一样, 出现了大量的 Delay flush. 那么影响到了RW 节点, 那么就把对应的ro 节点 kick out.
+
+也一定程度上面解决了这个问题
 
 
 
@@ -113,17 +120,11 @@ PolarDB 和 Aurora/Socrate 都实现的类似 Delay flush 机制.
 
 所谓 Delay flush(LogIndex + Old Page 读取)机制指的是, 如果 buffer pool 满的情况下, 在对应的 Page 的 LogIndex 已经写入到磁盘的情况下, 可以将该 Page 直接从buffer pool 中踢除,  不需要保证对应的 Page 一定要写入到磁盘这个刷脏就算结束了.
 
-RW 把dirty page 丢出Buffer Pool, 并不进行刷脏, 访问的时候和RO 节点类似的方法通过LogIndex + Old Page 进行访问, RW 的做法比较简单, 访问的是 Page + 所有LogIndex, 那么就可以获得最新版本的 Page, 但是 RO 上面就复杂也写, 也就是 RO 访问future page 的问题.
+RW 把dirty page 丢出Buffer Pool, 并不进行刷脏, 访问的时候和RO 节点类似的方法通过LogIndex + Old Page 进行访问, RW 的做法比较简单, 访问的是 Page + 所有LogIndex, 那么就可以获得最新版本的 Page, 但是 RO 上面就复杂一些, 也就是 RO 访问future page 的问题.
 
 但是使用 Delay flush 机制同样也有缺点, 会造成访问性能急剧下降,Checkpoint 无法推进等等一系列问题, 所以目前这个策略在PolarDB 上还没有默认打开.
 
 而像Aurora/Socrates 是默认打开这样的机制的.
-
-
-
-另外一个let is crash 机制.
-
-PolarDB 和Aurora 都一样, 如果只读节点延迟太大, 因为会限制 Page Server 的apply, 需要保留的最老版本 Page 非常老, 对应于 PolarDB 也一样, 出现了大量的 Delay flush. 那么影响到了RW 节点, 那么就把对应的ro 节点 kick out.
 
 
 
@@ -152,6 +153,5 @@ flush_lsn 是rw 节点page 刷脏推进的速度
 
 由于IO 延迟同时影响了 redo 和 page, 从公式可以看到, 那么ro parse buffer 不会快速增长的.
 
-从公式里面可以看到, 如果redo 推进速度加快, page 刷脏速度减慢, 那么是最容易出现刷脏约束的. 也就是redo IO 速度不变, Page IO 速度变慢, 就容易出现把RO parse buffer 打满的情况, 但是一样需要出现热点页才能出现parse buffer 被打满的死锁.
+从公式里面可以看到, 如果redo 推进速度加快, page 刷脏速度减慢, 那么是最容易出现刷脏约束的. 也就是redo IO 速度不变, Page 刷脏速度变慢, 就容易出现把RO parse buffer 打满的情况, 但是一样需要出现热点页才能出现parse buffer 被打满的死锁.
 
-如果没有热点页, 这个时候由于parse buffer 还是再推进, 所以不会自动crash, 反而会出现rw 由于被限制了刷脏, buffer pool 里面大量的脏页, 最后找不到空闲Page 的情况. rw crash 的情况.
