@@ -106,7 +106,7 @@ trigger_slow_user_written 设置的越低, 那么越早开始阻止用户的写�
 
 具体代码 buf_page_free_stale => buf_LRU_free_page() 在进行IO 操作之前, 释放 LRU_list_mutex, 结束之后退出buf_page_free_stale() 重新加LRU_list_mutex.
 
-![image-20230517020201244 (1)](https://raw.githubusercontent.com/baotiao/oss/master/uPic/image-20230517020201244%20(1).png?token=AAE6OLDMGVF2EN2BVGQ2N2DEOJFR2)
+![image-20240401](https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20240401.png)
 
 
 

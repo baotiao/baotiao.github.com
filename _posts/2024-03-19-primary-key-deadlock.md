@@ -3,16 +3,22 @@ layout: post
 title: MySQL 常见死锁场景-- 并发插入相同主键场景
 ---
 
-
 在之前的[文章](https://baotiao.github.io/2023/06/11/innodb-replace-into.html)介绍了由于二级索引 unique key 导致的 deadlock, 其实主键也是 unique 的, 那么同样其实主键的 unique key check 一样会导致死锁.
 
 主键 unique 的判断在
 
-row_ins_clust_index_entry_low => row_ins_duplicate_error_in_clust
+row_ins_clust_index_entry_low
 
-对于普通的INSERT操作, 当需要检查primary key unique时, 加 S record lock. 而对于Replace into 或者 INSERT ON DUPLICATE操作, 则加X record lock
+这里有一个判断
 
-这里check unique 的时候, 如果这里没有这个 record 存在, 加在下一个 record上, 如果已经有一个 delete_mark record, 那么就加在这个 delete marked record 上.
+  if (!index->allow_duplicates && n_uniq &&
+      (cursor->up_match >= n_uniq || cursor->low_match >= n_uniq)) {
+
+这里判断的意思是:
+
+如果当前 index 是 unique index,  (cursor->up_match >= n_uniq || cursor->low_match >= n_uniq) cursor 找到和插入的 record 一样的 record 了. 那么就需要走 row_ins_duplicate_error_in_clust. 对于普通的INSERT操作, 当需要检查primary key unique时, 加 S record lock. 而对于Replace into 或者 INSERT ON DUPLICATE操作, 则加X record lock
+
+否则就是当前index 没有插入过这个 record, 也就是第一次 insert primary key, 那么就不需要走 duplicate check 的逻辑. 也就不需要加锁了. 
 
 
 
