@@ -26,7 +26,7 @@ page lock 就是我们在btree 里面每一个page 的变量里面都会有的 l
    
    * 然后直到找到 leaf node 以后, 对leaft node 也是 S LOCK, 然后把index-> lock 放开
    
-     <img src="https://i.imgur.com/7AouKrR.png" alt="Imgur" style="zoom:50%;" />
+     <img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/7AouKrR.png" alt="Imgur" style="zoom:50%;" />
 2. 如果是一个修改leaf page 请求
    * 同样把btree index-> lock  S LOCK
    * 然后直到找到leaf node 以后, 对leaf node 执行 X LOCK, 因为需要修改这个page. 然后把index->lock 放开.   到这里又分两种场景了, 对于这个page 的修改是否会引起 btree 的变化
@@ -54,7 +54,7 @@ page lock 就是我们在btree 里面每一个page 的变量里面都会有的 l
 
        从这里可以看到, 唯一的区别在于这里latch_mode = BTR_MODIFY_LEAF 或者 BTR_MODIFY_TREE. 并且由于btr_cur_search_to_nth_level 是在函数 row_ins_clust_index_entry_low 执行, 那么也就是尝试了乐观操作失败以后, 重新进行悲观插入的时候, 需要重新遍历btree
        
-       <img src="https://i.imgur.com/MZrRVA6.png" alt="Imgur" style="zoom:50%;" />
+       <img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/MZrRVA6.png" alt="Imgur" style="zoom:50%;" />
 
 从上面可以看到, 5.6 里面只有对整个btree  的index lock,  以及在btree 上面的leaf node page 会有lock, 但是btree 上面non-leaf node 并没有 lock.
 
@@ -116,7 +116,7 @@ SX LOCK 的引入由这个 WL 加入 [WL#6363](https://dev.mysql.com/worklog/tas
 
    * 然后直到找到 leaf node 以后, 对leaft node page 也是 S LOCK, 然后把index-> lock 放开
 
-     <img src="https://i.imgur.com/AGN3ghS.png" alt="Imgur" style="zoom:50%;" />
+     <img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/AGN3ghS.png" alt="Imgur" style="zoom:50%;" />
 
 2. 如果是一个修改leaf page 请求
 
@@ -169,9 +169,6 @@ SX LOCK 的引入由这个 WL 加入 [WL#6363](https://dev.mysql.com/worklog/tas
        7. SMO 操作已经结束, 计算本次insert 要插入的page 位置
 
        8. 进行insert 操作, 如果insert 失败, 通过reorgination page 重新尝试插入
-
-         ​     
-
 
 
 现有代码里面只有一个场景会对index->lock X lock. 也就是
