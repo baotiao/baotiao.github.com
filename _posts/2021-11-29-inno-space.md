@@ -60,7 +60,7 @@ FSP_HDR  page = 256 extents = 16384 pages = 256 MB
 
 page 有最基础的38字节的 FIL Header, 8字节的FIL Trailer
 
-<img src="https://i.imgur.com/NxR6eb3.jpg" alt="Imgur" style="zoom: 50%;" />
+<img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/NxR6eb3.jpg" alt="Imgur" style="zoom: 50%;" />
 
 主要的内容包括:
 
@@ -120,7 +120,7 @@ Flush LSN: 0
 
 下图就是这个基本文件组织结构的描述, 无论是undo space, system space, 用户的table space 都是这样结构
 
-<img src="../../../Library/Application Support/typora-user-images/image-20211118052832966.png" alt="image-20211118052832966" style="zoom:40%;" />
+<img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20211118052832966.png" alt="image-20211118052832966" style="zoom:40%;" />
 
 所有的space file 前3个page 都是一样.
 
@@ -138,7 +138,7 @@ system space 的space id = 0, 文件名叫 ibdata1, 也就是系统文件.
 
 
 
-![Imgur](https://i.imgur.com/l3UHMqR.jpg)
+![Imgur](https://raw.githubusercontent.com/baotiao/bb/main/uPic/l3UHMqR.jpg)
 
 page 0, 1, 2 这3个page 所有的space file 都一样
 
@@ -152,7 +152,7 @@ page 5 存放的是trx_sys 模块相关信息, 比如最新的trx id, binlog 信
 
 page 6 存放的是FSP_FIRST_RSEG_PAGE_NO, 也就是undo log rollback segment的header page. 其他的undo log rollback segment 都在不同的undo log 文件中
 
-<img src="https://i.imgur.com/ScLs3Oj.jpg" alt="Imgur" style="zoom:40%;" />
+<img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/ScLs3Oj.jpg" alt="Imgur" style="zoom:40%;" />
 
 page 7 存放的是 FSP_DICT_HDR_PAGE_NO, 存放的是DD 相关的信息
 
@@ -222,7 +222,7 @@ start           end             count           type
 
 InnoDB 常见的file per table 模式下. 一个table 对应一个.ibd 文件.
 
-![Imgur](https://i.imgur.com/I2vFSGn.png)
+![Imgur](https://raw.githubusercontent.com/baotiao/bb/main/uPic/I2vFSGn.png)
 
 page 0, 1, 2 这3个page 所有的space file 都一样
 

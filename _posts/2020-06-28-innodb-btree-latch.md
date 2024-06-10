@@ -148,7 +148,7 @@ SX LOCK 的引入由这个 WL 加入 [WL#6363](https://dev.mysql.com/worklog/tas
 
        在悲观插入操作里面会一直持有sx lock, 直到在 btr_page_split_and_insert 内部, 将新的page2 已经产生, 同时page2 已经连接上father node 之后.  并且这次发生SMO 的page 还需要是leaf page, 否则一直持有sx lock, 直到SMO 操作完成, 并且insert 成功才会释放
 
-       <img src="https://i.imgur.com/ye4VVpc.png" alt="Imgur" style="zoom:50%;" />
+       <img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/ye4VVpc.png" alt="Imgur" style="zoom:50%;" />
 
        具体执行SMO 操作并且insert 的函数是 btr_page_split_and_insert
 
