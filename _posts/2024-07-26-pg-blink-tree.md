@@ -6,6 +6,9 @@ summary: PostgreSQL blink-tree implement notes and compare with PolarDB blink-tr
 
 ---
 
+### lehman blink-tree and Vladimir Lanin cocurrent Btree
+
+
 
 PosegreSQL blink-tree 实现方式引用了两个文章
 
@@ -15,21 +18,27 @@ V. Lanin and D. Shasha, A Symmetric Concurrent B-Tree Algorithm
 
 
 
-**背景:**
+MySQL InnoDB 的 btree 实现主要参考的是
 
-Btree 是非叶子节点也保存数据, B+tree 是只有叶子节点保存数据, 从而使 btree height 尽可能低. 但是并没有严格的要求把叶子节点连接到一起.
+R. Bayer & M. Schkolnick  Concurrency of operations on B-trees March 1977
 
-其实在MySQL InnoDB 中的实现所有节点都会 Link 到左右节点也是Btree, 但并不是强制.
+
+
+
 
 **lehman blink-tree**
 
 Blink-tree 的 2 个核心变化
 
-1. Adding a single "link" pointer field to each node.   (这里其实需要对比标准 Btree, 在标准 btree 里面 leaf page 也是没有 prev/next page 指针的, 而实际的工程实现里面, 一般 btree 在 leaf page 都有指向 prev/next page 的指针)
+1. Adding a single "link" pointer field to each node.
+
+   这里有一个当时时间点的背景, 我们现在见到的大部分的 Btree 实现里面, 都会有 left/right point 指向 left/right page. 但是当时对标准 Btree 的定义并没有这个要求. Btree 是非叶子节点也保存数据, B+tree 是只有叶子节点保存数据, 从而使 btree height 尽可能低. 但是并没有严格的要求把叶子节点连接到一起.
+
+   但是总体而言, 对 Btree 来说, 并没有强制要求有 left/right 指针指向左右 page.
 
    像 InnoDB 里面的 btree 已经自带了 leaft page 和 right page 指针了, 同时在不同的 level 包含 leaf/non-leaf node left/right 指针都指向了自己的兄弟节点了.
 
-   这里 right page 指针就可以和 link page 指针复用.
+   所以到现在这里 right page 指针就可以和 link page 指针复用.
 
 2. 在每个节点内增加一个字段high key, 在查询时如果目标值超过该节点的high key, 就需要循着link pointer继续往后继节点查找
 
@@ -39,25 +48,35 @@ Blink-tree 的 2 个核心变化
 
 
 
-所以目前和 PolarDB 的 blink-tree 有 2 个核心区别
+所以目前和 PolarDB 的 blink-tree 比较大的区别是取消了 lock-coupling 的操作, search 操作不加锁
 
-1.  PolarDB blink-tree search 操作:
+PolarDB blink-tree
 
-   lock-coupling 自上而下
+search 操作是通过 lock-coupling 操作, 自上而下进行加锁放锁操作.
 
-   SMO 操作:
+SMO 操作则没有 lock-coupling, 是先加子节点lock, 然后释放子节点, 再去加父节点.具体是:
 
-   没有 lock-coupling, 是先加子节点lock, 然后释放子节点, 再去加父节点.具体是: 给 leaf-page 加锁完成操作要插入父节点的时候, 需要把子节点 page lock 释放, 然后重新 search btree, 找到父节点加 page lock 并且修改. 当然这里也可以通过把父节点指针保存下来, 从而规避第二次 search 操作
+给 leaf-page 加锁完成操作要插入父节点的时候, 需要把子节点 page lock 释放, 然后重新 search btree, 找到父节点加 page lock 并且修改. 当然这里也可以通过把父节点指针保存下来, 从而规避第二次 search 操作, 但这个是一个优化
 
-2. 在标准的 blink-tree 中, 也就是 PostgreSQL Blink-tree 并没有lock coupling. 并不需要 search 时候进行 lock coupling 操作. 而是只需要加当前层的 lock, 那么SMO 的时候怎么处理呢?
 
-   比如下面这个例子:
 
-   search 15 操作和insert 9 操作再并发进行着
+在标准的 blink-tree 中, 也就是 PostgreSQL Blink-tree
+
+search 操作并没有lock coupling. 而是只需要加当前层的 latch, 如果查找到 child page id 到获得 child page 之间, 因为没有 lock-coupling, 释放完 parent node latch, 到加上 child nodt latch 这一段时间是完全不持有 latch 的, 因此child page 发生了SMO 操作, 要查找的 record 不在 child page 了, 那么该如何处理?
+
+PolarDB blink-tree 中, 通过 lock-coupling 操作保证了不存在一个时刻, 同时不持有 parent node 和 child node latch, 从而不会发生这样的情况.
+
+下面这个例子就是这样的情况:
+
+search 15 操作和触发 SMO 的insert 9 操作再并发进行着
+
+15 原本在 y 里面, find(15) 操作的时候 y 进行了分裂, 分裂成 y 和 y'. 15 到了新的  y' 里面.
 
 
 
 ![B-Tree concurrent modification](https://raw.githubusercontent.com/baotiao/bb/main/uPic/btree-conc1.png)
+
+
 
 ```c++
 # This is not how it works in postgres. This demonstrates the problem:
@@ -78,13 +97,15 @@ find(15) "15 not found in y!"  |
 
 
 
-对于这个例子, 可以看到 PolarDB blink-tree 通过 lock-coupling 去解决了问题, 在 read(x) 操作之后, 同时去持有 node(y) s lock, 那么 Thread B SMO 操作的时候需要持有 node(y) x lock, 那么就会被阻塞, 从而避免了上述问题的发生.
+对于这个例子, 可以看到 PolarDB blink-tree 通过 lock-coupling 去解决了问题, 在 read(x) 操作之后, 同时去持有 node(y) s lock, 那么 Thread B SMO 操作的时候需要持有 node(y) x lock, 那么SMO 操作就会被阻塞, 从而避免了上述问题的发生.
+
+
 
 lehman 介绍的 blink-tree 怎么解决呢?
 
-还是 Fig. 5 一样, 在 node(y) 里面, 增加了 link-page 以及 high key 以后,
+在 node(y) 里面, 增加了 link-page 以及 high key 以后.
 
-上述的find(15) 操作判断 15 > node(y) high-key, 那么就去 node(y) 的link-page 去进行查找. 也就是 y'.  那么再 y' 上就可以找到 15
+上述的find(15) 操作判断 15 > node(y)'s high-key, 那么就去 node(y)'s link-page 去进行查找. 也就是 y'.  那么在 y' 上就可以找到 15
 
 
 
@@ -106,15 +127,15 @@ lehman blink-tree SMO 操作是持有子节点去加父节点的锁, 并且是�
 
 
 
-不过按照现有的逻辑, 如果锁住子节点再向父节点进行插入, 只会出现一个 link page. 因为第一个 page 发生分裂的时候, 在分裂没有结束之前是不会放开 page lock, 那么新的插入是无法进行的.
+按照现在PG 实现, 如果锁住子节点再向父节点进行插入, 只会出现一个 link page. 因为第一个 page 发生分裂的时候, 在分裂没有结束之前是不会放开 page lock, 那么新的插入是无法进行的.
 
-只有这里类似 PolarDB 一样,插入子节点完成以后, 放开锁, 然后再去插入父节点, 允许插入父节点过程中, link page 继续被插入才可能出现多个 link page 的情况了.
+只有像 PolarDB blink-tree 做法一样,插入child node完成以后, 放开child node latch, 然后再去插入parent node, 允许插入parent node过程中, link page 继续被插入才可能出现多个 link page 的情况了.
 
-我理解 PG 这里也是做了权衡, 为了避免出现 link page 的复杂情况的.
+我理解 PG 这里也是做了权衡, 为了避免出现多个 link page 的复杂情况的.
 
 
 
-这里总结来说是不会出现多个 Link-page, 但是有可能 search/insert 的时候需要走多个 link page 到目标 Page
+这里虽然不会出现多个 Link-page, 但是有可能 search/insert 的时候需要走多个 link page 到目标 Page, 比如下面例子
 
 ![image-20240628035441324](https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20240628035441324.png)
 
