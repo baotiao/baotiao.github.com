@@ -196,3 +196,5 @@ Normally, finding the node with the right coverlet for the add-link or remove-li
 另外, 用类似 link-page 思路补充了再 lehman 文章中没有实现的delete 操作
 
 <img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20240618204037534.png" alt="image-20240618204037534" style="zoom: 50%;" />
+
+如果仅仅是和 MySQL 的 InnoDB 对比, PG 的 Blink-tree 实现在加锁粒度上明显更加的细致, 避免的整个 Btree 的 Index lock 的同时, 也同时规避了通过 Lock subtree 的方式进行 Search 操作和 SMO 操作的冲突问题.
