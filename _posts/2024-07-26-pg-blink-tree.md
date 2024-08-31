@@ -5,7 +5,6 @@ title: PostgreSQL blink-tree implement notes
 summary: PostgreSQL blink-tree implement notes and compare with PolarDB blink-tree
 
 ---
-
 ### lehman blink-tree and Vladimir Lanin cocurrent Btree
 
 
@@ -64,7 +63,7 @@ SMO 操作则没有 lock-coupling, 是先加子节点lock, 然后释放子节点
 
 search 操作并没有lock coupling. 而是只需要加当前层的 latch, 如果查找到 child page id 到获得 child page 之间, 因为没有 lock-coupling, 释放完 parent node latch, 到加上 child nodt latch 这一段时间是完全不持有 latch 的, 因此child page 发生了SMO 操作, 要查找的 record 不在 child page 了, 那么该如何处理?
 
-PolarDB blink-tree 中, 通过 lock-coupling 操作保证了不存在一个时刻, 同时持有 parent node 和 child node latch, 从而不会发生这样的情况.
+PolarDB blink-tree 中, 通过 lock-coupling 操作保证searh 操作同时持有 parent node 和 child node latch, 从而不会发生这样的情况.
 
 下面这个例子就是这样的情况:
 
