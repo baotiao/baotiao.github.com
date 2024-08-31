@@ -64,7 +64,7 @@ SMO 操作则没有 lock-coupling, 是先加子节点lock, 然后释放子节点
 
 search 操作并没有lock coupling. 而是只需要加当前层的 latch, 如果查找到 child page id 到获得 child page 之间, 因为没有 lock-coupling, 释放完 parent node latch, 到加上 child nodt latch 这一段时间是完全不持有 latch 的, 因此child page 发生了SMO 操作, 要查找的 record 不在 child page 了, 那么该如何处理?
 
-PolarDB blink-tree 中, 通过 lock-coupling 操作保证了不存在一个时刻, 同时不持有 parent node 和 child node latch, 从而不会发生这样的情况.
+PolarDB blink-tree 中, 通过 lock-coupling 操作保证了不存在一个时刻, 同时持有 parent node 和 child node latch, 从而不会发生这样的情况.
 
 下面这个例子就是这样的情况:
 
@@ -119,7 +119,7 @@ lehman blink-tree SMO 操作是持有子节点去加父节点的锁, 并且是�
 
 如果在 parent->link page 依然找不到插入位置, 需要到 parent->link page->link page, 那么就可以把 parent node 放开, 再去持有 link page -> link page.
 
-因此同一时刻最多持有 3 个节点的 latch
+因此同一时刻最多持有 3 个节点的 latch.
 
 大部分情况下 link page 只会有一个, 很多操作可以简化.
 
@@ -155,15 +155,21 @@ We then proceed back up the tree (using our “remembered” list of nodes throu
 
 Vladimir Lanin **Cocurrent Btree**
 
-这里对比了原先通过search 的时候 lock coupling 同时 SMO 的时候 lock subtree 的加锁方式, 从而保证加锁的顺序都是自上而下
+
+
+一开始总结了在 Blink Tree 之前Btree 并发的实现方式.
+
+search 的时候自上而下 lock coupling 加锁, SMO 的时候 lock subtree 并且自上而下加锁方式, 由于 Search and SMO 操作都是自上而下, 那么就可以避免死锁的发生.
 
 该文章出来之前的并发控制方式, 缺点在哪里呢?
 
-1. 很难计算清楚 lock subtree 的范围到底是多少.
+1. 很难计算清楚 lock subtree 的范围到底是多少, 这个也是在 MySQL 现有代码里面非常繁琐的一块.
 
 2. lock coupling 并发的范围还是不够. 这里强调 lock-coupling 不一定需要配合 blink-tree 使用, 配合标准的 btree 使用也是可以的. 在这个文章里面就是配合 b+tree 使用的.
 
 这 2 种方法都是牺牲并发去获得安全性.
+
+当然也有在 lock coupling + lock subtree 的优化方法, 就是通过先乐观加锁, 再悲观加锁的方法. 乐观路径的时候一路都是 S lock, 然后找到 leaf node, 仅仅对 leaf node 加 X lock, 那么在 (k-1)/k (2k 表示一个 page 里面 record 个数) 情况下, 都可以走乐观. 其实 InnoDB 就是先乐观再悲观的方式.
 
 
 
@@ -179,7 +185,7 @@ Although it is not apparent in [Lehman, Yao 811 itself, the B-link structure all
 
 
 
-Each action holds no more than one read lock at a time during its descent, an insertion holds no more than one write lock at a time during its ascent, and a deletion needs no more than two write locks at a time during its ascent.
+> Each action holds no more than one read lock at a time during its descent, an insertion holds no more than one write lock at a time during its ascent, and a deletion needs no more than two write locks at a time during its ascent.
 
 
 
@@ -197,4 +203,7 @@ Normally, finding the node with the right coverlet for the add-link or remove-li
 
 <img src="https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20240618204037534.png" alt="image-20240618204037534" style="zoom: 50%;" />
 
+
+
 如果仅仅是和 MySQL 的 InnoDB 对比, PG 的 Blink-tree 实现在加锁粒度上明显更加的细致, 避免的整个 Btree 的 Index lock 的同时, 也同时规避了通过 Lock subtree 的方式进行 Search 操作和 SMO 操作的冲突问题.
+
