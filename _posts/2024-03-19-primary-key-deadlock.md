@@ -3,7 +3,6 @@ layout: post
 title: MySQL 常见死锁场景-- 并发插入相同主键场景
 ---
 
-
 在之前的[文章](https://baotiao.github.io/2023/06/11/innodb-replace-into.html)介绍了由于二级索引 unique key 导致的 deadlock, 其实主键也是 unique 的, 那么同样其实主键的 unique key check 一样会导致死锁.
 
 主键 unique 的判断在
@@ -106,7 +105,7 @@ insert 的时候其实也给record 加 x record lock, 只不过大部分时候�
 
 总结:
 
-2 个trx trx2/trx3 都等待在primary key 上, 锁被另外一个 trx1 持有. trx1 回滚以后, trx2 和 trx3 同时持有了该 record 的 s lock, 通过锁升级又升级成下一个 record 的 GAP lock. 然后两个 trx 同时插入的时候都需要获得insert_intention lock(LOCK_X | LOCK_GAP | LOCK_INSERT_INTENTION); 就变成都想持有insert_intention lock, 被卡在对方持有 GAP S lock 上了.
+2 个trx trx2/trx3 都等待在primary key 上, 锁被另外一个 trx1 持有. trx1 回滚以后, trx2 和 trx3 同时持有了该 record 的 s lock, 通过锁升级又升级成下一个 record 的 GAP lock. 然后两个 trx 同时插入的时候都需要获得insert_intention lock(LOCK_X \| LOCK_GAP \| LOCK_INSERT_INTENTION); 就变成都想持有insert_intention lock, 被卡在对方持有 GAP S lock 上了.
 
 
 
