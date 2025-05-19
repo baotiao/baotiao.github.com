@@ -1,6 +1,6 @@
 ---
 layout: post
-title: choices in consensus algorithm
+title: Raft/Paxos/Zab/VSR 一致性协议的设计取舍 
 summary: choices in consensus algorithm
 
 ---
