@@ -1,7 +1,7 @@
 ---
 layout: post
-title: my experience of distributed storage and the designed of zeppelin
-summary: 关于我做存储的一些经验和zp 的设计考虑
+title: 关于我做分布式kv 存储的一些经验和zeppelin 的设计考虑
+summary: 关于我做分布式kv 存储的一些经验和zeppelin 的设计考虑
 
 ---
 
