@@ -1,6 +1,6 @@
 ---
 layout: post
-title: thinking about the bottom key-value store
+title: 关于底层key-value 存储的思考
 summary: 关于底层key-value 存储的思考
 
 ---
