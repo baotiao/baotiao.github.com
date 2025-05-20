@@ -6,10 +6,6 @@ summary: MySQL lock-free hashtable implementation
 ---
 
 
-### MySQL lf_hash
-
-
-
 核心想法:
 
 首先, 实现一个无锁的有序 list 在操作系统支持cas 是atomic 的场景下是很容易的, 最差的做法就是对list 上所有元素执行 cas, 然后插入到对应的位置

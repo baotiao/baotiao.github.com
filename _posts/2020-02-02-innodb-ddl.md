@@ -1,11 +1,9 @@
 ---
 layout: post
-title: InnoDB DDL 介绍
+title: InnoDB DDL 主要流程介绍
 summary: InnoDB DDL 介绍
 
 ---
-
-### InnoDB DDL
 
 
 

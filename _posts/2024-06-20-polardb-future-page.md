@@ -1,9 +1,7 @@
 ---
-
 layout: post
-title: PolarDB read future page
+title: PolarDB 一写多读架构下读取到未来页的问题
 summary: PolarDB read future page
-
 ---
 
 **背景:**
