@@ -2,10 +2,7 @@
 layout: post
 title: 关于我做分布式kv 存储的一些经验和zeppelin 的设计考虑
 summary: 关于我做分布式kv 存储的一些经验和zeppelin 的设计考虑
-
 ---
-
-### zeppelin introduce
 
 大家好, 我是来自360基础架构组技术经理陈宗志. 主要负责360 存储, 中间件, 推送相关技术的实现
 
