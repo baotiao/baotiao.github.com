@@ -1,13 +1,10 @@
 ---
 
 layout: post
-title: PostgreSQL blink-tree implement notes 
+title: PostgreSQL blink-tree 实现以及和 PolarDB blink-tree 对比
 summary: PostgreSQL blink-tree implement notes and compare with PolarDB blink-tree
 
 ---
-### lehman blink-tree and Vladimir Lanin cocurrent Btree
-
-
 
 PosegreSQL blink-tree 实现方式引用了两个文章
 
