@@ -1,11 +1,9 @@
 ---
 layout: post
-title: talk about consensus algorithm and distributed lock
+title: 关于一致性协议, 分布式锁以及如何使用分布式锁
 summary: 关于一致性协议, 分布式锁以及如何使用分布式锁
 
 ---
-
-关于一致性协议, 分布式锁以及如何使用分布式锁
 
 
 最近看antirez 和 Martin 关于redlock 的分布式锁是否安全的问题的争吵, 非常有意思

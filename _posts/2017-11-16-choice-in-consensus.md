@@ -5,7 +5,7 @@ summary: choices in consensus algorithm
 
 ---
 
-![Imgur](https://i.imgur.com/VdyJpHX.jpg)
+![Imgur](https://raw.githubusercontent.com/baotiao/bb/main/uPic/VdyJpHX.jpg)
 
 在我看来包含 log, state machine, consensus algorithm 这3个部分, 并且是有 electing, normal case, recovery 这3个阶段都可以称为paxos 协议一族. 
 
