@@ -29,7 +29,7 @@ summary: MySQL Repeatable-Read 的一些误解
 所以InnoDB 的snapshot isolation 
 
 1. 仅仅Read 操作读的是历史版本 
-2. 2. 不遵守first-committer-wins 规则
+2. 不遵守first-committer-wins 规则
 
 官方把这种实现叫做**Write committed Repeatable Read**.
 
