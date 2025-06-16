@@ -128,7 +128,7 @@ SX LOCK 的引入由这个 WL 加入 [WL#6363](https://dev.mysql.com/worklog/tas
 
      * 如果会, 那么需要执行悲观插入操作, 重新遍历btree. 这时候给index->lock 是加 SX LOCK
 
-       **因为已经给btree 加上sx lock, 那么搜索路径上的btree 的page 都不需要加 lock, 但是需要把搜索过程中的page 保存下来, 最后阶段给搜索路径上有可能发生结构变化的page  加x lock. **
+       **因为已经给btree 加上sx lock, 那么搜索路径上btree 的page都不需要加 s lock, 但是需要把搜索 btree 过程中的page 保存下来, 最后这次SMO 导致的btree 分裂可能只有一部分, 所以只需要对这部分page加x lock就够了.**
 
        这样就保证了在搜索的过程中,  对于read 操作的影响降到最低.
 
@@ -138,7 +138,7 @@ SX LOCK 的引入由这个 WL 加入 [WL#6363](https://dev.mysql.com/worklog/tas
 
      * 8.0 里面, SMO 操作过程中, 拿着sx lock 的持续时间是
 
-       持有sx lock 的时间:
+       加上sx lock 的时间:
 
        第一次btr_cur_optimistic_insert insert 失败以后, 在 row_ins_clust_index_entry 会调用
 
