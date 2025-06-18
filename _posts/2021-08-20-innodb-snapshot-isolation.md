@@ -5,7 +5,7 @@ summary: MySQL Repeatable-Read 的一些误解
 ---
 
 
-##### 背景
+### 背景
 
 首先1992 年发表的SQL Standard 对隔离级别进行的定义是根据几个异象(Dirty Read, Non-Repeatable Read, Phantom Read) , 当然这个定义非常模糊, 后面Jim Grey 也有文章说这个不合理, 然而此时MVCC, snapshot isolation 还没被发明. 等有snapshot isolation 以后发现snapshot isolation 能够规避Dirty Read, Non-Repeatable Read, 因此认为snapshot isolation 和 Repeatable-read 很像, 所以MySQL, Pg 把他们实现的snapshot isolation 就称为了Repeatable-read isolation.
 
