@@ -4,11 +4,6 @@ title: MySQL Repeatable-Read 的一些误解
 summary: MySQL Repeatable-Read 的一些误解
 ---
 
-##### 背景
-
-### MySQL repeatable-read 一些问题
-
-
 
 ##### 背景
 
