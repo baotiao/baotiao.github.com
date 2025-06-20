@@ -113,7 +113,9 @@ trx5: 统计所有人的 Bal, startTime = T7, transactionID = Tz
 
 重点是trx3, 由于 trx3 还未提交, Sally 指向的第一个undo buffer 记录sally -> Mike 这个操作, 但是还在进行中, Mike 还没有执行 Mike + 1 操作. 由于事务还未提交, 这个 undo buffer 时间戳就是 Ty, Ty 是trx3 的transactionID, 是一个非常大的值.
 
-比如事务 trx5, 虽然 starTime = T7, 比 trx3 的starTime 要来的大, 但是根据下面的可见性判断可以看到, 由于trx5.transactionID != undo buffer of Ty, 并且trx5.startTime < undo buffer of Ty, 那么 undo buffer of Ty 就是对trx5 是不可见的.
+比如事务 trx5, 虽然 starTime = T7, 比 trx3 的starTime 要来的大, 但是根据下面的可见性判断可以看到, 由于trx5.transactionID != undo buffer of Ty, 并且trx5.startTime < undo buffer of Ty, 那么 undo buffer of Ty 对应的值 7 就是对trx5 是不可见的. 而 Undo buffer of T5 < T7, 那么 Ty, Bal,8 就是 trx5 可见的了.
+
+(注意: 这里 Undo buffer timestamp 判断的是前向的 value, 如: undo buffer of Ty 对应的是 7 是否可见, undo buffer of T5 对应的是 8 是否可见)
 
 
 
