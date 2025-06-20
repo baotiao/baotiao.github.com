@@ -6,10 +6,6 @@ summary: DuckDB MVCC 和 two values limit issue
 
 ---
 
-### DuckDB two-value limit issue
-
-
-
 ```c++
 #include "duckdb.hpp"
 
