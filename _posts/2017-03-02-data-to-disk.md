@@ -6,8 +6,6 @@ summary: linux write 落盘问题
 
 
 
-### data to disk
-
 数据写到磁盘的一个级别问题
 
 ![Imgur](http://i.imgur.com/Kj4jvOF.jpg)

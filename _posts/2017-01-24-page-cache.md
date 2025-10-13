@@ -1,6 +1,6 @@
 ---
 layout: post
-title: page cache dirty_expire_interval
+title: page cache dirty_expire_interval 参数的一些问题 
 summary: page cache dirty_expire_interval 一些问题
 ---
 
