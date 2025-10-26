@@ -100,7 +100,7 @@ DuckDB 没有类似 InnoDB readview 如何解决可见性判断?
 
 因为如果这样做的话, 开销会非常大.
 
-InnoDB 是支持force and no steal, 也就是事务commit 之前Undo log 就已经落盘了, 因此 InnoDB 现在写undo log 的时候是不知道trx_no 的, 需要在commit() 执行 trx_write_serialisation_history() 获得trx_no 之后, 再重新写一次record 对应的trx_no 到undo log才可以实现.
+InnoDB 是支持steal and no force, 也就是事务commit 之前可能对应的 record 就已经落盘了, 因此 InnoDB 现在写record 的时候是不知道trx_no 的, 需要在commit() 执行 trx_write_serialisation_history() 获得trx_no 之后, 再重新写一次record 对应的trx_no 到record 才可以实现.
 
 这样的话, commit 的时候如果修改了 1000 行数据, 那么就需要重新对1000 行数据的undo log 重新进行修改, 开销非常大.
 
