@@ -1,7 +1,7 @@
 ---
 layout: post
-title: Buffer pool 并发控制
-summary: Buffer pool 并发控制
+title: MySQL InnoDB Buffer pool 并发控制
+summary: MySQL InnoDB Buffer pool 并发控制
 
 ---
 
@@ -222,7 +222,7 @@ write 操作要拿page s lock. 在5.7/8.0 以后持有的是sx lock. 因为write
 
 在buf_flush_page_and_try_neighbors() 里面, buf_flush_try_neighbors() 是需要持有block latch, 那么就需要提前将flush_list mutex 释放, 当然这里释放flush_list mutex 也为了避免进行IO 过程持有flush_list mutex 过长时间.
 
-![image-20230521225605569](https://raw.githubusercontent.com/baotiao/oss/master/uPic/image-20230521225605569.png?token=AAE6OLEO62BC5OJE7FO6JFLENIYVA)
+![image-20230521225605569](https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20230521225605569.png)
 
 
 
