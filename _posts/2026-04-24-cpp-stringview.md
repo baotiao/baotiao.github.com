@@ -27,9 +27,12 @@ StringView:
 
 在 column storage 里面, 字符串数据通常散布在 heap file 的各处. 字符串数据散布在 256MB buffer 里 (远超 L3 cache), 每次 deref 都是 DRAM miss (~100ns). 这个时候 inline 和 prefix 的价值就出来了.
 
+N=1M 条字符串, 数据随机散布在 256MB buffer 里:
+
 ```
-Test D: 散乱, 短 (len=8)   SimpleStr 14.74 ns/row  StringView 2.75 ns/row  5.36x
-Test E: 散乱, 长 (len=25)  SimpleStr 15.88 ns/row  StringView 2.47 ns/row  6.42x
+                     SimpleStr       StringView    Speedup
+短字符串 (len=8)     14.74 ns/row    2.75 ns/row   5.36x
+长字符串 (len=25)    15.88 ns/row    2.47 ns/row   6.42x
 ```
 
 SimpleStr 散乱场景下每行 ~15ns 基本就是一次 DRAM round-trip. StringView 短字符串不访问 heap, 长字符串只有 ~5% 的行需要 deref (prefix 通过以后才去访问), 所以平均下来接近顺序访问的速度.
@@ -80,12 +83,24 @@ if (tlen <= 12) {
 
 heap 是连续分配的时候, hardware prefetcher 能预测下一次 deref 的目标, 把 cache miss 的代价掩盖掉了. 顺序场景下 SimpleStr 反而比 StringView 略快一点.
 
+N=10M 条字符串, 数据连续分配:
+
 ```
-Test A: 顺序, 短 (len=8)   SimpleStr 3.51 ns/row  StringView 4.08 ns/row  0.86x
-Test B: 顺序, 长 (len=25)  SimpleStr 3.14 ns/row  StringView 3.39 ns/row  0.93x
+                     SimpleStr       StringView    Speedup
+短字符串 (len=8)      3.51 ns/row     4.08 ns/row   0.86x
+长字符串 (len=25)     3.14 ns/row     3.39 ns/row   0.93x
+混合 50/50            5.56 ns/row     4.84 ns/row   1.22x
 ```
 
 但在大多数 column storage 里面, string column 的数据散布在 heap file 里, 还是以随机分布的 column scan 居多, 所以 StringView 的优势是实际成立的.
+
+**一个反直觉的现象**
+
+仔细看两组数字会发现一件奇怪的事: StringView 在随机访问场景下 (2.75 ns/row) 比顺序场景下 (4.08 ns/row) 还要快. 照理说随机访问应该更慢才对.
+
+原因是这两组 benchmark 用的 N 不同. 顺序测试用了 N=10M, struct 数组本身就有 10M × 16B = 160MB, 超过 L3 cache, 必须从 DRAM streaming 读. 随机测试为了让运行时间合理, 用的是 N=1M, struct 数组只有 16MB, warmup 跑完之后就常驻 L3 了.
+
+对短字符串来说, StringView 完全不碰 heap, 所以"散乱"这件事对它毫无影响. 随机测试里 StringView 实际上在做的是: 顺序扫描一个 16MB 的热 L3 数组, 每行 in-struct 比较即结束. 这比顺序测试里 streaming 160MB DRAM 要快.
 
 **编译**
 
@@ -94,3 +109,5 @@ g++ -O3 -std=c++17 -march=native t.cc -o demo
 ```
 
 `-march=native` 让编译器为当前 CPU 启用全部指令集扩展 (AVX2, SSE4.2 等). memcmp 会被向量化. 生成的二进制不可移植.
+
+完整代码见 [Gist](https://gist.github.com/baotiao/76c63ff8cc68ea6881ec423617cfdce0).
