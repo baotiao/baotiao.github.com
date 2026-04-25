@@ -5,7 +5,7 @@ summary: cpu cache tutorial
 
 ---
 
-### cpu cache
+### cpu cache line
 
 reference:
 
