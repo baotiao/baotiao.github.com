@@ -1,30 +1,38 @@
 /*
 
-  Monochrome (black & white) theme for highlight.js
-  Replaces github.css / ssms.css. All languages use the same palette.
+  Vim default-light style for highlight.js
+  Filename kept as mono.css so head.html does not need to change.
+  Mimics vim's default colorscheme on a light terminal:
+    Comment   = blue
+    Statement = brown bold (if, for, return, struct, class, ...)
+    Type      = dark green bold (int, void, bool, size_t, ...)
+    String    = magenta
+    Constant  = red (numbers, true/false/nullptr)
+    PreProc   = purple (#include, #define)
+    Identifier= dark cyan
 
 */
 
-/* Code block container — override Minima's pre background */
+/* Override Minima's purple <pre> background */
 pre,
 pre.highlight {
-  background: #f5f5f5 !important;
-  border: 1px solid #e1e1e1 !important;
+  background: #ffffff !important;
+  border: 1px solid #d0d0d0 !important;
   border-radius: 3px;
   padding: 0.8em 1em;
   overflow-x: auto;
-  color: #1a1a1a;
+  color: #000000;
 }
 
 .hljs {
   display: block;
   overflow-x: auto;
-  color: #1a1a1a;
-  background: #f5f5f5;
+  color: #000000;
+  background: #ffffff;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
-/* Inline code */
+/* Inline code: keep a light grey chip */
 code {
   background: #f0f0f0;
   color: #1a1a1a;
@@ -32,8 +40,6 @@ code {
   border-radius: 3px;
   font-size: 0.9em;
 }
-
-/* Code inside pre: inherit pre's background, no extra padding */
 pre code,
 pre code.hljs {
   background: transparent;
@@ -43,73 +49,92 @@ pre code.hljs {
   font-size: inherit;
 }
 
-/* Comments — light grey, italic */
+/* Comments — blue, italic */
 .hljs-comment,
-.hljs-quote,
-.hljs-meta {
-  color: #8a8a8a;
+.hljs-quote {
+  color: #0000ff;
   font-style: italic;
 }
 
-/* Keywords / control flow — bold black */
+/* Keywords / control flow — brown bold (vim "Statement") */
 .hljs-keyword,
 .hljs-selector-tag,
-.hljs-literal,
 .hljs-section,
-.hljs-doctag,
-.hljs-type,
-.hljs-name,
-.hljs-strong {
-  color: #000;
+.hljs-doctag {
+  color: #a52a2a;
   font-weight: bold;
 }
 
-/* Strings — medium grey */
+/* Types / built-in types — dark green bold (vim "Type") */
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-built_in,
+.hljs-builtin-name {
+  color: #228b22;
+  font-weight: bold;
+}
+
+/* Strings — magenta (vim "String") */
 .hljs-string,
 .hljs-regexp,
 .hljs-symbol,
-.hljs-bullet,
-.hljs-link {
-  color: #555;
+.hljs-bullet {
+  color: #c000c0;
 }
 
-/* Numbers / variables / built-ins — dark grey */
+/* Numbers / literals / constants — red (vim "Constant") */
 .hljs-number,
+.hljs-literal {
+  color: #ff0000;
+}
+
+/* Preprocessor / pragmas — purple (vim "PreProc") */
+.hljs-meta,
+.hljs-meta-keyword,
+.hljs-meta-string {
+  color: #800080;
+}
+
+/* Identifiers / variables — dark cyan (vim "Identifier") */
 .hljs-variable,
 .hljs-template-variable,
-.hljs-built_in,
-.hljs-builtin-name,
 .hljs-attribute,
 .hljs-attr,
-.hljs-tag,
+.hljs-name,
+.hljs-tag {
+  color: #008b8b;
+}
+
+/* Function names / titles — black (vim default for Function in light) */
 .hljs-title,
-.hljs-class .hljs-title,
+.hljs-function .hljs-title,
 .hljs-selector-id,
-.hljs-selector-class,
-.hljs-function,
-.hljs-params {
-  color: #333;
-  font-weight: normal;
-}
-
-.hljs-subst {
-  color: #1a1a1a;
-  font-weight: normal;
-}
-
-/* Diffs — keep readable in mono */
-.hljs-deletion {
-  background: #eee;
-  color: #000;
-  text-decoration: line-through;
-}
-
-.hljs-addition {
-  background: #e8e8e8;
-  color: #000;
+.hljs-selector-class {
+  color: #000000;
   font-weight: bold;
 }
 
-.hljs-emphasis {
-  font-style: italic;
+.hljs-params,
+.hljs-subst {
+  color: #000000;
+  font-weight: normal;
 }
+
+/* Links — underlined dark cyan */
+.hljs-link {
+  color: #008b8b;
+  text-decoration: underline;
+}
+
+/* Diff — keep readable */
+.hljs-deletion {
+  background: #ffe0e0;
+  color: #a00000;
+}
+.hljs-addition {
+  background: #e0ffe0;
+  color: #006400;
+}
+
+.hljs-emphasis { font-style: italic; }
+.hljs-strong   { font-weight: bold; }
