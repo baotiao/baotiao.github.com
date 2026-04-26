@@ -1,0 +1,106 @@
+/*
+
+  Monochrome (black & white) theme for highlight.js
+  Replaces github.css / ssms.css. All languages use the same palette.
+
+*/
+
+.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 0.8em 1em;
+  color: #1a1a1a;
+  background: #f5f5f5;
+  border: 1px solid #e1e1e1;
+  border-radius: 3px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+/* Inline code */
+code {
+  background: #f0f0f0;
+  color: #1a1a1a;
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+pre code,
+pre code.hljs {
+  background: transparent;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+/* Comments — light grey, italic */
+.hljs-comment,
+.hljs-quote,
+.hljs-meta {
+  color: #8a8a8a;
+  font-style: italic;
+}
+
+/* Keywords / control flow — bold black */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-section,
+.hljs-doctag,
+.hljs-type,
+.hljs-name,
+.hljs-strong {
+  color: #000;
+  font-weight: bold;
+}
+
+/* Strings — medium grey */
+.hljs-string,
+.hljs-regexp,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+  color: #555;
+}
+
+/* Numbers / variables / built-ins — dark grey */
+.hljs-number,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-attribute,
+.hljs-attr,
+.hljs-tag,
+.hljs-title,
+.hljs-class .hljs-title,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-function,
+.hljs-params {
+  color: #333;
+  font-weight: normal;
+}
+
+.hljs-subst {
+  color: #1a1a1a;
+  font-weight: normal;
+}
+
+/* Diffs — keep readable in mono */
+.hljs-deletion {
+  background: #eee;
+  color: #000;
+  text-decoration: line-through;
+}
+
+.hljs-addition {
+  background: #e8e8e8;
+  color: #000;
+  font-weight: bold;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
