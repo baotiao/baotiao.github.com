@@ -5,14 +5,22 @@
 
 */
 
+/* Code block container — override Minima's pre background */
+pre,
+pre.highlight {
+  background: #f5f5f5 !important;
+  border: 1px solid #e1e1e1 !important;
+  border-radius: 3px;
+  padding: 0.8em 1em;
+  overflow-x: auto;
+  color: #1a1a1a;
+}
+
 .hljs {
   display: block;
   overflow-x: auto;
-  padding: 0.8em 1em;
   color: #1a1a1a;
   background: #f5f5f5;
-  border: 1px solid #e1e1e1;
-  border-radius: 3px;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
@@ -25,6 +33,7 @@ code {
   font-size: 0.9em;
 }
 
+/* Code inside pre: inherit pre's background, no extra padding */
 pre code,
 pre code.hljs {
   background: transparent;
