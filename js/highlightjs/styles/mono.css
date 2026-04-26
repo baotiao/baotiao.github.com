@@ -1,38 +1,38 @@
 /*
 
-  Vim default-light style for highlight.js
+  Vim default-dark style for highlight.js
   Filename kept as mono.css so head.html does not need to change.
-  Mimics vim's default colorscheme on a light terminal:
-    Comment   = blue
-    Statement = brown bold (if, for, return, struct, class, ...)
-    Type      = dark green bold (int, void, bool, size_t, ...)
-    String    = magenta
-    Constant  = red (numbers, true/false/nullptr)
-    PreProc   = purple (#include, #define)
-    Identifier= dark cyan
+  Mimics vim's default colorscheme on a dark background:
+    Comment   = light blue
+    Statement = yellow (if, for, return, struct, class, ...)
+    Type      = light green (int, void, bool, size_t, ...)
+    String    = light red / salmon
+    Constant  = salmon / magenta (numbers, true/false/nullptr)
+    PreProc   = light magenta (#include, #define)
+    Identifier= cyan
 
 */
 
-/* Override Minima's purple <pre> background */
+/* Code block container — dark, override Minima's purple <pre> background */
 pre,
 pre.highlight {
-  background: #ffffff !important;
-  border: 1px solid #d0d0d0 !important;
+  background: #1e1e1e !important;
+  border: 1px solid #000 !important;
   border-radius: 3px;
   padding: 0.8em 1em;
   overflow-x: auto;
-  color: #000000;
+  color: #e6e6e6;
 }
 
 .hljs {
   display: block;
   overflow-x: auto;
-  color: #000000;
-  background: #ffffff;
+  color: #e6e6e6;
+  background: #1e1e1e;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
-/* Inline code: keep a light grey chip */
+/* Inline code on the (light) page: keep a light grey chip */
 code {
   background: #f0f0f0;
   color: #1a1a1a;
@@ -43,97 +43,98 @@ code {
 pre code,
 pre code.hljs {
   background: transparent;
+  color: #e6e6e6;
   padding: 0;
   border: none;
   border-radius: 0;
   font-size: inherit;
 }
 
-/* Comments — blue, italic */
+/* Comments — light blue, italic */
 .hljs-comment,
 .hljs-quote {
-  color: #0000ff;
+  color: #80a0ff;
   font-style: italic;
 }
 
-/* Keywords / control flow — brown bold (vim "Statement") */
+/* Keywords / control flow — yellow (vim "Statement") */
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-section,
 .hljs-doctag {
-  color: #a52a2a;
+  color: #ffff60;
   font-weight: bold;
 }
 
-/* Types / built-in types — dark green bold (vim "Type") */
+/* Types / built-ins — light green bold (vim "Type") */
 .hljs-type,
 .hljs-class .hljs-title,
 .hljs-built_in,
 .hljs-builtin-name {
-  color: #228b22;
+  color: #60ff60;
   font-weight: bold;
 }
 
-/* Strings — magenta (vim "String") */
+/* Strings — salmon (vim "String") */
 .hljs-string,
 .hljs-regexp,
 .hljs-symbol,
 .hljs-bullet {
-  color: #c000c0;
+  color: #ffa0a0;
 }
 
-/* Numbers / literals / constants — red (vim "Constant") */
+/* Numbers / literals — light red (vim "Constant") */
 .hljs-number,
 .hljs-literal {
-  color: #ff0000;
+  color: #ff8080;
 }
 
-/* Preprocessor / pragmas — purple (vim "PreProc") */
+/* Preprocessor / pragmas — light magenta (vim "PreProc") */
 .hljs-meta,
 .hljs-meta-keyword,
 .hljs-meta-string {
-  color: #800080;
+  color: #ff80ff;
 }
 
-/* Identifiers / variables — dark cyan (vim "Identifier") */
+/* Identifiers / variables / attributes — cyan (vim "Identifier") */
 .hljs-variable,
 .hljs-template-variable,
 .hljs-attribute,
 .hljs-attr,
 .hljs-name,
 .hljs-tag {
-  color: #008b8b;
+  color: #40ffff;
 }
 
-/* Function names / titles — black (vim default for Function in light) */
+/* Function names / titles — white bold */
 .hljs-title,
 .hljs-function .hljs-title,
 .hljs-selector-id,
 .hljs-selector-class {
-  color: #000000;
+  color: #ffffff;
   font-weight: bold;
 }
 
 .hljs-params,
 .hljs-subst {
-  color: #000000;
+  color: #e6e6e6;
   font-weight: normal;
 }
 
-/* Links — underlined dark cyan */
+/* Links — underlined cyan */
 .hljs-link {
-  color: #008b8b;
+  color: #40ffff;
   text-decoration: underline;
 }
 
-/* Diff — keep readable */
+/* Diff */
 .hljs-deletion {
-  background: #ffe0e0;
-  color: #a00000;
+  background: #5a1a1a;
+  color: #ffb0b0;
 }
 .hljs-addition {
-  background: #e0ffe0;
-  color: #006400;
+  background: #1a4a1a;
+  color: #b0ffb0;
 }
 
 .hljs-emphasis { font-style: italic; }
