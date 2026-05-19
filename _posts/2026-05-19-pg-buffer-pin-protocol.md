@@ -1,14 +1,14 @@
 ---
 
 layout: post
-title: PostgreSQL Buffer Manager 的 Pin 协议 5 Rules
-summary: src/backend/storage/buffer/README 里的五条 buffer access rules 是 PG 并发协议的基本要求. autovacuum 卡住 / hint bit 写放大 / FPW 跟 hint bit 的交互这些现象都是这个设计下出现的结果.
+title: PostgreSQL Buffer Access 5 Rules
+summary: src/backend/storage/buffer/README 里的五条 buffer access rules 是 PG 并发协议的基本要求.
 
 ---
 
 `src/backend/storage/buffer/README` 是 PG 社区维护 buffer manager 的官方设计文档. 它在开头列了 5 条 buffer access rules, 提 patch / review 时直接引用. 这 5 条规则合起来定义了 PG 的 Pin 协议, 也是 PG 和 InnoDB buffer manager 设计上**真正分叉**的地方.
 
-读懂这 5 条规则, PG 各种看起来怪异的现象 (autovacuum 进度被卡, hint bit 引起的写放大, FPW 跟 hint bit 的交互, BTree scan 的 kill_prior_tuple 优化等等) 都能从协议层推导出来.
+
 
 #### 同步原语先看清楚
 
