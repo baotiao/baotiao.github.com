@@ -1,3 +1,11 @@
+/* ===== 字体栈 ===== */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-serif: Charter, Georgia, Cambria, "Songti SC", "Noto Serif CJK SC",
+    "Source Han Serif SC", STSong, SimSun, serif;
+}
+
 hr {
   margin-top: 30px;
   margin-bottom: 20px;
@@ -44,7 +52,61 @@ hr {
   opacity: 0.3;
 }
 
-/* ===== Medium 风格阅读排版 ===== */
+/* ===== 站点头部 ===== */
+.site-title,
+.site-title:visited {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  color: #242424;
+}
+
+/* ===== 首页文章列表 — Medium 风格 ===== */
+.home .post-list-heading {
+  font-family: var(--font-sans);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #242424;
+}
+
+.home .post-list {
+  margin-left: 0;
+  list-style: none;
+}
+
+.home .post-list > li {
+  padding: 26px 0;
+  margin-bottom: 0;
+  border-bottom: 1px solid #ececec;
+}
+
+.home .post-list .post-meta {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: #6b6b6b;
+}
+
+.home .post-link {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  color: #242424;
+  margin-top: 4px;
+}
+
+.home .post-link:hover {
+  color: #1a8917;
+  text-decoration: none;
+}
+
+.home .rss-subscribe {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+}
+
+/* ===== 文章页 + Archive 页 (都用 .post / .post-content) ===== */
 
 /* 收窄正文列宽并居中, 接近 Medium 的 680-720px 阅读栏 */
 .post {
@@ -53,10 +115,9 @@ hr {
   margin-right: auto;
 }
 
-/* 文章标题 */
+/* 标题 */
 .post-title {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-sans);
   font-size: 2.6rem;
   line-height: 1.25;
   font-weight: 700;
@@ -66,16 +127,14 @@ hr {
 }
 
 .post-meta {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-sans);
   color: #6b6b6b;
   font-size: 0.9rem;
 }
 
 /* 正文 — Medium 风格衬线字体 + 宽松行距 */
 .post-content {
-  font-family: Charter, Georgia, Cambria, "Songti SC", "Noto Serif CJK SC",
-    "Source Han Serif SC", STSong, SimSun, serif;
+  font-family: var(--font-serif);
   font-size: 20px;
   line-height: 1.75;
   color: #292929;
@@ -104,8 +163,7 @@ hr {
 .post-content h4,
 .post-content h5,
 .post-content h6 {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-sans);
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: -0.02em;
@@ -130,6 +188,15 @@ hr {
 /* 链接 — Medium 风格下划线 */
 .post-content a {
   color: #292929;
+  text-decoration: underline;
+}
+
+/* Archive 页链接 — 不加下划线, hover 时才出现 */
+.archive a {
+  text-decoration: none;
+}
+
+.archive a:hover {
   text-decoration: underline;
 }
 
@@ -175,5 +242,8 @@ hr {
   }
   .post-title {
     font-size: 2rem;
+  }
+  .home .post-link {
+    font-size: 1.3rem;
   }
 }
