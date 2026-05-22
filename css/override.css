@@ -43,3 +43,137 @@ hr {
   font-size: 2.5em;
   opacity: 0.3;
 }
+
+/* ===== Medium 风格阅读排版 ===== */
+
+/* 收窄正文列宽并居中, 接近 Medium 的 680-720px 阅读栏 */
+.post {
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 文章标题 */
+.post-title {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 2.6rem;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  color: #242424;
+  margin-bottom: 0.3em;
+}
+
+.post-meta {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  color: #6b6b6b;
+  font-size: 0.9rem;
+}
+
+/* 正文 — Medium 风格衬线字体 + 宽松行距 */
+.post-content {
+  font-family: Charter, Georgia, Cambria, "Songti SC", "Noto Serif CJK SC",
+    "Source Han Serif SC", STSong, SimSun, serif;
+  font-size: 20px;
+  line-height: 1.75;
+  color: #292929;
+  letter-spacing: -0.003em;
+}
+
+.post-content p {
+  margin-top: 0;
+  margin-bottom: 1.6em;
+}
+
+.post-content ul,
+.post-content ol {
+  margin-bottom: 1.6em;
+  line-height: 1.75;
+}
+
+.post-content li {
+  margin-bottom: 0.4em;
+}
+
+/* 章节标题 — 无衬线, 跟衬线正文区分开 */
+.post-content h1,
+.post-content h2,
+.post-content h3,
+.post-content h4,
+.post-content h5,
+.post-content h6 {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  color: #242424;
+  margin-top: 2em;
+  margin-bottom: 0.6em;
+}
+
+.post-content h1 { font-size: 1.9rem; }
+.post-content h2 { font-size: 1.65rem; }
+.post-content h3 { font-size: 1.5rem; }
+.post-content h4 { font-size: 1.45rem; }
+.post-content h5 { font-size: 1.15rem; }
+.post-content h6 { font-size: 1rem; }
+
+/* 加粗 (文章里用作子标题) */
+.post-content strong {
+  font-weight: 700;
+  color: #242424;
+}
+
+/* 链接 — Medium 风格下划线 */
+.post-content a {
+  color: #292929;
+  text-decoration: underline;
+}
+
+/* 引用块 */
+.post-content blockquote {
+  border-left: 3px solid #292929;
+  padding-left: 1.2em;
+  margin-left: 0;
+  color: #5c5c5c;
+  font-style: normal;
+}
+
+.post-content blockquote p {
+  margin-bottom: 0.8em;
+}
+
+/* 代码 — 等宽字体 */
+.post-content pre,
+.post-content code {
+  font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, "Courier New",
+    monospace;
+}
+
+.post-content pre {
+  font-size: 15px;
+  line-height: 1.5;
+  background: #f7f7f7;
+  border-radius: 4px;
+  padding: 16px 18px;
+  letter-spacing: 0;
+}
+
+/* 表格 */
+.post-content table {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* 移动端 */
+@media screen and (max-width: 760px) {
+  .post-content {
+    font-size: 18px;
+  }
+  .post-title {
+    font-size: 2rem;
+  }
+}
