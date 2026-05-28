@@ -268,23 +268,11 @@ BM_PIN_COUNT_WAITER 这个 flag 是 BufferDesc.state 里的一个 bit, 在 buffe
 - Content lock = 短同步: 持有时间只覆盖一次字节级读写, 用于保护字节一致性
 - Cleanup lock = 短同步 + 长引用确认: vacuum 这种偶尔做的重活才用, 需要等所有长引用退出
 
-#### InnoDB 对比
+#### 
 
-InnoDB 也有 pin — 就是 buf_fix_count, 也大量用裸指针 (rec_t 直接指向 frame). 真正的区别是裸指针的有效期: InnoDB 的裸指针只在持 page latch 期间有效, latch 一放 (mtr_commit) 就可能失效; PG 的裸指针在持 Pin 期间一直有效, 即使 content lock 已经释放. InnoDB 没有 "Pin 独立于 latch 提供位置稳定" 这个能力, 所以跨 mtr 的位置保留必须靠 persistent cursor — btr_pcur_store_position 存逻辑身份 (key + modify_clock), btr_pcur_restore_position 重新搜或乐观校验.
+顺便提一下, InnoDB 也有 pin — 就是 io_fix, buf_fix_count, 也大量用裸指针 (rec_t 直接指向 frame). 但是并没有约束在持有 buf_fix_count 期间不让 record/tuple 位置发生偏移这个约束
 
-两条路线代价方向相反:
 
-| | PG | InnoDB |
-|---|---|---|
-| 裸指针有效期 | 持 Pin 期间有效, 可跨 content lock 释放 | 仅持 page latch 期间有效 |
-| 跨同步原语周期保留位置 | 隐式, 持 Pin 即可 | 显式 pcur store + restore |
-| Reader 路径开销 | 0 重搜 | 每次 restore 一次 modify_clock 校验, 失败时全树重搜 |
-| page 内物理整理 | 单 page 上跟 pin 争 cleanup lock | 不受 reader 阻塞 (X latch 直接拿) |
-| 实现复杂度 | cleanup lock + BM_PIN_COUNT_WAITER 唤醒机制 | pcur 5 种 enum + 乐观/悲观分支 + modify_clock |
-
-PG 选择把复杂度集中在 buffer manager 这一层 (cleanup lock 协议), 换上层 executor 用裸指针的简洁; InnoDB 选择 buffer manager 简单 (buf_fix_count 只防 evict), 把跨原语的位置管理推到 cursor 这一层.
-
-两条路都自洽. 体感差异: PG 里只持 pin 的 reader 会跟 vacuum 在那个 page 上争 cleanup lock, 推迟该 page 的物理整理; InnoDB 的 buf_fix 不挡 btr_page_reorganize, 没有这种情况.
 
 #### 总结
 
@@ -295,4 +283,3 @@ PG 这 5 条 buffer access rules 是它整个并发协议的基本要求. vacuum
 1. Pin 和 content lock 是独立的两个原语, 可以脱钩, "pin 不持 lock" 是 OLTP 主流状态而非边缘情况
 2. Rule 2 把 "pin 期间 tuple 位置稳定" 作为契约暴露给上层, Rule 5 通过 cleanup lock 兑现这个契约, 让 executor 可以用裸指针访问 buffer 内字节
 
-这套设计跟 InnoDB 走的是不同路线 — PG 在 buffer manager 这一层多做了 cleanup lock 这套复杂度, 换上层 executor 几乎零拷贝的指针传递; InnoDB 在 buffer manager 这一层保持简单, 把跨原语的位置管理推给 cursor 这一层显式处理. 两套都自洽, 各有代价, 体感上最大的差异是 PG 的 reader 会在 page 级跟 vacuum 争 cleanup lock, InnoDB 没有这种 page 内整理被读者挡住的情况.
