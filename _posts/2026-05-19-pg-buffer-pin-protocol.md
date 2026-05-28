@@ -250,25 +250,7 @@ BM_PIN_COUNT_WAITER 这个 flag 是 BufferDesc.state 里的一个 bit, 在 buffe
 
 只有 LockBufferForCleanup 这个阻塞版本会用到 single-waiter slot, conditional 版本根本不挂 waiter 直接返回 false. 所以 single-waiter 真正限制的是 "谁能阻塞等待", 不是 "谁能尝试 cleanup".
 
-#### 5 条规则整体串起来
 
-把它们按 "什么时候用什么原语" 组织:
-
-| 场景 | 需要 | 来自规则 |
-|---|---|---|
-| 读 tuple 内容 (含 visibility check) | Pin + shared content lock | Rule 1 |
-| 读完 tuple 之后只想留住指针 | 只需 Pin (释放 content lock) | Rule 2 |
-| 写 tuple header 多字段 (xmin/xmax/HOT 标志) | Pin + exclusive content lock | Rule 3 |
-| 只置位 4 个特定 hint bit | Pin + shared content lock | Rule 4 (Rule 3 的特例放宽) |
-| 物理整理 page (HOT prune / vacuum / defrag) | Pin + exclusive content lock + refcount = 1 | Rule 5 |
-
-设计精髓是让 "短同步" 和 "长引用" 分离:
-
-- Pin = 长引用: 持有时间跨整个 query 也行, 用于保护 tuple 物理稳定
-- Content lock = 短同步: 持有时间只覆盖一次字节级读写, 用于保护字节一致性
-- Cleanup lock = 短同步 + 长引用确认: vacuum 这种偶尔做的重活才用, 需要等所有长引用退出
-
-#### 
 
 顺便提一下, InnoDB 也有 pin — 就是 io_fix, buf_fix_count, 也大量用裸指针 (rec_t 直接指向 frame). 但是并没有约束在持有 buf_fix_count 期间不让 record/tuple 位置发生偏移这个约束
 
