@@ -15,7 +15,7 @@ InnoDB 启动的时候主要做的事情就是将redo log 里面, checkpoint 之
 
 
 
-InnoDB 在Parse Redo log 以后, 会把对应的page 放入到hash table 中, 等待后台线程将hash table 中的数据进行apply 到buffer pool. 这一个步骤需要将数据中Disk 中读取出来, 然后和hask table 中的数据进行Merge, 然后写入到buffer.  InnoDB 在奔溃恢复的过程中, 并不需要等到这些hash table 中的数据都apply 到disk 才能提供服务, 而是提供了一个变量 recv_recovery_on. 
+InnoDB 在Parse Redo log 以后, 会把对应的page 放入到hash table 中, 等待后台线程将hash table 中的数据进行apply 到buffer pool. 这一个步骤需要将数据中Disk 中读取出来, 然后和内存中parsed buffer(以 hash table 格式存储) 中的数据进行Merge, 然后写入到buffer pool page 中.  InnoDB 在奔溃恢复的过程中, 并不需要等到这些hash table 中的数据都apply 到disk 才能提供服务, 而是提供了一个变量 recv_recovery_on. 
 
 如果 recv_recovery_on = true, 那么在IO 去读取这个page 的时候, InnoDB 知道此刻disk 中的数据不是最新的, 会把对应的disk page 取出来然后和hash table 中的数据进行merge, 然后才能获得最新的page 数据.
 
@@ -45,8 +45,12 @@ buf_read_page_low() =>
 
 **总结:**
 
-为什么InnoDB 要做这么细节的优化呢?
+但是目前官方的版本是 apply redo完才可以提供服务，并不是在 parse redo 完就对外提供服务的。
 
-因为apply redo log 的过程需要从Disk 中读取数据并且和hash table 中的数据进行Merge 才行, 这一步需要大量的随机磁盘IO, 而前面redo log scan 和 parse 都其实只需要顺序的磁盘IO, 因此速度是很快的. InnoDB 为了加快奔溃恢复的过程, 尽可能快的对外提供服务, 因此就不等apply redo log 完成就对外提供服务了, 只不过如果读取到的page 在hash table 中, 还没有和disk 中Page merge, 还是需要等待的
+其实理论上，如果在 parse redo 完成就提供服务，是可以更早地对外提供服务的。
 
+之前也和官方讨论过这个问题，官方希望的是尽早把 redo apply 的流程做完，如果 redo 有问题，尽早把问题暴露出来，而不是等到 I/O 路径上具体读到某一个 page、再把该 page 对应的 redo apply 到 page 上时才暴露问题。所以官方其实希望在 crash recovery 的恢复阶段，就把 redo 的 apply 做得干干净净，再对外提供服务。
 
+但是，如果这里在 parse 完就可以提供服务，理论上会更快。因为在整个流程中，scan redo log 和 parse redo log 的阶段都只需要顺序读取磁盘就够了，而 apply redo log 才是最消耗时间的阶段。
+
+而且，既然事务的回滚已经放在了后台慢慢做，那我理解，理论上 apply 应该也可以放在后台做，这样就能尽快地对外提供服务了。
