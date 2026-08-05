@@ -1,7 +1,7 @@
 ---
 
 layout: post
-title: CloudJump III: Optimizing Cloud Databases for Tiered Storage
+title: CloudJump III\: Optimizing Cloud Databases for Tiered Storage(SIGMOD 2026)
 summary: 如何让数据库真正利用好这个层级结构, 把热数据放在快的介质上, 把冷数据放在便宜的介质上, 同时保证性能稳定且不牺牲正确性, 这就是 CloudJump III 要回答的问题.
 ---
 
