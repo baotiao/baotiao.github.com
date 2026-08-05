@@ -94,7 +94,7 @@ OSS Buffer 的职责是把数据库的页级写入转换成对象存储友好的
 
 #### 快照版本与零停机备份
 
-![image-20260805165812162](../Library/Application Support/typora-user-images/image-20260805165812162.png)
+![image-20260805165812162](https://raw.githubusercontent.com/baotiao/bb/main/uPic/image-20260805165812162.png)
 
 分层之后, 备份和恢复的正确性是最容易被忽视也最容易出问题的地方.
 
