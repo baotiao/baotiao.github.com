@@ -1,23 +1,25 @@
 ---
 
 layout: post
-title: MySQL, PostgreSQL 和 DuckDB 的行定位
-summary: InnoDB 按主键查找记录, PostgreSQL 通过tid定位 tuple, DuckDB 通过rowid定位列值. 这些引用方式决定了 page 整理, 删除空间回收和索引维护的范围.
+title: MySQL, PostgreSQL 和 DuckDB 的 record 定位对比
+summary: InnoDB 按主键查找记录, PostgreSQL 通过tid定位 tuple, DuckDB 通过rowid 定位列值. 这些引用方式决定了 page 整理, 删除空间回收和索引维护的方式.
 
 ---
 
-InnoDB 的二级索引通过主键回表. PostgreSQL 的 heap 索引引用 tid 包含 block number和line pointer, DuckDB 的 ART 引用表内row. 三种引擎在 page 整理时, 要维护各自的行引用和实际记录之间的对应关系.
+InnoDB 的二级索引通过主键回表, 然后通过主键 id 从 page 中查找,  PostgreSQL 在 breee 中记录 tid, 拿到 tid 只有用 tid (block number和line pointer) 在 heap table 查找, DuckDB 的 ART 记录了 rowid, 然后通过 rowid 在 rowgroups 中找到对应的 row 内容.
+
+三种引擎在 page 整理时, 要维护各自的行引用(pkid/tid/rowid) 和实际记录之间的对应关系.
 
 #### InnoDB 的主键
 
-以有显式主键的表为例, 主键 B-tree 的叶子页存的就是主键记录. 内部节点用子页号向下路由. 到了叶子页, page_cur_search_with_match 先在 page directory 上二分, 再沿候选记录链比较主键.
+以有主键的表为例, 主键 B-tree 的叶子页存的就是主键记录. 内部节点用子页号向下路由. 到了叶子页, page_cur_search_with_match 先在 page directory 上二分, 再沿候选记录链比较主键.
 
 ```text
 主键查询     主键 → primary key B-tree → 叶子页内按主键查找 → record
 二级索引查询 二级键 → 二级索引记录里的主键 → primary key B-tree → record
 ```
 
-页内整理维护页目录, 记录链和相关的记录锁. 页分裂时, 记录可以搬到另一个页, B-tree 会更新路由. 主键保持原值时, 二级索引可以用同一个键找到搬过的记录.
+页内整理维护page directory, 记录链和相关的记录锁. 页分裂时, 记录可以搬到另一个页, B-tree 会更新路由. 主键保持原值时, 二级索引可以用同一个键找到搬过的记录.
 
 InnoDB 可以用主键或合适的唯一非空键组织btree. 表里没有合适的键时, InnoDB 生成一个 6 字节的隐藏 DB_ROW_ID 作为主键. [InnoDB 的主键索引与二级索引](https://dev.mysql.com/doc/refman/8.4/en/innodb-index-types.html)
 
@@ -41,9 +43,9 @@ INSERT 可以复用中间的空槽和页内空闲字节. 槽号为 1, 2, 3 的�
 普通 VACUUM 可以整理页内的 tuple 字节, 存活 tuple 仍使用原来的 TID. VACUUM FULL 持有目标表的 AccessExclusiveLock, 把存活行写到新的 heap, 再为新 TID 重建索引. [PostgreSQL VACUUM](https://www.postgresql.org/docs/current/routine-vacuuming.html)
 
 
-这里很容易有一个问题, PostgreSQL 为什么不像 InnoDB 一样, 指向 page 就够了, 然后再 page 里面查找, 而需要一个 line pointer slot, 这样如果我对这个 page 做整理, 删除掉一些 page 里面的 record 以后, 这些 line pointer slot 顺序改变了以后, 这些 tid 也就也需要跟着修改了. 这样成本不是很大么? 并且这些 line pointer slot 永久都不能删除呢?
+这里很容易有一个问题, PostgreSQL 为什么不像 InnoDB 一样, 指向 page 就够了, 然后再 page 里面查找, 而需要一个 line pointer slot, 这样如果我对这个 page 做整理, 删除掉一些 page 里面的 record 以后, 这些 line pointer slot 顺序改变了以后, 这些 tid 也就也需要跟着修改了. 那么所有的二级索引就都需要修改了, 并且这些没用的 line pointer slot 永久都不能删除, 因为如果删除了没用的 line pointer slot, 那么顺序就改变了.
 
-本质还是 pg 上面类似都是二级索引, 所以如果跳转到 heap 页上面需要遍历所有的 record 才可以找到匹配的, 而 mysql 是 pk 索引, 二级索引也是通过主键找到 pk, 然后再通过 pk 找对应的 record 的,  这样就不需要存具体位置, 因为已经按照 pk 排好序了.
+本质还是 pg 上面类似都是二级索引, 所以如果跳转到 heap 页上面需要遍历所有的 record 才可以找到匹配的. 而 mysql 是 pk 索引, 二级索引也是通过主键找到 pk, 然后再通过 pk 找对应的 record 的,  这样就不需要存具体位置, 因为已经按照 pk 排好序了.
 
 #### DuckDB 的 rowid
 
@@ -64,7 +66,7 @@ ART(key) → rowid → 找覆盖该编号的 RowGroup
 
 UPDATE, DELETE 和 late materialization 都用 rowid 定位行. WAL 的删除和更新记录也带 rowid, 重放时用它找到目标位置. [WAL 写入源码](https://github.com/duckdb/duckdb/blob/d54cbbe3df17e8e5ce68312f483b4155836112aa/src/storage/write_ahead_log.cpp#L515-L535)
 
-#### DuckDB 的 page 整理
+#### DuckDB 的 RowGroup 整理
 
 DuckDB 的 DELETE 在 RowGroup 的版本信息里标记删除. 普通 INSERT 按 next_row_id 从表尾追加. 原有 rowid 为 0, 1, 2 时, 删除 1 再插入一行, 新行拿到 3, 表里可见的 rowid 为 0, 2, 3. 删除位置继续留在原组中. [追加位置的分配](https://github.com/duckdb/duckdb/blob/d54cbbe3df17e8e5ce68312f483b4155836112aa/src/storage/data_table.cpp#L1055-L1064)
 
@@ -75,7 +77,5 @@ DuckDB 通过 RowGroup 合并重写清理这些删除位置. Checkpoint 根据�
 合并移除删除位置以后, 部分存活行可能得到新的行序号. 如果索引采用 REMAP 策略, DuckDB 收集实际改了编号的行, 对每个索引先删除旧 (key, rowid), 再插入新的引用. 其他策略可以重建索引, 或保留行编号并限制会改号的整理. [ART remap 源码](https://github.com/duckdb/duckdb/blob/d54cbbe3df17e8e5ce68312f483b4155836112aa/src/storage/index_entry.cpp#L439-L454)
 这也是在 DuckDB 里面如果有了 ART 索引以后, rowgroups 的整理就需要考虑对应的ART 指向的 rowid 也要修改了.
 
-
 其实这里的设计和 PostgreSQL 是很像的, PostgreSQL 里面用 tid 指向 heap page 上的 heap number 和 line pointer, 区别的地方在于 PostgreSQL 在 page 整理的时候, 如果这个record 在这个 page 上面没有被删除, 那么它的 tid 是一直不会变的, 被删除的空间在经过 vacuum 以后会留给后续的写入复用, 所以上面对应的 index 就都不需要修改.
 但是 DuckDB 的 checkpoint 的时候, 是有可能把相邻的 rowgroup 进行合并的, 那么合并以后这个记录所在的 rowid 就发生了变化了, 那么 ART Index 就必须跟着修改了.
-
